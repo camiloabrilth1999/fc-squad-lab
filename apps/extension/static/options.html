@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>FC Squad Lab — Opciones</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 520px; margin: 24px auto; }
+      label { display: block; margin: 12px 0 4px; font-weight: 600; }
+      input[type="text"], input[type="password"] { width: 100%; padding: 6px; box-sizing: border-box; }
+      .row { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+      #status { margin-top: 12px; min-height: 1.2em; }
+      .err { color: #b00020; }
+      dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>FC Squad Lab — Importar</h1>
+    <p>Extensión de solo lectura: observa lo que la web app de EA ya recibe y lo envía a tu API local.</p>
+    <label for="apiUrl">URL del API</label>
+    <input id="apiUrl" type="text" placeholder="http://localhost:8787" />
+    <label for="token">Token de importación</label>
+    <input id="token" type="password" autocomplete="off" />
+    <label><input id="rawMode" type="checkbox" /> Modo muestras (guarda respuestas crudas de /ut/game/ para depurar)</label>
+    <div class="row">
+      <button id="save">Guardar</button>
+      <button id="test">Probar conexión</button>
+    </div>
+    <div id="status" role="status"></div>
+    <h2>Contadores</h2>
+    <dl id="stats"></dl>
+    <script src="options.js"></script>
+  </body>
+</html>

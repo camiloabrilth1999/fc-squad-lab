@@ -5,3 +5,4 @@ node_modules/
 .env
 .superpowers/
 apps/api/var/
+apps/extension/dist/

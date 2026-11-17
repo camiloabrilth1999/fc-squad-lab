@@ -1,6 +1,13 @@
 check:
 	cd apps/api && uv run ruff check . && uv run ruff format --check . && uv run pytest
 	cd apps/web && npm run lint && npm test
+	cd apps/extension && npm run lint && npm test
+
+ext-build:
+	cd apps/extension && npm run build
+
+ext-test:
+	cd apps/extension && npm test
 
 api-test:
 	cd apps/api && uv run pytest
@@ -29,4 +36,4 @@ sync-prices:
 data-status:
 	cd apps/api && uv run python -m fcsl_api.ingest status
 
-.PHONY: check api-test api-dev db-start db-stop db-migrate sync-cards sync-prices data-status
+.PHONY: check ext-build ext-test api-test api-dev db-start db-stop db-migrate sync-cards sync-prices data-status

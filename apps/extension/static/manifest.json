@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "FC Squad Lab — Importar",
+  "version": "0.1.0",
+  "description": "Observa de forma pasiva lo que la web app de EA FC ya recibe y lo envía a tu API local. Solo lectura.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "optional_host_permissions": ["http://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.ea.com/*ea-sports-fc/ultimate-team/web-app/*"],
+      "js": ["page-hook.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.ea.com/*ea-sports-fc/ultimate-team/web-app/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html"
+}
