@@ -16,6 +16,8 @@ class SbcModel:
     x: dict[tuple[int, int], cp_model.IntVar]  # (carta, hueco) -> 0/1, solo si es elegible
     used: list[cp_model.IntVar]  # used[c] = Σ_s x[c, s]
     sum_rating: cp_model.IntVar  # Σ rating·used
+    # e_c = max(0, n·rating_c·used_c − sum_rating); se crean bajo demanda (TEAM_RATING).
+    rating_excess: list[cp_model.IntVar] | None = None
 
 
 def eligibility_problem(cards: list[Card], slots: list[Position]) -> str | None:
