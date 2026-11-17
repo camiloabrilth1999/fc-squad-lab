@@ -37,7 +37,10 @@ def test_migration_creates_tables():
         env = {**os.environ, "DATABASE_URL": test_url.render_as_string(hide_password=False)}
         subprocess.run(
             ["uv", "run", "alembic", "upgrade", "head"],
-            cwd=API_DIR, env=env, check=True, capture_output=True,
+            cwd=API_DIR,
+            env=env,
+            check=True,
+            capture_output=True,
         )
         engine = create_engine(test_url)
         try:

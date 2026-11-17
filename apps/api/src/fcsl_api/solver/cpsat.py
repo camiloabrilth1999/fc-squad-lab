@@ -299,9 +299,7 @@ def solve_model(
             restricted = _restricted_phase(m, coef, budget)
             if restricted is not None:
                 _set_hint(m.model, restricted[1])
-    status, objective, values = _run_solver(
-        m.model, time_limit_s - (time.perf_counter() - start)
-    )
+    status, objective, values = _run_solver(m.model, time_limit_s - (time.perf_counter() - start))
     elapsed = time.perf_counter() - start
 
     if status == cp_model.MODEL_INVALID:

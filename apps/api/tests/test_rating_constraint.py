@@ -131,9 +131,7 @@ def _random_pool(rng, size):
     specs = []
     for _ in range(size):
         rating = rng.randint(60, 92)
-        specs.append(
-            {"rating": rating, "positions": rng.sample(positions, rng.randint(1, 2))}
-        )
+        specs.append({"rating": rating, "positions": rng.sample(positions, rng.randint(1, 2))})
     cards = _cards(specs)
     # Coste correlacionado con la media (con ruido) para que el objetivo importe.
     costs = [max(1, (c.rating - 55) ** 2 + rng.randint(-50, 50)) for c in cards]
@@ -141,9 +139,9 @@ def _random_pool(rng, size):
 
 
 CHECKS = {
-    "min": lambda t: (lambda chosen: team_rating([c.rating for c in chosen]) >= t),
-    "max": lambda t: (lambda chosen: team_rating([c.rating for c in chosen]) <= t),
-    "exact": lambda t: (lambda chosen: team_rating([c.rating for c in chosen]) == t),
+    "min": lambda t: lambda chosen: team_rating([c.rating for c in chosen]) >= t,
+    "max": lambda t: lambda chosen: team_rating([c.rating for c in chosen]) <= t,
+    "exact": lambda t: lambda chosen: team_rating([c.rating for c in chosen]) == t,
 }
 
 

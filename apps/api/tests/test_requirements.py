@@ -81,9 +81,7 @@ def check_rare(op, value):
 
 
 def check_tag(tags, op, value):
-    return lambda chosen: OPS[op](
-        sum(any(t in c.rarity_tags for t in tags) for c in chosen), value
-    )
+    return lambda chosen: OPS[op](sum(any(t in c.rarity_tags for t in tags) for c in chosen), value)
 
 
 # --- *_PLAYERS ---
@@ -393,8 +391,19 @@ SLOTS_442 = ["GK", "LB", "CB", "CB", "RB", "LM", "CM", "CM", "RM", "ST", "ST"]
 
 
 PRICE_BY_RATING = {
-    78: 700, 79: 900, 80: 1200, 81: 1800, 82: 2600, 83: 4000, 84: 6000,
-    85: 9000, 86: 13000, 87: 19000, 88: 27000, 89: 38000, 90: 52000,
+    78: 700,
+    79: 900,
+    80: 1200,
+    81: 1800,
+    82: 2600,
+    83: 4000,
+    84: 6000,
+    85: 9000,
+    86: 13000,
+    87: 19000,
+    88: 27000,
+    89: 38000,
+    90: 52000,
 }
 
 

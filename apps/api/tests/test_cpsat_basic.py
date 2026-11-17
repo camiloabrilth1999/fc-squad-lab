@@ -28,9 +28,7 @@ def test_fills_every_slot():
 
 
 def test_respects_positions():
-    cards = _cards(
-        [{"positions": ["CM"]}, {"positions": ["GK"]}, {"positions": ["CM"]}]
-    )
+    cards = _cards([{"positions": ["CM"]}, {"positions": ["GK"]}, {"positions": ["CM"]}])
     status, assignments, _ = _solve(cards, ["GK", "CM"], [1, 500, 1])
     assert status == "optimal"
     assert assignments[0].card_id == "market:2"

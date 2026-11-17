@@ -55,9 +55,7 @@ def _distinct(i, **spec):
 
 def test_team_chem_min():
     # 3 del mismo club/liga/nación (caros) frente a 4 sueltos (baratos).
-    specs = [{"club_id": 1, "league_id": 1, "nation_id": 1}] * 3 + [
-        _distinct(i) for i in range(4)
-    ]
+    specs = [{"club_id": 1, "league_id": 1, "nation_id": 1}] * 3 + [_distinct(i) for i in range(4)]
     cards = _cards(specs)
     costs = [50, 50, 50, 1, 1, 1, 1]
     status, chosen, _ = _solve(cards, ["CM"] * 3, costs, [_team("min", 7)])
@@ -68,9 +66,7 @@ def test_team_chem_min():
 @pytest.mark.parametrize("op", ["max", "exact"])
 def test_team_chem_max_and_exact(op):
     # Los vinculados son baratos: sin la cota el solver tomaría química 9.
-    specs = [{"club_id": 1, "league_id": 1, "nation_id": 1}] * 3 + [
-        _distinct(i) for i in range(4)
-    ]
+    specs = [{"club_id": 1, "league_id": 1, "nation_id": 1}] * 3 + [_distinct(i) for i in range(4)]
     cards = _cards(specs)
     costs = [1, 1, 1, 50, 50, 50, 50]
     status, chosen, _ = _solve(cards, ["CM"] * 3, costs, [_team(op, 4)])
@@ -88,9 +84,7 @@ def test_team_chem_infeasible():
 
 def test_player_chem_min():
     # Pareja club+nación (2 cada uno) cara; sueltos baratos con 0.
-    specs = [{"club_id": 1, "league_id": 1, "nation_id": 1}] * 2 + [
-        _distinct(i) for i in range(3)
-    ]
+    specs = [{"club_id": 1, "league_id": 1, "nation_id": 1}] * 2 + [_distinct(i) for i in range(3)]
     cards = _cards(specs)
     status, chosen, _ = _solve(cards, ["CM"] * 2, [40, 40, 1, 1, 1], [_player(2)])
     assert status == "optimal"
@@ -247,8 +241,7 @@ def test_chem_matches_bruteforce(seed):
     positions = ["GK", "CB", "CM", "ST"]
     cards = _random_chem_pool(rng, 8)
     cards = [
-        c.model_copy(update={"positions": rng.sample(positions, rng.randint(1, 3))})
-        for c in cards
+        c.model_copy(update={"positions": rng.sample(positions, rng.randint(1, 3))}) for c in cards
     ]
     slots = ["GK", "CB", "CM", "ST"]
     costs = [rng.randint(1, 100) for _ in cards]

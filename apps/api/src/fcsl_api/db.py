@@ -9,9 +9,7 @@ _engines: dict[str, Engine] = {}
 def get_engine() -> Engine:
     url = get_settings().database_url
     if url not in _engines:
-        _engines[url] = create_engine(
-            url, pool_pre_ping=True, connect_args={"connect_timeout": 2}
-        )
+        _engines[url] = create_engine(url, pool_pre_ping=True, connect_args={"connect_timeout": 2})
     return _engines[url]
 
 

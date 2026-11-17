@@ -40,3 +40,6 @@ filterwarnings = [
     # Starlette's TestClient prefers httpx2; httpx still works. Revisit when upgrading.
     "ignore:Using `httpx` with `starlette.testclient` is deprecated",
 ]
+
+[tool.ruff]
+line-length = 100
