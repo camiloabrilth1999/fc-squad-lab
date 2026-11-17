@@ -14,8 +14,8 @@ PLAYERS_PATH = "/api/fut/players/v2/27/"
 API_CAP = 10_000  # tope de resultados que la API entrega por consulta
 
 # Filtros de rango de media para particionar cuando `total` llega al tope.
-# PENDIENTE: no verificados contra la API real; la primera ejecución real (Task 3)
-# debe confirmar los nombres (y RATING_MIN/MAX) y corregirlos aquí si difieren.
+# Verificado contra la API real (2026-11-17): overall__gte=40&overall__lte=54 devuelve
+# total=828 con overall 53-54 en la página 1 (sin filtro: total=10000 topado).
 RATING_FILTER_PARAMS = ("overall__gte", "overall__lte")
 RATING_MIN = 40
 RATING_MAX = 99
