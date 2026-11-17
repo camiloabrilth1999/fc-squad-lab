@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import db
+from .routes.club import router as club_router
 from .routes.imports import router as imports_router
 from .routes.solve import router as solve_router
 
@@ -16,6 +17,7 @@ app.add_middleware(
 
 app.include_router(solve_router)
 app.include_router(imports_router)
+app.include_router(club_router)
 
 
 @app.get("/health")
