@@ -15,6 +15,9 @@ from fcsl_api.settings import Settings
 API_DIR = Path(__file__).resolve().parents[1]
 FIXTURE_DB = "fcsl_test_fixture"
 
+# Los tests no leen el apps/api/.env real (token, DATABASE_URL…): solo el entorno.
+Settings.model_config["env_file"] = None
+
 
 @pytest.fixture(scope="session")
 def test_db_session() -> Iterator[Session]:

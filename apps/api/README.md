@@ -15,14 +15,21 @@ Requiere Postgres arriba y migrado (`make db-start db-migrate`). Cada sincroniza
 - `make sync-prices [ARGS="--max-pages N"]`: precios PC desde EasySBC (`easysbc:market` y `easysbc:sbc`).
 - `make data-status`: nº de cartas, precios por fuente y última sincronización por tipo.
 
-`--max-pages N` cuenta peticiones, no páginas de resultados: si FUT.GG particiona por media, parte de ese presupuesto se gasta bajando por los rangos y devuelve pocas cartas (con 3, unas 30). Es solo para pruebas rápidas. Las respuestas se cachean 6 h en `apps/api/var/cache/<fuente>`; `--no-cache` fuerza la descarga. Un sync de precios borra las filas `easysbc:*` viejas de cada carta vista (cambio de fuente o sin precio utilizable).
+`--max-pages N` cuenta peticiones, no páginas de resultados: si FUT.GG particiona por media, parte de ese presupuesto se gasta bajando por los rangos y devuelve pocas cartas (con 3, unas 30; con 1, ninguna). Es solo para pruebas rápidas: si deja páginas sin recorrer, la fila de `sync_runs` queda `partial` (o `failed` si no guardó nada) con el motivo en `error`. Las respuestas se cachean 6 h en `apps/api/var/cache/<fuente>`; `--no-cache` fuerza la descarga. Un sync de precios borra las filas `easysbc:*` viejas de cada carta vista (cambio de fuente o sin precio utilizable).
 
 Precio efectivo (`fcsl_api.prices.effective_prices`): `ea-session` con menos de 24 h; si no, `easysbc:market`; si no, `easysbc:sbc`; si no, ausente.
 
 ## Importación desde la sesión de EA
 
-Los usa la extensión de Chrome (solo lectura). Requieren `FCSL_IMPORT_TOKEN` en el entorno de la API y la cabecera `X-FCSL-Token`: sin token configurado devuelven 503; con token ausente o incorrecto, 401.
+Los usa la extensión de Chrome (solo lectura). Requieren `FCSL_IMPORT_TOKEN` (entorno o `apps/api/.env`) y la cabecera `X-FCSL-Token`: sin token configurado devuelven 503; con token ausente o incorrecto, 401. Cuerpos de más de 2 MB → 413.
 
-- `POST /import/club`: `{location, items, duplicate_item_ids}` → upsert en `club_items` (solo jugadores).
-- `POST /import/market`: `{observations:[{resourceId, buyNowPrice, seenAt}]}` → mínimo por recurso en `prices` (`source="ea-session"`, `platform="PC"`, `captured_at` = último `seenAt`).
+- `POST /import/club`: `{location, items, duplicate_item_ids}` → upsert en `club_items` (solo jugadores) y fila `club` en `sync_runs`.
+- `POST /import/market`: `{observations:[{resourceId, buyNowPrice, seenAt}]}` → mínimo por recurso en `prices` (`source="ea-session"`, `platform="PC"`, `captured_at` = último `seenAt`) y fila `market` en `sync_runs`.
 - `POST /import/raw`: `{url, body}` → guarda el JSON en `apps/api/var/samples/` (máx. 50 archivos, 2 MB por petición) para aprender los formatos reales.
+
+## Club
+
+La importación es pasiva y no detecta cartas vendidas o descartadas.
+
+- `GET /club`: lista y resumen; `max_age_days` (por defecto 30) oculta las cartas no vistas en ese plazo, `0` muestra todas. Cada fila trae `seen_at`.
+- `POST /club/forget` (mismo token que `/import`): `{older_than_days: N≥1}` borra las cartas no vistas en N días (o nunca vistas) → `{deleted: n}`.

@@ -12,8 +12,10 @@ ext-test:
 api-test:
 	cd apps/api && uv run pytest
 
+API_HOST ?= 127.0.0.1
+
 api-dev:
-	cd apps/api && uv run uvicorn fcsl_api.main:app --port 8787 --reload
+	cd apps/api && uv run uvicorn fcsl_api.main:app --host $(API_HOST) --port 8787 --reload
 
 PG_BIN = /Applications/Postgres.app/Contents/Versions/16/bin
 PG_DATA = $(HOME)/Library/Application Support/Postgres/var-16-fcsl
