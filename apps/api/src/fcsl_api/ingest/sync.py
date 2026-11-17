@@ -22,10 +22,11 @@ def sync_cards(session: Session, client: PoliteClient, max_pages: int | None = N
     started = datetime.now(UTC)
     saved = 0
     error: str | None = None
+    coverage: list[str] = []
     batch: list[CardRow] = []
     try:
         try:
-            for row in iter_futgg_cards(client, max_pages=max_pages):
+            for row in iter_futgg_cards(client, max_pages=max_pages, coverage=coverage):
                 batch.append(row)
                 if len(batch) >= BATCH_SIZE:
                     saved += upsert_cards(session, batch, SOURCE)
@@ -39,6 +40,8 @@ def sync_cards(session: Session, client: PoliteClient, max_pages: int | None = N
     except SQLAlchemyError as exc:
         session.rollback()
         error = f"{type(exc).__name__}: {exc}"
+    if error is None and coverage:
+        error = "cobertura parcial: " + "; ".join(coverage)
     status = "ok" if error is None else ("partial" if saved else "failed")
     run_id = record_sync_run(session, "cards", status, saved, error, started_at=started)
     return session.get_one(SyncRun, run_id)

@@ -154,3 +154,65 @@ def test_iter_partitions_by_rating_when_total_hits_cap(monkeypatch):
     assert sorted(r.resource_id for r in rows) == [1040, 1041, 1042, 1043]
     assert all("page" in q for q in queries)
     assert any(gte in q for q in queries)
+
+
+def _ignoring_filter_handler(calls: list[dict]):
+    """API que ignora los filtros: siempre devuelve la consulta topada (10000, 30 por página)."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        q = dict(request.url.params)
+        calls.append(q)
+        page = int(q["page"])
+        data = [player(page * 100 + i, 90) for i in range(30)]
+        return httpx.Response(
+            200, json={"data": data, "next": page + 1, "currentPage": page, "total": 10000}
+        )
+
+    return handler
+
+
+def test_iter_ignored_filter_falls_back_to_single_capped_walk():
+    calls: list[dict] = []
+    coverage: list[str] = []
+    rows = list(iter_futgg_cards(make_client(_ignoring_filter_handler(calls)), coverage=coverage))
+    gte = futgg.RATING_FILTER_PARAMS[0]
+    assert len(calls) <= futgg.API_CAP // 30 + 4  # tope de páginas + unas pocas sondas
+    assert sum(1 for q in calls if gte in q) <= 2
+    assert len(rows) == (futgg.API_CAP // 30) * 30
+    assert any("ignorado" in c for c in coverage)
+
+
+def test_iter_request_ceiling_stops_cleanly():
+    calls: list[dict] = []
+    coverage: list[str] = []
+    rows = list(
+        iter_futgg_cards(
+            make_client(_ignoring_filter_handler(calls)), max_requests=10, coverage=coverage
+        )
+    )
+    assert len(calls) == 10
+    assert rows
+    assert any("tope de peticiones" in c for c in coverage)
+
+
+def test_iter_unsplittable_capped_leaf_is_flagged(monkeypatch):
+    monkeypatch.setattr(futgg, "RATING_MIN", 50)
+    monkeypatch.setattr(futgg, "RATING_MAX", 51)
+    gte = futgg.RATING_FILTER_PARAMS[0]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        q = dict(request.url.params)
+        page = int(q["page"])
+        total = 20000 if gte not in q else 10000
+        rating = int(q.get(gte, 50))
+        data = [player(page * 100 + rating * 10 + i, rating) for i in range(30)]
+        nxt = page + 1 if page < 400 else None
+        return httpx.Response(
+            200, json={"data": data, "next": nxt, "currentPage": page, "total": total}
+        )
+
+    coverage: list[str] = []
+    client = make_client(handler)
+    rows = list(iter_futgg_cards(client, coverage=coverage, max_requests=2000))
+    assert any("tope de 10000" in c for c in coverage)
+    assert len(rows) <= 2 * (futgg.API_CAP // 30) * 30

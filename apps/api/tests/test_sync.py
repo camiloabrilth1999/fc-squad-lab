@@ -68,3 +68,23 @@ def test_sync_respects_max_pages(clean_db):
 
     run = sync_cards(clean_db, client_for(handler), max_pages=2)
     assert (run.status, run.items) == ("ok", 2)
+
+
+def test_sync_partial_when_coverage_incomplete(clean_db):
+    def handler(request):
+        page = int(request.url.params["page"])
+        return httpx.Response(
+            200,
+            json={
+                "data": [player(page * 100 + i, 90) for i in range(30)],
+                "next": page + 1,
+                "currentPage": page,
+                "total": 10000,
+            },
+        )
+
+    run = sync_cards(clean_db, client_for(handler))
+    assert run.status == "partial"
+    assert "cobertura parcial" in run.error
+    assert "ignorado" in run.error
+    assert run.items == (10000 // 30) * 30
