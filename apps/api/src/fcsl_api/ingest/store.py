@@ -8,8 +8,9 @@ from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from fcsl_api.ingest.easysbc import PriceRow
 from fcsl_api.ingest.futgg import CardRow
-from fcsl_api.models_db import Card, SyncRun
+from fcsl_api.models_db import Card, Price, SyncRun
 
 
 def upsert_cards(session: Session, rows: Iterable[CardRow], source: str) -> int:
@@ -22,6 +23,22 @@ def upsert_cards(session: Session, rows: Iterable[CardRow], source: str) -> int:
     stmt = insert(Card).values(values)
     update = {c: stmt.excluded[c] for c in values[0] if c != "resource_id"}
     session.execute(stmt.on_conflict_do_update(index_elements=[Card.resource_id], set_=update))
+    session.commit()
+    return len(unique)
+
+
+def upsert_prices(session: Session, rows: Iterable[PriceRow], captured_at: datetime) -> int:
+    """Inserta o actualiza precios por (resource_id, platform, source); devuelve las filas escritas."""
+    unique = {(r.resource_id, r.platform, r.source): r for r in rows}
+    if not unique:
+        return 0
+    values = [{**asdict(r), "captured_at": captured_at} for r in unique.values()]
+    stmt = insert(Price).values(values)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[Price.resource_id, Price.platform, Price.source],
+        set_={"price": stmt.excluded.price, "captured_at": stmt.excluded.captured_at},
+    )
+    session.execute(stmt)
     session.commit()
     return len(unique)
 

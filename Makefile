@@ -20,4 +20,13 @@ db-stop:
 db-migrate:
 	cd apps/api && uv run alembic upgrade head
 
-.PHONY: check api-test api-dev db-start db-stop db-migrate
+sync-cards:
+	cd apps/api && uv run python -m fcsl_api.ingest sync-cards $(ARGS)
+
+sync-prices:
+	cd apps/api && uv run python -m fcsl_api.ingest sync-prices $(ARGS)
+
+data-status:
+	cd apps/api && uv run python -m fcsl_api.ingest status
+
+.PHONY: check api-test api-dev db-start db-stop db-migrate sync-cards sync-prices data-status
