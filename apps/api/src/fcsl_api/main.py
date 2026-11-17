@@ -5,6 +5,7 @@ from . import db
 from .routes.club import router as club_router
 from .routes.imports import ImportBodyLimit
 from .routes.imports import router as imports_router
+from .routes.sbc import router as sbc_router
 from .routes.solve import router as solve_router
 
 app = FastAPI(title="FC Squad Lab API")
@@ -20,6 +21,7 @@ app.add_middleware(
 app.include_router(solve_router)
 app.include_router(imports_router)
 app.include_router(club_router)
+app.include_router(sbc_router)
 
 
 @app.get("/health")
