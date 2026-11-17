@@ -11,11 +11,14 @@ from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .. import db
+from ..ingest.store import record_sync_run
 from ..models_db import ClubItem, Price
 from ..settings import get_settings
 
@@ -25,6 +28,57 @@ MAX_SAMPLES = 50
 MAX_BODY_BYTES = 2 * 1024 * 1024
 PRICE_SOURCE = "ea-session"
 PRICE_PLATFORM = "PC"
+CAPPED_PATHS = frozenset({"/import/club", "/import/market"})
+TOO_LARGE = "Cuerpo demasiado grande"
+
+
+class ImportBodyLimit:
+    """Corta con 413 los cuerpos de /import/club y /import/market > MAX_BODY_BYTES antes de parsear.
+
+    Rechaza por Content-Length declarado; si no lo hay (chunked), acumula hasta el tope y
+    reenvía el cuerpo ya leído a la app.
+    """
+
+    def __init__(self, app: ASGIApp, max_bytes: int = MAX_BODY_BYTES) -> None:
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["path"] not in CAPPED_PATHS:
+            await self.app(scope, receive, send)
+            return
+        declared = dict(scope["headers"]).get(b"content-length", b"")
+        if declared.isdigit() and int(declared) > self.max_bytes:
+            await self._reject(scope, receive, send)
+            return
+        chunks: list[bytes] = []
+        size = 0
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                return
+            chunk = message.get("body", b"")
+            size += len(chunk)
+            if size > self.max_bytes:
+                await self._reject(scope, receive, send)
+                return
+            chunks.append(chunk)
+            if not message.get("more_body", False):
+                break
+        replayed = False
+
+        async def replay() -> Message:
+            nonlocal replayed
+            if replayed:
+                return await receive()
+            replayed = True
+            return {"type": "http.request", "body": b"".join(chunks), "more_body": False}
+
+        await self.app(scope, replay, send)
+
+    @staticmethod
+    async def _reject(scope: Scope, receive: Receive, send: Send) -> None:
+        await JSONResponse({"detail": TOO_LARGE}, status_code=413)(scope, receive, send)
 
 
 def get_db() -> Iterator[Session]:
@@ -110,12 +164,13 @@ def import_club(body: ImportClubBody, session: DbSession) -> dict[str, int]:
         stmt = insert(ClubItem).values(list(rows.values()))
         update = {c: stmt.excluded[c] for c in next(iter(rows.values())) if c != "item_id"}
         session.execute(stmt.on_conflict_do_update(index_elements=["item_id"], set_=update))
-    session.commit()
+    record_sync_run(session, "club", "ok", len(rows), started_at=now)  # hace commit
     return {"upserted": len(rows)}
 
 
 @router.post("/market")
 def import_market(body: ImportMarketBody, session: DbSession) -> dict[str, int]:
+    started = datetime.now(UTC)
     best: dict[int, int] = {}
     seen_max: dict[int, datetime] = defaultdict(lambda: datetime.min.replace(tzinfo=UTC))
     for o in body.observations:
@@ -141,7 +196,7 @@ def import_market(body: ImportMarketBody, session: DbSession) -> dict[str, int]:
                 set_={"price": stmt.excluded.price, "captured_at": stmt.excluded.captured_at},
             )
         )
-    session.commit()
+    record_sync_run(session, "market", "ok", len(rows), started_at=started)  # hace commit
     return {"upserted": len(rows)}
 
 
@@ -154,12 +209,12 @@ def _slug(url: str) -> str:
 async def import_raw(request: Request) -> dict[str, str]:
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > MAX_BODY_BYTES:
-        raise HTTPException(413, "Cuerpo demasiado grande")
+        raise HTTPException(413, TOO_LARGE)
     raw = b""
     async for chunk in request.stream():
         raw += chunk
         if len(raw) > MAX_BODY_BYTES:
-            raise HTTPException(413, "Cuerpo demasiado grande")
+            raise HTTPException(413, TOO_LARGE)
     try:
         body = ImportRawBody.model_validate_json(raw)
     except ValidationError as e:

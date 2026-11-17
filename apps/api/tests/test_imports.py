@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fcsl_api.main import app
-from fcsl_api.models_db import ClubItem, Price
+from fcsl_api.models_db import ClubItem, Price, SyncRun
 from fcsl_api.routes import imports
 
 DATA = Path(__file__).parent / "data"
@@ -152,3 +152,57 @@ def test_import_raw_slug_is_sanitized_and_contained(client: TestClient, tmp_path
 def test_import_raw_too_large(client: TestClient) -> None:
     big = {"url": "https://x/y", "body": "a" * (3 * 1024 * 1024)}
     assert client.post("/import/raw", json=big, headers=H).status_code == 413
+
+
+def _runs(session: Session, kind: str) -> list[SyncRun]:
+    session.expire_all()
+    return list(session.scalars(select(SyncRun).where(SyncRun.kind == kind).order_by(SyncRun.id)))
+
+
+def test_import_club_records_sync_run(client: TestClient, clean_db: Session) -> None:
+    assert client.post("/import/club", json=_club_body(), headers=H).status_code == 200
+    (run,) = _runs(clean_db, "club")
+    assert (run.status, run.items, run.error) == ("ok", 3, None)
+    assert run.finished_at is not None
+    status = client.get("/data/status").json()
+    assert status["last_sync"]["club"]["items"] == 3
+
+
+def test_import_market_records_sync_run(client: TestClient, clean_db: Session) -> None:
+    assert client.post("/import/market", json=_market_body(), headers=H).status_code == 200
+    (run,) = _runs(clean_db, "market")
+    assert (run.status, run.items, run.error) == ("ok", 2, None)
+    assert set(client.get("/data/status").json()["last_sync"]) == {"market"}
+
+
+def test_rejected_import_records_no_sync_run(client: TestClient, clean_db: Session) -> None:
+    assert client.post("/import/club", json=_club_body()).status_code == 401
+    assert _runs(clean_db, "club") == []
+
+
+@pytest.mark.parametrize("path", ["/import/club", "/import/market"])
+def test_import_body_too_large_by_content_length(client: TestClient, path: str) -> None:
+    big = b'{"x": "' + b"a" * (2 * 1024 * 1024) + b'"}'
+    r = client.post(path, content=big, headers={**H, "Content-Type": "application/json"})
+    assert r.status_code == 413
+    assert r.json() == {"detail": "Cuerpo demasiado grande"}
+
+
+@pytest.mark.parametrize("path", ["/import/club", "/import/market"])
+def test_import_body_too_large_streamed(client: TestClient, path: str) -> None:
+    """Sin Content-Length (chunked) también se corta al pasar el tope."""
+
+    def chunks() -> Iterator[bytes]:
+        yield b'{"x": "'
+        for _ in range(3):
+            yield b"a" * (1024 * 1024)
+        yield b'"}'
+
+    r = client.post(path, content=chunks(), headers={**H, "Content-Type": "application/json"})
+    assert r.status_code == 413
+
+
+def test_import_body_under_cap_still_parsed(client: TestClient) -> None:
+    headers = {**H, "Content-Type": "application/json"}
+    r = client.post("/import/club", content=json.dumps(_club_body()), headers=headers)
+    assert r.status_code == 200
