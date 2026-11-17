@@ -92,11 +92,12 @@ def test_formation_slots():
 
 def test_catalog_loads_and_parses():
     sums = catalog.summaries()
-    assert sums, "el catálogo semilla no debe estar vacío"
+    assert sums, "el catálogo no debe estar vacío"
     ids = {s.id for s in sums}
-    assert "mejora-81" in ids
-    ch = catalog.get("mejora-81")
-    assert ch is not None and ch.requirements[0].kind == "TEAM_RATING"
+    assert "ea-18" in ids  # Mejora de Oro (capturado de EA)
+    ch = catalog.get("ea-18")
+    assert ch is not None and ch.source == "ea"
+    assert ch.requirements[0].kind == "LEVEL_PLAYERS"
     assert catalog.get("no-existe") is None
 
 
@@ -132,17 +133,18 @@ def test_solve_without_cards_explains(session: Session):
 
 def test_list_endpoint(client: TestClient):
     body = client.get("/sbc").json()
-    assert any(c["id"] == "mejora-81" for c in body)
+    assert any(c["id"] == "ea-18" for c in body)
 
 
 def test_detail_endpoint(client: TestClient):
-    assert client.get("/sbc/mejora-81").status_code == 200
+    assert client.get("/sbc/ea-18").status_code == 200
     assert client.get("/sbc/no-existe").status_code == 404
 
 
 def test_solve_endpoint(client: TestClient, session: Session):
     _seed_club(session)
-    r = client.post("/sbc/mejora-81/solve", params={"pool": "club"})
+    # ea-217 "Simona Botero": 442 + calidad mín. Oro -> el club semilla (11 oros) lo cumple.
+    r = client.post("/sbc/ea-217/solve", params={"pool": "club"})
     assert r.status_code == 200
     body = r.json()
     assert body["status"] in ("optimal", "feasible")

@@ -1,0 +1,293 @@
+{
+  "capturedAt": "2026-11-17T23:20:06.755Z",
+  "game": "fc27",
+  "source": "ea-web-app DCP (SBC), retos de construcción (OPEN_CHALLENGE)",
+  "challenges": [
+    {
+      "setId": 3,
+      "setName": "Introducción a DCP de mejora",
+      "id": 13,
+      "name": "Espacio para crecer",
+      "formation": "f4222",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": 11, "kv": { "17": [1] }, "text": "Bronce: Mín. 11 futbolista(s)" },
+        { "scope": 1, "count": -1, "kv": { "19": [64] }, "text": "Valoración del equipo: Máx. 64" }
+      ]
+    },
+    {
+      "setId": 3,
+      "setName": "Introducción a DCP de mejora",
+      "id": 14,
+      "name": "Plan de juego",
+      "formation": "f424",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": 11, "kv": { "17": [2] }, "text": "Plata: Mín. 11 futbolista(s)" }
+      ]
+    },
+    {
+      "setId": 3,
+      "setName": "Introducción a DCP de mejora",
+      "id": 15,
+      "name": "Potencia bruta",
+      "formation": "f442",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": 11, "kv": { "17": [3] }, "text": "Oro: Mín. 11 futbolista(s)" },
+        { "scope": 1, "count": -1, "kv": { "19": [85] }, "text": "Valoración del equipo: Máx. 85" },
+        { "scope": 0, "count": -1, "kv": { "35": [10] }, "text": "Química total: Mín. 10" }
+      ]
+    },
+    {
+      "setId": 4,
+      "setName": "Mejora de Bronce",
+      "id": 16,
+      "name": "Mejora de Bronce",
+      "formation": "f41212",
+      "repeatable": true,
+      "requirements": [
+        { "scope": 2, "count": -1, "kv": { "3": [1] }, "text": "Calidad de futbolista: Exactamente Bronce" }
+      ]
+    },
+    {
+      "setId": 5,
+      "setName": "Mejora de Plata",
+      "id": 42,
+      "name": "Mejora de Plata",
+      "formation": "f41212",
+      "repeatable": true,
+      "requirements": [
+        { "scope": 2, "count": -1, "kv": { "3": [2] }, "text": "Calidad de futbolista: Exactamente Plata" }
+      ]
+    },
+    {
+      "setId": 6,
+      "setName": "Mejora de Oro",
+      "id": 18,
+      "name": "Mejora de Oro",
+      "formation": "f41212",
+      "repeatable": true,
+      "requirements": [
+        { "scope": 0, "count": -1, "kv": { "3": [3] }, "text": "Calidad de futbolista: Mín. Oro" }
+      ]
+    },
+    {
+      "setId": 10,
+      "setName": "Liga y país avanzado",
+      "id": 25,
+      "name": "3 ligas y 2 países",
+      "formation": "f343",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 2, "count": -1, "kv": { "8": [3] }, "text": "Ligas en la plantilla: Exactamente 3" },
+        { "scope": 2, "count": -1, "kv": { "7": [2] }, "text": "Nacionalidades en la plantilla: Exactamente 2" },
+        { "scope": 1, "count": -1, "kv": { "5": [6] }, "text": "Futbolistas que comparten Liga: Máx. 6" },
+        { "scope": 1, "count": -1, "kv": { "4": [6] }, "text": "Futbolistas que comparten Países/regiones: Máx. 6" },
+        { "scope": 2, "count": -1, "kv": { "3": [3] }, "text": "Calidad de futbolista: Exactamente Oro" },
+        { "scope": 0, "count": -1, "kv": { "35": [30] }, "text": "Química total: Mín. 30" }
+      ]
+    },
+    {
+      "setId": 10,
+      "setName": "Liga y país avanzado",
+      "id": 26,
+      "name": "4 ligas y 5 países",
+      "formation": "f4141",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 2, "count": -1, "kv": { "8": [4] }, "text": "Ligas en la plantilla: Exactamente 4" },
+        { "scope": 2, "count": -1, "kv": { "7": [5] }, "text": "Nacionalidades en la plantilla: Exactamente 5" },
+        { "scope": 1, "count": -1, "kv": { "5": [4] }, "text": "Futbolistas que comparten Liga: Máx. 4" },
+        { "scope": 1, "count": -1, "kv": { "4": [3] }, "text": "Futbolistas que comparten Países/regiones: Máx. 3" },
+        { "scope": 0, "count": -1, "kv": { "19": [78] }, "text": "Valoración del equipo: Mín. 78" },
+        { "scope": 0, "count": -1, "kv": { "35": [25] }, "text": "Química total: Mín. 25" }
+      ]
+    },
+    {
+      "setId": 10,
+      "setName": "Liga y país avanzado",
+      "id": 27,
+      "name": "5 ligas y 6 países",
+      "formation": "f3142",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 2, "count": -1, "kv": { "8": [5] }, "text": "Ligas en la plantilla: Exactamente 5" },
+        { "scope": 2, "count": -1, "kv": { "7": [6] }, "text": "Nacionalidades en la plantilla: Exactamente 6" },
+        { "scope": 1, "count": -1, "kv": { "6": [2] }, "text": "Futbolistas que comparten Club: Máx. 2" },
+        { "scope": 0, "count": -1, "kv": { "19": [81] }, "text": "Valoración del equipo: Mín. 81" },
+        { "scope": 0, "count": -1, "kv": { "35": [25] }, "text": "Química total: Mín. 25" }
+      ]
+    },
+    {
+      "setId": 107,
+      "setName": "Desafío de Red Bull Wiiings",
+      "id": 158,
+      "name": "Desafío de Red Bull Wiiings",
+      "formation": "f433",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": 1, "kv": { "12": [112172, 191] }, "text": "RB Leipzig O RB Salzburgo: Mín. 1 futbolista(s)" },
+        { "scope": 0, "count": -1, "kv": { "6": [3] }, "text": "Futbolistas que comparten Club: Mín. 3" },
+        { "scope": 1, "count": -1, "kv": { "7": [4] }, "text": "Nacionalidades en la plantilla: Máx. 4" },
+        { "scope": 0, "count": -1, "kv": { "3": [1] }, "text": "Calidad de futbolista: Mín. Bronce" },
+        { "scope": 0, "count": -1, "kv": { "35": [14] }, "text": "Química total: Mín. 14" }
+      ]
+    },
+    {
+      "setId": 111,
+      "setName": "Encuentros clave",
+      "id": 165,
+      "name": "Portugal vs. Dinamarca",
+      "formation": "f5212",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": 1, "kv": { "10": [38, 13] }, "text": "Portugal O Dinamarca: Mín. 1 futbolista(s)" },
+        { "scope": 0, "count": -1, "kv": { "9": [4] }, "text": "Clubes en la plantilla: Mín. 4" },
+        { "scope": 0, "count": 1, "kv": { "17": [3] }, "text": "Oro: Mín. 1 futbolista(s)" },
+        { "scope": 0, "count": -1, "kv": { "3": [2] }, "text": "Calidad de futbolista: Mín. Plata" },
+        { "scope": 0, "count": -1, "kv": { "35": [14] }, "text": "Química total: Mín. 14" }
+      ]
+    },
+    {
+      "setId": 111,
+      "setName": "Encuentros clave",
+      "id": 166,
+      "name": "Alemania vs. Países Bajos",
+      "formation": "f532",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": 1, "kv": { "10": [21, 34] }, "text": "Alemania O Holanda: Mín. 1 futbolista(s)" },
+        { "scope": 0, "count": -1, "kv": { "6": [2] }, "text": "Futbolistas que comparten Club: Mín. 2" },
+        { "scope": 1, "count": -1, "kv": { "8": [6] }, "text": "Ligas en la plantilla: Máx. 6" },
+        { "scope": 0, "count": 1, "kv": { "17": [3] }, "text": "Oro: Mín. 1 futbolista(s)" },
+        { "scope": 0, "count": -1, "kv": { "3": [2] }, "text": "Calidad de futbolista: Mín. Plata" },
+        { "scope": 0, "count": -1, "kv": { "35": [18] }, "text": "Química total: Mín. 18" }
+      ]
+    },
+    {
+      "setId": 111,
+      "setName": "Encuentros clave",
+      "id": 167,
+      "name": "Italia vs. Francia",
+      "formation": "f451",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": 2, "kv": { "10": [27, 18] }, "text": "Italia O Francia: Mín. 2 futbolista(s)" },
+        { "scope": 1, "count": -1, "kv": { "6": [3] }, "text": "Futbolistas que comparten Club: Máx. 3" },
+        { "scope": 0, "count": -1, "kv": { "5": [4] }, "text": "Futbolistas que comparten Liga: Mín. 4" },
+        { "scope": 0, "count": -1, "kv": { "7": [3] }, "text": "Nacionalidades en la plantilla: Mín. 3" },
+        { "scope": 0, "count": -1, "kv": { "19": [75] }, "text": "Valoración del equipo: Mín. 75" },
+        { "scope": 0, "count": -1, "kv": { "35": [22] }, "text": "Química total: Mín. 22" }
+      ]
+    },
+    {
+      "setId": 111,
+      "setName": "Encuentros clave",
+      "id": 168,
+      "name": "España vs. Inglaterra",
+      "formation": "f442",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": 2, "kv": { "10": [45, 14] }, "text": "España O Inglaterra: Mín. 2 futbolista(s)" },
+        { "scope": 0, "count": -1, "kv": { "4": [3] }, "text": "Futbolistas que comparten Países/regiones: Mín. 3" },
+        { "scope": 1, "count": -1, "kv": { "6": [4] }, "text": "Futbolistas que comparten Club: Máx. 4" },
+        { "scope": 0, "count": -1, "kv": { "8": [3] }, "text": "Ligas en la plantilla: Mín. 3" },
+        { "scope": 0, "count": -1, "kv": { "19": [76] }, "text": "Valoración del equipo: Mín. 76" },
+        { "scope": 0, "count": -1, "kv": { "35": [26] }, "text": "Química total: Mín. 26" }
+      ]
+    },
+    {
+      "setId": 115,
+      "setName": "Desafío 2 de Hall of FUT: Desatado",
+      "id": 175,
+      "name": "Desafío 2 de Hall of FUT: Desatado",
+      "formation": "f352",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": -1, "kv": { "6": [3] }, "text": "Futbolistas que comparten Club: Mín. 3" },
+        { "scope": 1, "count": -1, "kv": { "9": [5] }, "text": "Clubes en la plantilla: Máx. 5" },
+        { "scope": 0, "count": 10, "kv": { "17": [2] }, "text": "Plata: Mín. 10 futbolista(s)" },
+        { "scope": 0, "count": -1, "kv": { "3": [1] }, "text": "Calidad de futbolista: Mín. Bronce" },
+        { "scope": 0, "count": -1, "kv": { "35": [16] }, "text": "Química total: Mín. 16" }
+      ]
+    },
+    {
+      "setId": 153,
+      "setName": "DCP de Hito de Galería",
+      "id": 217,
+      "name": "Simona Botero",
+      "formation": "f442",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": -1, "kv": { "3": [3] }, "text": "Calidad de futbolista: Mín. Oro" }
+      ]
+    },
+    {
+      "setId": 153,
+      "setName": "DCP de Hito de Galería",
+      "id": 218,
+      "name": "Aitana Zumárraga",
+      "formation": "f433",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": -1, "kv": { "3": [3] }, "text": "Calidad de futbolista: Mín. Oro" }
+      ]
+    },
+    {
+      "setId": 153,
+      "setName": "DCP de Hito de Galería",
+      "id": 219,
+      "name": "Thirsa De Meester",
+      "formation": "f451",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": -1, "kv": { "3": [3] }, "text": "Calidad de futbolista: Mín. Oro" }
+      ]
+    },
+    {
+      "setId": 153,
+      "setName": "DCP de Hito de Galería",
+      "id": 220,
+      "name": "Claire Lelarge",
+      "formation": "f4222",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": -1, "kv": { "3": [3] }, "text": "Calidad de futbolista: Mín. Oro" }
+      ]
+    },
+    {
+      "setId": 153,
+      "setName": "DCP de Hito de Galería",
+      "id": 221,
+      "name": "Ana González",
+      "formation": "f424",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": -1, "kv": { "3": [3] }, "text": "Calidad de futbolista: Mín. Oro" }
+      ]
+    },
+    {
+      "setId": 153,
+      "setName": "DCP de Hito de Galería",
+      "id": 222,
+      "name": "Raiderlin Carrasco",
+      "formation": "f4141",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": -1, "kv": { "3": [3] }, "text": "Calidad de futbolista: Mín. Oro" }
+      ]
+    },
+    {
+      "setId": 153,
+      "setName": "DCP de Hito de Galería",
+      "id": 223,
+      "name": "Miku Kojima",
+      "formation": "f4231",
+      "repeatable": false,
+      "requirements": [
+        { "scope": 0, "count": -1, "kv": { "3": [3] }, "text": "Calidad de futbolista: Mín. Oro" }
+      ]
+    }
+  ]
+}

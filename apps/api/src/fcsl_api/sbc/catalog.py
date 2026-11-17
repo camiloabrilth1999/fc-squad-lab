@@ -1,25 +1,32 @@
 """Catálogo de retos SBC.
 
-Hoy se carga de un JSON semilla (retos de ejemplo, source="seed") para que la app
-funcione de punta a punta. Cuando capturemos el detalle de los SBC de EA, el adaptador
-(sbc/ea.py) producirá `SbcChallenge` con source="ea" y se mezclarán aquí.
+La fuente principal son los DCP reales capturados de EA (`ea_capture.json`, vía el
+adaptador `sbc/ea.py`, source="ea"). Si no hay captura, se cae al JSON semilla de
+ejemplo (`seed_catalog.json`, source="seed") para que la app siga funcionando de
+punta a punta.
 """
 
 import json
 from functools import lru_cache
 from pathlib import Path
 
+from . import ea
 from .models import SbcChallenge, SbcChallengeSummary
 
-CATALOG_PATH = Path(__file__).resolve().parent / "seed_catalog.json"
+SEED_PATH = Path(__file__).resolve().parent / "seed_catalog.json"
+
+
+def _load_seed() -> tuple[SbcChallenge, ...]:
+    if not SEED_PATH.exists():
+        return ()
+    raw = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+    return tuple(SbcChallenge.model_validate(c) for c in raw)
 
 
 @lru_cache(maxsize=1)
 def _load() -> tuple[SbcChallenge, ...]:
-    if not CATALOG_PATH.exists():
-        return ()
-    raw = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-    return tuple(SbcChallenge.model_validate(c) for c in raw)
+    real = ea.load()
+    return tuple(real) if real else _load_seed()
 
 
 def all_challenges() -> list[SbcChallenge]:

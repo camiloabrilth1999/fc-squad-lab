@@ -15,6 +15,12 @@ FORMATIONS: dict[str, list[str]] = {
     "532": ["GK", "LWB", "CB", "CB", "CB", "RWB", "CM", "CDM", "CM", "ST", "ST"],
     "4321": ["GK", "LB", "CB", "CB", "RB", "CM", "CM", "CM", "CF", "CF", "ST"],
     "4141": ["GK", "LB", "CB", "CB", "RB", "CDM", "LM", "CM", "CM", "RM", "ST"],
+    "4222": ["GK", "LB", "CB", "CB", "RB", "CDM", "CDM", "CAM", "CAM", "ST", "ST"],
+    "424": ["GK", "LB", "CB", "CB", "RB", "CM", "CM", "LW", "RW", "ST", "ST"],
+    "343": ["GK", "CB", "CB", "CB", "LM", "CM", "CM", "RM", "LW", "ST", "RW"],
+    "3142": ["GK", "CB", "CB", "CB", "CDM", "LM", "CM", "CM", "RM", "ST", "ST"],
+    "5212": ["GK", "LWB", "CB", "CB", "CB", "RWB", "CM", "CM", "CAM", "ST", "ST"],
+    "451": ["GK", "LB", "CB", "CB", "RB", "LM", "CM", "CM", "CM", "RM", "ST"],
 }
 
 DEFAULT_FORMATION = "442"
