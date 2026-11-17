@@ -62,7 +62,10 @@ def iter_easysbc_prices(
             else:
                 yield row
         page += 1
-    if max_pages is None and total > max_requests and coverage is not None:
-        coverage.append(f"tope de peticiones ({max_requests}) de {total} páginas")
+    if total > limit and coverage is not None:
+        if max_pages is not None and max_pages <= max_requests:
+            coverage.append(f"--max-pages {max_pages} de {total} páginas")
+        else:
+            coverage.append(f"tope de peticiones ({max_requests}) de {total} páginas")
     if discarded:
         logger.info("%s jugadores sin precio utilizable (0 o fuente distinta)", discarded)

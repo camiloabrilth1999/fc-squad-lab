@@ -66,6 +66,30 @@ def test_iter_walks_all_pages_and_respects_max_pages():
     assert [r.resource_id for r in iter_easysbc_prices(client_for(handler), max_pages=2)] == [1, 2]
 
 
+def test_iter_max_pages_truncation_reported_in_coverage():
+    def handler(request):
+        page = int(request.url.params["page"])
+        return httpx.Response(200, json={"players": [entry(page)], "totalPages": 3})
+
+    truncated: list[str] = []
+    list(iter_easysbc_prices(client_for(handler), max_pages=2, coverage=truncated))
+    assert any("--max-pages 2" in c for c in truncated)
+    full: list[str] = []
+    list(iter_easysbc_prices(client_for(handler), max_pages=3, coverage=full))
+    assert full == []
+
+
+@pytest.mark.db
+def test_sync_prices_max_pages_is_partial(clean_db):
+    def handler(request):
+        page = int(request.url.params["page"])
+        return httpx.Response(200, json={"players": [entry(page)], "totalPages": 3})
+
+    run = sync_prices(clean_db, client_for(handler), max_pages=1)
+    assert (run.status, run.items) == ("partial", 1)
+    assert "--max-pages" in run.error
+
+
 @pytest.mark.db
 def test_sync_partial_on_block(clean_db):
     def handler(request):

@@ -112,9 +112,11 @@ def test_iter_respects_max_pages():
             json={"data": [player(page)], "next": page + 1, "currentPage": page, "total": 99},
         )
 
-    rows = list(iter_futgg_cards(make_client(handler), max_pages=3))
+    coverage: list[str] = []
+    rows = list(iter_futgg_cards(make_client(handler), max_pages=3, coverage=coverage))
     assert len(rows) == 3
     assert calls == [1, 2, 3]
+    assert any("--max-pages 3" in c for c in coverage)
 
 
 def test_iter_stops_on_blocked():

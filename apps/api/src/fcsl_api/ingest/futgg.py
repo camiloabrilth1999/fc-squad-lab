@@ -106,6 +106,7 @@ class _Pager:
     @property
     def exhausted(self) -> bool:
         if self.max_pages is not None and self.pages >= self.max_pages:
+            self.note(f"--max-pages {self.max_pages}: quedan páginas sin recorrer")
             return True
         if self.pages >= self.max_requests:
             self.note(f"tope de peticiones ({self.max_requests})")

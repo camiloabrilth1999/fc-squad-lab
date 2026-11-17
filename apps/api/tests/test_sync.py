@@ -67,7 +67,34 @@ def test_sync_respects_max_pages(clean_db):
         )
 
     run = sync_cards(clean_db, client_for(handler), max_pages=2)
-    assert (run.status, run.items) == ("ok", 2)
+    assert (run.status, run.items) == ("partial", 2)
+    assert "--max-pages" in run.error
+
+
+def test_sync_max_pages_not_partial_when_source_fits(clean_db):
+    def handler(request):
+        return httpx.Response(
+            200, json={"data": [player(1)], "next": None, "currentPage": 1, "total": 1}
+        )
+
+    run = sync_cards(clean_db, client_for(handler), max_pages=5)
+    assert (run.status, run.items, run.error) == ("ok", 1, None)
+
+
+def test_sync_max_pages_1_on_capped_source_is_not_ok(clean_db):
+    """Con total topado la 1ª página solo decide particionar: no se guarda nada."""
+
+    def handler(request):
+        page = int(request.url.params["page"])
+        return httpx.Response(
+            200,
+            json={"data": [player(page)], "next": page + 1, "currentPage": page, "total": 10000},
+        )
+
+    run = sync_cards(clean_db, client_for(handler), max_pages=1)
+    assert run.items == 0
+    assert run.status == "failed"
+    assert "--max-pages" in run.error
 
 
 def test_sync_partial_when_coverage_incomplete(clean_db):
