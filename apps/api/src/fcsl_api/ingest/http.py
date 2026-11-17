@@ -9,6 +9,8 @@ from typing import Any
 
 import httpx
 
+from fcsl_api.settings import get_settings
+
 
 class SourceBlocked(Exception):
     """La fuente respondió 403/429: no se reintenta."""
@@ -100,3 +102,9 @@ class PoliteClient:
                 if attempt == self.RETRIES:
                     response.raise_for_status()
             self._sleep(self.BACKOFF_S * (attempt + 1))
+
+
+def make_client(base_url: str, **kwargs: Any) -> PoliteClient:
+    """PoliteClient con el User-Agent de FCSL_HTTP_USER_AGENT (salvo que se pase user_agent)."""
+    kwargs.setdefault("user_agent", get_settings().http_user_agent)
+    return PoliteClient(base_url, **kwargs)

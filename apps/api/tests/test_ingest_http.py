@@ -97,3 +97,24 @@ def test_cache_expired_refetches(tmp_path):
     assert client.get_json("/x", cache_ttl_s=60) == {"n": 1}
     ft.now += 61
     assert client.get_json("/x", cache_ttl_s=60) == {"n": 2}
+
+
+def test_make_client_uses_configured_user_agent(monkeypatch):
+    from fcsl_api.ingest.http import make_client
+
+    monkeypatch.setenv("FCSL_HTTP_USER_AGENT", "mi-agente/9")
+    seen = []
+
+    def handler(request):
+        seen.append(request.headers["user-agent"])
+        return httpx.Response(200, json={})
+
+    ft = FakeTime()
+    client = make_client(
+        "https://example.test",
+        transport=httpx.MockTransport(handler),
+        clock=ft.clock,
+        sleep=ft.sleep,
+    )
+    client.get_json("/x")
+    assert seen == ["mi-agente/9"]
