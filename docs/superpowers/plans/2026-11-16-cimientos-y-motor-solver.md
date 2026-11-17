@@ -288,6 +288,19 @@ def eligibility_problem(cards, slots) -> str | None   # "Ningún jugador puede o
 - [ ] **Step 5:** Manual: `make api-dev` y `curl -X POST localhost:8787/solve -H 'content-type: application/json' -d @apps/api/tests/data/example_request.json` (crear ese JSON con un problema de 11 huecos) → solución en < 10 s.
 - [ ] **Step 6:** Commit `feat: servicio de solver y endpoints /solve`.
 
+### Task 12: Calidad del solver (añadida durante la ejecución, 2026-11-17)
+
+Motivo: con media + química, el benchmark `tests/test_perf.py` (marcado `slow`) da 10/10 soluciones válidas en ~9 s pero solo 2/10 a ≤ 2 % de la mejor conocida (gaps hasta 31 %), con mucha varianza entre ejecuciones. La relajación lineal de la química es casi nula y el arranque en caliente (`cpsat.py`) ignora liga/nación/química/incluidas.
+
+**Files:** Modify `solver/cpsat.py`, `solver/requirements.py`, `solver/pool.py` según haga falta; posible Create `solver/heuristic.py`; Modify `tests/test_perf.py`.
+
+**Interfaces:** sin cambios públicos: `solve_model`, `apply_requirement`, `build_pool`, `service.solve` mantienen firma y semántica. Todos los tests de exactitud existentes (fuerza bruta, modelo == química pura, poda exacta) siguen en verde.
+
+- [ ] **Step 1:** Medir: correr `uv run pytest -m slow tests/test_perf.py -s` 2 veces y anotar gaps y tiempos; referencia `best_known` con 60 s.
+- [ ] **Step 2:** Implementar, en este orden, hasta cumplir el listón: (a) heurística constructiva consciente de química (p. ej. elegir 1–3 grupos liga/nación/club objetivo y rellenar barato) + búsqueda local, usada como pista (`add_hint`) y como solución de respaldo; (b) arranque en caliente que respete todos los requisitos e incluidas, y que no pierda su solución si el solve principal no tiene tiempo; (c) reformulación/cortes de química (cotas por grupo, simetría de cartas idénticas) si (a)+(b) no bastan.
+- [ ] **Step 3: Listón (benchmark `slow`):** 10/10 válidas en < 10 s y ≥ 8/10 con coste ≤ 1,02 × best_known (best_known = mejor de 60 s), en 2 ejecuciones seguidas.
+- [ ] **Step 4:** Suite completa (por defecto) en verde, `ruff check` limpio. Commit `perf(solver): calidad de soluciones con química`.
+
 ---
 
 ## Después de este plan
