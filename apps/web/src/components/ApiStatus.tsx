@@ -22,7 +22,7 @@ export default function ApiStatus({ apiUrl }: { apiUrl: string }) {
         return res.json();
       })
       .then((data: { db?: string }) => {
-        // "unchecked" = la API aún no comprueba la base de datos; cuenta como conectada.
+        // La API responde db "ok" | "down"; cualquier otro valor cuenta como conectada.
         setState(data.db === "down" ? "db-down" : "connected");
       })
       .catch((err: unknown) => {

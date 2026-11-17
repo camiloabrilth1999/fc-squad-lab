@@ -18,7 +18,7 @@ describe("ApiStatus", () => {
     expect(fetch).toHaveBeenCalledWith(`${URL_}/health`, expect.anything());
   });
 
-  it("shows connected when db is unchecked", async () => {
+  it("shows connected for any db value other than down", async () => {
     mockFetchJson({ status: "ok", db: "unchecked" });
     render(<ApiStatus apiUrl={URL_} />);
     expect(await screen.findByText("API conectada")).toBeInTheDocument();
@@ -32,6 +32,15 @@ describe("ApiStatus", () => {
 
   it("shows offline", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
+    render(<ApiStatus apiUrl={URL_} />);
+    expect(await screen.findByText("API sin conexión")).toBeInTheDocument();
+  });
+
+  it("shows offline on a non-OK HTTP response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
+    );
     render(<ApiStatus apiUrl={URL_} />);
     expect(await screen.findByText("API sin conexión")).toBeInTheDocument();
   });
