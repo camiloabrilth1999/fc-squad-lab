@@ -2,11 +2,13 @@ import time
 
 import pytest
 
+from fcsl_api.solver import service
 from fcsl_api.solver.cpsat import build_base_model, solve_model
 from fcsl_api.solver.models import (
     Objective,
     Requirement,
     RequirementKind,
+    SolveRequest,
     ValuationSettings,
 )
 from fcsl_api.solver.pool import build_pool
@@ -253,36 +255,46 @@ LARGE_REQS = [
 ]
 
 
-def _solve_large(time_limit_s, whole_flow=True):
-    """Poda + modelo + solve. Con `whole_flow`, todo dentro de `time_limit_s` de
-    reloj; si no, `time_limit_s` es el límite que recibe `solve_model`."""
-    cards = market_cards(5000, seed=27)
+def _large_request(time_limit_s):
+    return SolveRequest(
+        slots=FORMATION_433,
+        requirements=LARGE_REQS,
+        cards=market_cards(5000, seed=27),
+        pool="market",
+        time_limit_s=time_limit_s,
+    )
+
+
+def _service_wall_time(req):
     start = time.perf_counter()
+    sol = service.solve(req)
+    return sol, time.perf_counter() - start
+
+
+def test_service_honors_wall_time_limit():
+    # `time_limit_s` es reloj total del servicio: poda + modelo + solve + métricas.
+    sol, elapsed = _service_wall_time(_large_request(10.0))
+    assert sol.status in ("optimal", "feasible")
+    assert elapsed < 10.0
+
+
+def test_large_pool_under_10s():
+    # Margen holgado (límite 8 s, listón 10 s) para que la carga de la máquina no
+    # lo vuelva intermitente.
+    sol, elapsed = _service_wall_time(_large_request(8.0))
+    assert sol.status in ("optimal", "feasible")
+    assert len(sol.assignments) == 11
+    assert elapsed < 10.0
+
+
+def test_timeout_returns_feasible_or_unknown():
+    cards = market_cards(5000, seed=27)
     pool = build_pool(cards, "market", FORMATION_433, LARGE_REQS, [], [])
     costs = [card_cost(c, V) for c in pool]
     m = build_base_model(pool, FORMATION_433, costs)
     for req in LARGE_REQS:
         apply_requirement(m, req)
-    # Margen holgado (≈ 2 s) para la respuesta y la carga de la máquina: el solve
-    # agota su límite en este problema.
-    remaining = time_limit_s
-    if whole_flow:
-        remaining = max(0.0, time_limit_s - (time.perf_counter() - start) - 2.0)
-    status, assignments, _ = solve_model(
-        m, objective_terms(m, costs, Objective.CHEAPEST), remaining
-    )
-    return status, assignments, time.perf_counter() - start
-
-
-def test_large_pool_under_10s():
-    status, assignments, elapsed = _solve_large(10.0)
-    assert status in ("optimal", "feasible")
-    assert len(assignments) == 11
-    assert elapsed < 10.0
-
-
-def test_timeout_returns_feasible_or_unknown():
-    status, _, _ = _solve_large(0.05, whole_flow=False)
+    status, _, _ = solve_model(m, objective_terms(m, costs, Objective.CHEAPEST), 0.05)
     assert status in ("feasible", "unknown")
 
 

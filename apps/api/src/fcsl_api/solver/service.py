@@ -3,6 +3,8 @@
 Nunca lanza por resultados del solver: infeasible/unknown vuelven como `Solution`.
 """
 
+import time
+
 from .chemistry import player_chemistry, team_chemistry
 from .cpsat import build_base_model, eligibility_problem, solve_model
 from .models import Solution, SolveRequest
@@ -12,6 +14,10 @@ from .requirements import apply_requirement
 from .valuation import card_cost, objective_terms
 
 _POOL_ORDER = ("club", "both", "market")
+# Reserva de reloj para las métricas y la respuesta tras el solve.
+SAFETY_S = 0.5
+# Tiempo mínimo que recibe el solver aunque la poda haya agotado el presupuesto.
+MIN_SOLVE_S = 0.05
 
 
 def _infeasible(pool: str, message: str) -> Solution:
@@ -19,6 +25,8 @@ def _infeasible(pool: str, message: str) -> Solution:
 
 
 def solve(req: SolveRequest) -> Solution:
+    """Resuelve un pool. `req.time_limit_s` es reloj total: incluye poda y modelo."""
+    deadline = time.perf_counter() + req.time_limit_s
     cards = build_pool(
         req.cards,
         req.pool,
@@ -44,8 +52,9 @@ def solve(req: SolveRequest) -> Solution:
     for card_id in req.include_card_ids:
         m.model.add(m.used[index[card_id]] == 1)
 
+    remaining = max(MIN_SOLVE_S, deadline - time.perf_counter() - SAFETY_S)
     status, assignments, seconds = solve_model(
-        m, objective_terms(m, costs, req.objective), req.time_limit_s
+        m, objective_terms(m, costs, req.objective), remaining
     )
     if status == "unknown":
         return Solution(
@@ -76,6 +85,11 @@ def solve(req: SolveRequest) -> Solution:
 
 
 def solve_all_pools(req: SolveRequest) -> list[Solution]:
+    """Resuelve club, ambos y mercado (solo mercado si no hay cartas del club).
+
+    `req.time_limit_s` se aplica a cada pool por separado: el total puede llegar
+    a 3 × `time_limit_s`.
+    """
     has_club = any(c.source == "club" for c in req.cards)
     return [
         solve(req.model_copy(update={"pool": pool}))
