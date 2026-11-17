@@ -24,10 +24,13 @@ class SbcModel:
     x: dict[tuple[int, int], cp_model.IntVar]  # (carta, hueco) -> 0/1, solo si es elegible
     used: list[cp_model.IntVar]  # used[c] = Σ_s x[c, s]
     sum_rating: cp_model.IntVar  # Σ rating·used
-    # e_c = max(0, n·rating_c·used_c − sum_rating); se crean bajo demanda (TEAM_RATING).
-    rating_excess: list[cp_model.IntVar] | None = None
+    # le_s ⇔ sum_rating ≤ s, por valor s; se crean bajo demanda (TEAM_RATING).
+    rating_le: dict[int, cp_model.IntVar] | None = None
     # química 0..MAX_PLAYER_CHEM por índice de carta (0 si no se usa); ver add_chemistry.
     chem: dict[int, cp_model.IntVar] | None = None
+    # present_g ⇔ Σ used del grupo ≥ 1, por familia ("league"/"nation"/"club") e id
+    # de grupo; se crean bajo demanda (DISTINCT_*).
+    group_present: dict[str, dict[int, cp_model.IntVar]] | None = None
 
 
 def eligibility_problem(cards: list[Card], slots: list[Position]) -> str | None:

@@ -87,15 +87,18 @@ def test_team_rating_infeasible():
     assert chosen == []
 
 
-def test_two_team_rating_requirements_share_excess():
+def test_two_team_rating_requirements_share_literals():
     ratings = [60, 70, 75, 80, 85, 90, 95]
     cards = _cards([{"rating": r, "positions": ["CM"]} for r in ratings])
     costs = [100 - r for r in ratings]
     m = build_base_model(cards, ["CM"] * 3, costs)
     apply_requirement(m, _team("min", 76))
-    first = m.rating_excess
+    first = m.rating_le
+    shared = dict(first)
     apply_requirement(m, _team("max", 77))
-    assert m.rating_excess is first
+    assert m.rating_le is first
+    # El literal S ≤ s de un valor ya creado se reutiliza, no se duplica.
+    assert all(m.rating_le[s] is lit for s, lit in shared.items())
     terms = [(costs[c], m.used[c]) for c in range(len(cards))]
     status, assignments, _ = solve_model(m, terms, 5.0)
     assert status == "optimal"
@@ -121,14 +124,6 @@ def test_player_rating_bounds(op, value, ok):
     assert status == "optimal"
     assert len(chosen) == len(slots)
     assert all(ok(c.rating) for c in chosen)
-
-
-def test_unimplemented_kind_raises():
-    cards = _cards([{"positions": ["CM"]}])
-    m = build_base_model(cards, ["CM"], [1])
-    req = Requirement(kind=RequirementKind.LEAGUE_PLAYERS, value=1, ids=[1])
-    with pytest.raises(NotImplementedError, match="LEAGUE_PLAYERS"):
-        apply_requirement(m, req)
 
 
 def _random_pool(rng, size):
