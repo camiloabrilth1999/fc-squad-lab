@@ -43,6 +43,13 @@ Referencia de producto: EasySBC (analizado con REA el 2026-11-16). Se replican l
 
 **Elegido: C**, por Camilo, 2026-11-16.
 
+**Actualización 2026-11-17 (fuentes concretas, decididas por Camilo tras explorar):**
+- **Base de cartas:** API pública de listado de jugadores de FUT.GG (`/api/fut/players/v2/27/`). Su `robots.txt` pide no usar `/api/*`; Camilo asume ese riesgo para uso personal local.
+- **Precios PC:** API pública de EasySBC (`api-fc27.easysbc.io/players`, cabecera `Platform: PC`, campo `priceInfo`). Sus términos (§26) prohíben la extracción; Camilo asume ese riesgo para uso personal local.
+- **Tu sesión de EA (extensión):** club, almacén, lista de transferencias, SBC y los precios del mercado que Camilo ve al buscar a mano.
+- **Límites que no se negocian:** como mucho 1 petición/s por fuente, caché, refresco cada varias horas, parar ante 403/429, y **nunca** saltarse protecciones anti-bots (FUTBIN y la ruta de precios de FUT.GG están tras Cloudflare → no se usan).
+- Clave común: `resource_id` de EA = `eaId` de FUT.GG = `resourceId` de EasySBC.
+
 ## 5. Arquitectura (decisiones del diseñador; Camilo puede cambiarlas)
 
 ```
