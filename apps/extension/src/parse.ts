@@ -63,22 +63,35 @@ function pickItem(raw: unknown): EaItem | null {
   };
 }
 
+/**
+ * Una subasta cerrada ya no es tuya si la vendiste (`tradeOwner`) o si no ganaste la puja
+ * (`bidState` distinto de "highest"). Activas, caducadas o sin estado siguen siendo tuyas.
+ */
+function stillOwned(a: Record<string, unknown>): boolean {
+  if (a.tradeState !== "closed") return true;
+  return a.tradeOwner !== true && a.bidState === "highest";
+}
+
 export function toClubImport(url: string, body: unknown): ImportClubBody | null {
   const endpoint = classifyUrl(url);
   if (!endpoint || endpoint === "market" || !isRecord(body)) return null;
   let rawItems: unknown[] | null = null;
   if (Array.isArray(body.itemData)) rawItems = body.itemData;
   else if (Array.isArray(body.auctionInfo))
-    rawItems = body.auctionInfo.map((a) => (isRecord(a) ? a.itemData : null));
+    rawItems = body.auctionInfo.map((a) => (isRecord(a) && stillOwned(a) ? a.itemData : null));
   if (!rawItems) return null;
   const items = rawItems.map(pickItem).filter((i): i is EaItem => i !== null);
-  if (items.length === 0) return null;
+  // Almacén, lista de transferencias y seguimiento llegan siempre enteros; el club va paginado.
+  const complete = COMPLETE_LOCATIONS.has(endpoint);
+  if (items.length === 0 && !complete) return null;
   const dups = Array.isArray(body.duplicateItemIdList) ? body.duplicateItemIdList : [];
   const duplicate_item_ids = dups
     .map((d) => (isRecord(d) ? d.itemId : null))
     .filter((v): v is number => num(v));
-  return { location: endpoint, items, duplicate_item_ids };
+  return { location: endpoint, items, duplicate_item_ids, complete };
 }
+
+const COMPLETE_LOCATIONS: ReadonlySet<Endpoint> = new Set(["storage", "tradepile", "watchlist"]);
 
 export function toMarketObservations(body: unknown, now: Date): MarketObservation[] {
   if (!isRecord(body) || !Array.isArray(body.auctionInfo)) return [];

@@ -71,7 +71,7 @@ def test_import_club_upserts_and_is_idempotent(client: TestClient, clean_db: Ses
     for _ in range(2):
         r = client.post("/import/club", json=_club_body(), headers=H)
         assert r.status_code == 200
-        assert r.json() == {"upserted": 3}
+        assert r.json() == {"upserted": 3, "removed": 0}
     clean_db.expire_all()
     rows = {c.item_id: c for c in clean_db.scalars(select(ClubItem))}
     assert len(rows) == 3
@@ -89,7 +89,7 @@ def test_import_club_unknown_resource_ok(client: TestClient, clean_db: Session) 
         "location": "storage",
         "items": [{"id": 5, "resourceId": 999999999, "assetId": 1, "rating": 70}],
     }
-    assert client.post("/import/club", json=body, headers=H).json() == {"upserted": 1}
+    assert client.post("/import/club", json=body, headers=H).json() == {"upserted": 1, "removed": 0}
     assert clean_db.get(ClubItem, 5).resource_id == 999999999
 
 
@@ -101,7 +101,7 @@ def test_import_club_skips_non_players(client: TestClient, clean_db: Session) ->
             {"id": 8, "resourceId": 2, "assetId": 2, "rating": 80, "itemType": "player"},
         ],
     }
-    assert client.post("/import/club", json=body, headers=H).json() == {"upserted": 1}
+    assert client.post("/import/club", json=body, headers=H).json() == {"upserted": 1, "removed": 0}
 
 
 def test_import_market_keeps_min_per_resource(client: TestClient, clean_db: Session) -> None:
@@ -206,3 +206,64 @@ def test_import_body_under_cap_still_parsed(client: TestClient) -> None:
     headers = {**H, "Content-Type": "application/json"}
     r = client.post("/import/club", content=json.dumps(_club_body()), headers=headers)
     assert r.status_code == 200
+
+
+def _item(i: int) -> dict:
+    return {
+        "id": i,
+        "resourceId": 1000 + i,
+        "assetId": 1000 + i,
+        "rating": 80,
+        "itemType": "player",
+    }
+
+
+def _ids(session: Session, location: str) -> list[int]:
+    session.expire_all()
+    rows = session.scalars(select(ClubItem.item_id).where(ClubItem.location == location))
+    return sorted(rows)
+
+
+def test_import_club_keep_item_ids_removes_missing_in_that_location(
+    client: TestClient, clean_db: Session
+) -> None:
+    client.post(
+        "/import/club",
+        json={"location": "tradepile", "items": [_item(1), _item(2), _item(3)]},
+        headers=H,
+    )
+    client.post("/import/club", json={"location": "club", "items": [_item(9)]}, headers=H)
+    r = client.post(
+        "/import/club",
+        json={"location": "tradepile", "items": [_item(2)], "keep_item_ids": [2, 3]},
+        headers=H,
+    )
+    assert r.status_code == 200
+    assert r.json() == {"upserted": 1, "removed": 1}
+    assert _ids(clean_db, "tradepile") == [2, 3]
+    assert _ids(clean_db, "club") == [9]  # otras ubicaciones no se tocan
+
+
+def test_import_club_keep_empty_clears_location_except_club(
+    client: TestClient, clean_db: Session
+) -> None:
+    client.post("/import/club", json={"location": "storage", "items": [_item(1)]}, headers=H)
+    client.post("/import/club", json={"location": "club", "items": [_item(2)]}, headers=H)
+    r = client.post(
+        "/import/club", json={"location": "storage", "items": [], "keep_item_ids": []}, headers=H
+    )
+    assert r.json() == {"upserted": 0, "removed": 1}
+    assert _ids(clean_db, "storage") == []
+    # Por seguridad, una lista vacía nunca vacía el club.
+    r = client.post(
+        "/import/club", json={"location": "club", "items": [], "keep_item_ids": []}, headers=H
+    )
+    assert r.status_code == 422
+    assert _ids(clean_db, "club") == [2]
+
+
+def test_import_club_without_keep_never_removes(client: TestClient, clean_db: Session) -> None:
+    client.post("/import/club", json={"location": "club", "items": [_item(1), _item(2)]}, headers=H)
+    r = client.post("/import/club", json={"location": "club", "items": [_item(1)]}, headers=H)
+    assert r.json() == {"upserted": 1, "removed": 0}
+    assert _ids(clean_db, "club") == [1, 2]

@@ -10,7 +10,18 @@ export interface HookTarget {
  * Observa fetch y XHR sin alterar petición ni respuesta. Todo observador va en
  * try/catch y no relanza; jamás emite peticiones propias.
  */
-export function installHook(target: HookTarget, isRawMode: () => boolean): void {
+export function installHook(
+  target: HookTarget,
+  isRawMode: () => boolean,
+  onResponse: (url: string) => void = () => {},
+): void {
+  const seen = (url: string): void => {
+    try {
+      onResponse(url);
+    } catch {
+      /* ignorar */
+    }
+  };
   const wanted = (url: string): boolean => {
     try {
       return classifyUrl(url) !== null || (isRawMode() && isFutUrl(url));
@@ -37,7 +48,9 @@ export function installHook(target: HookTarget, isRawMode: () => boolean): void 
         result
           .then((res) => {
             try {
-              if (!url || res.status !== 200 || !wanted(url)) return;
+              if (!url || res.status !== 200) return;
+              seen(url);
+              if (!wanted(url)) return;
               res
                 .clone()
                 .json()
@@ -72,7 +85,9 @@ export function installHook(target: HookTarget, isRawMode: () => boolean): void 
         this.addEventListener("load", () => {
           try {
             const url = (this as unknown as { __fcslUrl?: string }).__fcslUrl;
-            if (!url || this.status !== 200 || !wanted(url)) return;
+            if (!url || this.status !== 200) return;
+            seen(url);
+            if (!wanted(url)) return;
             const text = this.responseType === "" || this.responseType === "text" ? this.responseText : null;
             const data = text ?? (this.responseType === "json" ? this.response : null);
             const body = typeof data === "string" ? JSON.parse(data) : data;

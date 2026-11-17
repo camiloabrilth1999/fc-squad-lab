@@ -13,11 +13,13 @@ function readForm(): Config {
     apiUrl: $<HTMLInputElement>("apiUrl").value.trim().replace(/\/+$/, "") || DEFAULT_CONFIG.apiUrl,
     token: $<HTMLInputElement>("token").value.trim(),
     rawMode: $<HTMLInputElement>("rawMode").checked,
+    autoImport: $<HTMLInputElement>("autoImport").checked,
   };
 }
 
 function renderStats(s: Stats): void {
   const rows: [string, string][] = [
+    ["Última importación automática", s.lastAutoImport ?? "—"],
     ["Último envío", s.lastSentAt ?? "—"],
     ["Último error", s.lastError ?? "—"],
     ["Errores", String(s.errors)],
@@ -49,6 +51,7 @@ async function load(): Promise<void> {
   $<HTMLInputElement>("apiUrl").value = c.apiUrl;
   $<HTMLInputElement>("token").value = c.token;
   $<HTMLInputElement>("rawMode").checked = c.rawMode;
+  $<HTMLInputElement>("autoImport").checked = c.autoImport;
   renderStats({ ...EMPTY_STATS, ...(stats as Partial<Stats> | undefined) });
 }
 

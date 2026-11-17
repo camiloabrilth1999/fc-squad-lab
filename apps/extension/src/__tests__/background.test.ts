@@ -26,6 +26,59 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("estado de la importación automática", () => {
+  it("guarda el resumen y, si falló, el error", async () => {
+    await bg.handleStatus({ source: "fcsl-status", kind: "auto-import", at: "2026-11-17T15:00:00Z", ok: true, clubPages: 2, storage: true });
+    expect((store.stats as { lastAutoImport: string }).lastAutoImport).toBe("2026-11-17T15:00:00Z · OK · 2 páginas de club + Almacén SBC");
+    await bg.handleStatus({ source: "fcsl-status", kind: "auto-import", at: "2026-11-17T16:00:00Z", ok: false, clubPages: 1, storage: false, error: "EA respondió 429 al leer el club" });
+    const s = store.stats as { lastAutoImport: string; lastError: string; errors: number };
+    expect(s.lastAutoImport).toBe("2026-11-17T16:00:00Z · ERROR · EA respondió 429 al leer el club");
+    expect(s.lastError).toBe("EA respondió 429 al leer el club");
+    expect(s.errors).toBe(1);
+  });
+  it("ignora mensajes raros", async () => {
+    await bg.handleStatus({ source: "otro" } as never);
+    expect(store.stats).toBeUndefined();
+  });
+  it("con el club completo envía primero sus páginas y luego keep_item_ids", async () => {
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/club`, body: { itemData: [item(1), item(2)] } });
+    await bg.handleStatus({
+      source: "fcsl-status", kind: "auto-import", at: "x", ok: true, clubPages: 1, storage: true, clubItemIds: [1, 2],
+    });
+    const bodies = fetchMock.mock.calls.map(([, i]) => JSON.parse(i.body));
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0].items.map((i: { id: number }) => i.id)).toEqual([1, 2]);
+    expect(bodies[1]).toEqual({ location: "club", items: [], duplicate_item_ids: [], keep_item_ids: [1, 2] });
+  });
+  it("sin ids del club (incompleto o fallido) no limpia nada", async () => {
+    await bg.handleStatus({ source: "fcsl-status", kind: "auto-import", at: "x", ok: true, clubPages: 50, storage: true });
+    await bg.handleStatus({
+      source: "fcsl-status", kind: "auto-import", at: "x", ok: false, clubPages: 1, storage: false, error: "e", clubItemIds: [1],
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("listas completas", () => {
+  it("lista de transferencias: envía sus ítems y luego keep con los ids vistos", async () => {
+    const auctionInfo = [
+      { tradeState: "active", tradeOwner: true, itemData: item(5) },
+      { tradeState: "closed", tradeOwner: true, itemData: item(6) }, // vendida
+    ];
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/tradepile`, body: { auctionInfo } });
+    await bg.flush();
+    const bodies = fetchMock.mock.calls.map(([, i]) => JSON.parse(i.body));
+    expect(bodies.map((b) => b.keep_item_ids)).toEqual([undefined, [5]]);
+    expect(bodies[0].items.map((i: { id: number }) => i.id)).toEqual([5]);
+  });
+  it("almacén vacío: un único envío con keep vacío", async () => {
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/storagepile`, body: { itemData: [] } });
+    await bg.flush();
+    const bodies = fetchMock.mock.calls.map(([, i]) => JSON.parse(i.body));
+    expect(bodies).toEqual([{ location: "storage", items: [], duplicate_item_ids: [], keep_item_ids: [] }]);
+  });
+});
+
 describe("background", () => {
   it("agrupa y envía en lotes de máx. 500 ítems con el token", async () => {
     bg.handleMessage({ source: "fcsl", url: `${BASE}/club?sid=abc`, body: { itemData: Array.from({ length: 1200 }, (_, i) => item(i + 1)) } });
@@ -64,7 +117,7 @@ describe("background", () => {
 
   it("envía tras 2 s de agrupación", async () => {
     vi.useFakeTimers();
-    bg.handleMessage({ source: "fcsl", url: `${BASE}/watchlist`, body: { auctionInfo: [{ itemData: item(9) }] } });
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/club`, body: { itemData: [item(9)] } });
     await vi.advanceTimersByTimeAsync(1900);
     expect(fetchMock).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(200);

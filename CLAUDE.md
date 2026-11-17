@@ -30,7 +30,7 @@ Proyecto personal de Camilo: web local para EA FC 27 Ultimate Team (solver de SB
 
 - Cartas: FUT.GG (`/api/fut/players/v2/27/`). Precios PC: EasySBC (`api-fc27.easysbc.io/players`, cabecera `Platform: PC`). Club y mercado visto: extensión propia sobre la web app de EA.
 - Máximo 1 petición/s por fuente, caché, parar ante 403/429, **nunca** saltarse protecciones anti-bots (FUTBIN y la ruta de precios de FUT.GG quedan fuera).
-- La extensión **solo lee** lo que la web app de EA ya recibe; nunca hace peticiones a EA ni toca el mercado.
+- La extensión **solo lee**. Observa lo que la web app de EA recibe y, desde 2026-11-17 (decisión de Camilo, como EasySBC), al iniciar sesión pide a la propia web app que lea el club y el Almacén SBC con sus servicios internos (`services.Club.search`, `services.Item.searchStorageItems`): ≥ 1 s entre peticiones, tope de páginas, una vez por sesión (enfriamiento de 15 min), parar ante el primer error y desactivable en Opciones. **Nunca** peticiones `fetch` propias a EA, ni mercado, pujas, ventas, movimientos o envíos de SBC.
 
 ## Estado (2026-11-17)
 

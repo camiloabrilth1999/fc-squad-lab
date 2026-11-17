@@ -61,6 +61,49 @@ describe("toClubImport", () => {
     };
     expect(toClubImport(`${BASE}/club`, body)?.items.map((i) => i.id)).toEqual([1]);
   });
+  it("ignora subastas cerradas que ya no son tuyas (vendidas o pujas perdidas)", () => {
+    const item = (id: number) => ({ id, resourceId: id, assetId: id, rating: 80, itemType: "player" });
+    const auction = (id: number, tradeState: string, tradeOwner: boolean, bidState = "none") => ({
+      tradeId: id * 10,
+      tradeState,
+      tradeOwner,
+      bidState,
+      itemData: item(id),
+    });
+    const tradepile = {
+      auctionInfo: [
+        auction(1, "active", true),
+        auction(2, "expired", true), // no vendida: sigue siendo tuya
+        auction(3, "closed", true), // vendida
+        auction(4, null as unknown as string, true), // sin estado (recién movida): se conserva
+      ],
+    };
+    expect(toClubImport(`${BASE}/tradepile`, tradepile)?.items.map((i) => i.id)).toEqual([1, 2, 4]);
+    const watchlist = {
+      auctionInfo: [
+        auction(5, "active", false, "outbid"),
+        auction(6, "closed", false, "highest"), // ganada: es tuya
+        auction(7, "closed", false, "outbid"), // perdida
+        auction(8, "closed", false, "none"), // perdida
+      ],
+    };
+    expect(toClubImport(`${BASE}/watchlist`, watchlist)?.items.map((i) => i.id)).toEqual([5, 6]);
+    // Lista completa sin nada tuyo: se envía vacía para poder limpiar la ubicación.
+    expect(toClubImport(`${BASE}/tradepile`, { auctionInfo: [auction(9, "closed", true)] })).toMatchObject({
+      items: [],
+      complete: true,
+    });
+  });
+  it("marca como completas almacén, lista de transferencias y seguimiento, pero no el club", () => {
+    expect(toClubImport(`${BASE}/storagepile`, { itemData: [] })).toEqual({
+      location: "storage",
+      items: [],
+      duplicate_item_ids: [],
+      complete: true,
+    });
+    expect(toClubImport(`${BASE}/watchlist`, { auctionInfo: [] })?.complete).toBe(true);
+    expect(toClubImport(`${BASE}/club`, club)?.complete).toBe(false);
+  });
   it("null con cuerpos raros o URL no soportada", () => {
     for (const b of [null, {}, "texto", 5, { itemData: "x" }, { itemData: [] }]) {
       expect(toClubImport(`${BASE}/club`, b)).toBeNull();

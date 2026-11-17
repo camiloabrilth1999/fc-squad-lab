@@ -8,6 +8,7 @@ import {
   type MarketObservation,
   type PageMessage,
   type Stats,
+  type StatusMessage,
 } from "./types";
 
 export const BATCH_MS = 2000;
@@ -17,7 +18,10 @@ const MAX_RAW_BYTES = 2 * 1024 * 1024;
 interface ClubQueue {
   items: EaItem[];
   dups: Set<number>;
+  /** Ids de la última lista completa vista de esta ubicación (para borrar lo que ya no está). */
+  keep: number[] | null;
 }
+const newQueue = (): ClubQueue => ({ items: [], dups: new Set<number>(), keep: null });
 let club = new Map<Location, ClubQueue>();
 let market: MarketObservation[] = [];
 let raw: { url: string; body: unknown }[] = [];
@@ -60,9 +64,10 @@ export function handleMessage(msg: PageMessage): void {
     } else if (kind) {
       const parsed = toClubImport(msg.url, msg.body);
       if (parsed) {
-        const q = club.get(parsed.location) ?? { items: [], dups: new Set<number>() };
+        const q = club.get(parsed.location) ?? newQueue();
         q.items.push(...parsed.items);
         parsed.duplicate_item_ids.forEach((d) => q.dups.add(d));
+        if (parsed.complete) q.keep = parsed.items.map((i) => i.id);
         club.set(parsed.location, q);
       }
     }
@@ -104,6 +109,15 @@ async function doFlush(): Promise<void> {
         path: "/import/club",
         body: { location, items: part, duplicate_item_ids: [...q.dups].filter((d) => ids.has(d)) },
         items: part.length,
+        obs: 0,
+        raw: 0,
+      });
+    }
+    if (q.keep) {
+      jobs.push({
+        path: "/import/club",
+        body: { location, items: [], duplicate_item_ids: [], keep_item_ids: q.keep },
+        items: 0,
         obs: 0,
         raw: 0,
       });
@@ -151,8 +165,37 @@ async function doFlush(): Promise<void> {
   }
 }
 
+/** Resultado de la importación automática (page-hook → content → aquí). */
+export async function handleStatus(msg: StatusMessage): Promise<void> {
+  try {
+    if (!msg || msg.source !== "fcsl-status" || msg.kind !== "auto-import") return;
+    const at = typeof msg.at === "string" ? msg.at : new Date().toISOString();
+    const summary = msg.ok
+      ? `${at} · OK · ${msg.clubPages} páginas de club${msg.storage ? " + Almacén SBC" : ""}`
+      : `${at} · ERROR · ${msg.error ?? "desconocido"}`;
+    await updateStats((s) => {
+      s.lastAutoImport = summary;
+      if (!msg.ok) {
+        s.errors += 1;
+        s.lastError = msg.error ?? "Importación automática fallida";
+      }
+    });
+    // Club leído entero: tras enviar sus páginas, borrar del club lo que ya no está.
+    const ids = Array.isArray(msg.clubItemIds) ? msg.clubItemIds.filter((n) => Number.isFinite(n)) : [];
+    if (msg.ok && ids.length > 0) {
+      const q = club.get("club") ?? newQueue();
+      q.keep = ids;
+      club.set("club", q);
+      await flush();
+    }
+  } catch {
+    // nunca romper por un mensaje raro
+  }
+}
+
 if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
-  chrome.runtime.onMessage.addListener((msg: PageMessage) => {
-    handleMessage(msg);
+  chrome.runtime.onMessage.addListener((msg: PageMessage | StatusMessage) => {
+    if (msg?.source === "fcsl-status") void handleStatus(msg);
+    else handleMessage(msg as PageMessage);
   });
 }

@@ -12,7 +12,8 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from sqlalchemy import delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -119,6 +120,14 @@ class ImportClubBody(BaseModel):
     location: Literal["club", "storage", "tradepile", "watchlist"]
     items: list[EaItem]
     duplicate_item_ids: list[int] = []
+    # Lista completa de la ubicación según EA: lo que haya en ella y no esté aquí se borra.
+    keep_item_ids: list[int] | None = None
+
+    @model_validator(mode="after")
+    def _never_wipe_club(self) -> "ImportClubBody":
+        if self.location == "club" and self.keep_item_ids == []:
+            raise ValueError("keep_item_ids vacío no puede vaciar el club")
+        return self
 
 
 class MarketObservation(BaseModel):
@@ -164,8 +173,15 @@ def import_club(body: ImportClubBody, session: DbSession) -> dict[str, int]:
         stmt = insert(ClubItem).values(list(rows.values()))
         update = {c: stmt.excluded[c] for c in next(iter(rows.values())) if c != "item_id"}
         session.execute(stmt.on_conflict_do_update(index_elements=["item_id"], set_=update))
+    removed = 0
+    if body.keep_item_ids is not None:
+        keep = set(body.keep_item_ids) | set(rows)
+        gone = delete(ClubItem).where(ClubItem.location == body.location)
+        if keep:
+            gone = gone.where(ClubItem.item_id.not_in(keep))
+        removed = session.execute(gone).rowcount or 0
     record_sync_run(session, "club", "ok", len(rows), started_at=now)  # hace commit
-    return {"upserted": len(rows)}
+    return {"upserted": len(rows), "removed": removed}
 
 
 @router.post("/market")
