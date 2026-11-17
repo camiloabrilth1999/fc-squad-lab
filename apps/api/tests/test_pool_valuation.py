@@ -268,10 +268,11 @@ def _solve_large(time_limit_s, whole_flow=True):
     m = build_base_model(pool, FORMATION_433, costs)
     for req in LARGE_REQS:
         apply_requirement(m, req)
-    # Margen para construir la respuesta tras el solve (el solve agota su límite).
+    # Margen holgado (≈ 2 s) para la respuesta y la carga de la máquina: el solve
+    # agota su límite en este problema.
     remaining = time_limit_s
     if whole_flow:
-        remaining = max(0.0, time_limit_s - (time.perf_counter() - start) - 0.5)
+        remaining = max(0.0, time_limit_s - (time.perf_counter() - start) - 2.0)
     status, assignments, _ = solve_model(
         m, objective_terms(m, costs, Objective.CHEAPEST), remaining
     )
