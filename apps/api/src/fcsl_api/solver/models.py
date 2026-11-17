@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 Position = str  # "GK","LB","CB","RB","LWB","RWB","CDM","CM","CAM","LM","RM","LW","RW","CF","ST"
 
@@ -60,6 +60,32 @@ class Requirement(BaseModel):
     value: int
     ids: list[int] = Field(default_factory=list)  # *_PLAYERS: ids aceptados
     tags: list[str] = Field(default_factory=list)  # LEVEL: ["gold"]; TAG: ["TOTW"]
+
+    @model_validator(mode="after")
+    def _check_inputs(self) -> "Requirement":
+        k = self.kind
+        if k == RequirementKind.PLAYER_CHEMISTRY and self.op != "min":
+            raise ValueError(f"PLAYER_CHEMISTRY solo admite op 'min', no {self.op!r}")
+        if k in _IDS_KINDS and not self.ids:
+            raise ValueError(f"{k} requiere ids no vacíos")
+        if k == RequirementKind.TAG_PLAYERS and not self.tags:
+            raise ValueError("TAG_PLAYERS requiere tags no vacíos")
+        if k == RequirementKind.LEVEL_PLAYERS and (
+            not self.tags or not set(self.tags) <= {"bronze", "silver", "gold"}
+        ):
+            raise ValueError(
+                f"LEVEL_PLAYERS requiere tags no vacíos entre bronze/silver/gold, no {self.tags!r}"
+            )
+        return self
+
+
+_IDS_KINDS = frozenset(
+    {
+        RequirementKind.LEAGUE_PLAYERS,
+        RequirementKind.NATION_PLAYERS,
+        RequirementKind.CLUB_PLAYERS,
+    }
+)
 
 
 class Objective(StrEnum):

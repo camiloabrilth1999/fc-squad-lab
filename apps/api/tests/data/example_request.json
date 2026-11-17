@@ -1,0 +1,704 @@
+{
+ "slots": [
+  "GK",
+  "LB",
+  "CB",
+  "CB",
+  "RB",
+  "LM",
+  "CM",
+  "CM",
+  "RM",
+  "ST",
+  "ST"
+ ],
+ "requirements": [
+  {
+   "kind": "TEAM_RATING",
+   "op": "min",
+   "value": 80
+  },
+  {
+   "kind": "TEAM_CHEMISTRY",
+   "op": "min",
+   "value": 20
+  }
+ ],
+ "cards": [
+  {
+   "card_id": "market:1",
+   "resource_id": 1,
+   "asset_id": 1,
+   "name": "Sintetico 1",
+   "rating": 81,
+   "positions": [
+    "GK"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 11,
+   "rare": true,
+   "source": "market",
+   "price": 1600
+  },
+  {
+   "card_id": "market:2",
+   "resource_id": 2,
+   "asset_id": 2,
+   "name": "Sintetico 2",
+   "rating": 86,
+   "positions": [
+    "LB"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 10,
+   "rare": true,
+   "source": "market",
+   "price": 6300
+  },
+  {
+   "card_id": "market:3",
+   "resource_id": 3,
+   "asset_id": 3,
+   "name": "Sintetico 3",
+   "rating": 84,
+   "positions": [
+    "CB"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 11,
+   "rare": true,
+   "source": "market",
+   "price": 3600
+  },
+  {
+   "card_id": "market:4",
+   "resource_id": 4,
+   "asset_id": 4,
+   "name": "Sintetico 4",
+   "rating": 85,
+   "positions": [
+    "CB"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 12,
+   "rare": true,
+   "source": "market",
+   "price": 4750
+  },
+  {
+   "card_id": "market:5",
+   "resource_id": 5,
+   "asset_id": 5,
+   "name": "Sintetico 5",
+   "rating": 79,
+   "positions": [
+    "RB"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 10,
+   "rare": true,
+   "source": "market",
+   "price": 1000
+  },
+  {
+   "card_id": "market:6",
+   "resource_id": 6,
+   "asset_id": 6,
+   "name": "Sintetico 6",
+   "rating": 82,
+   "positions": [
+    "LM"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 20,
+   "rare": true,
+   "source": "market",
+   "price": 2100
+  },
+  {
+   "card_id": "market:7",
+   "resource_id": 7,
+   "asset_id": 7,
+   "name": "Sintetico 7",
+   "rating": 79,
+   "positions": [
+    "CM"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 12,
+   "rare": true,
+   "source": "market",
+   "price": 1000
+  },
+  {
+   "card_id": "market:8",
+   "resource_id": 8,
+   "asset_id": 8,
+   "name": "Sintetico 8",
+   "rating": 82,
+   "positions": [
+    "CM"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 12,
+   "rare": true,
+   "source": "market",
+   "price": 2100
+  },
+  {
+   "card_id": "market:9",
+   "resource_id": 9,
+   "asset_id": 9,
+   "name": "Sintetico 9",
+   "rating": 77,
+   "positions": [
+    "RM"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 12,
+   "rare": true,
+   "source": "market",
+   "price": 700
+  },
+  {
+   "card_id": "market:10",
+   "resource_id": 10,
+   "asset_id": 10,
+   "name": "Sintetico 10",
+   "rating": 86,
+   "positions": [
+    "ST"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 30,
+   "rare": true,
+   "source": "market",
+   "price": 6300
+  },
+  {
+   "card_id": "market:11",
+   "resource_id": 11,
+   "asset_id": 11,
+   "name": "Sintetico 11",
+   "rating": 85,
+   "positions": [
+    "ST"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 31,
+   "rare": true,
+   "source": "market",
+   "price": 4750
+  },
+  {
+   "card_id": "market:12",
+   "resource_id": 12,
+   "asset_id": 12,
+   "name": "Sintetico 12",
+   "rating": 76,
+   "positions": [
+    "GK"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 10,
+   "rare": true,
+   "source": "market",
+   "price": 600
+  },
+  {
+   "card_id": "market:13",
+   "resource_id": 13,
+   "asset_id": 13,
+   "name": "Sintetico 13",
+   "rating": 84,
+   "positions": [
+    "LB"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 11,
+   "rare": true,
+   "source": "market",
+   "price": 3600
+  },
+  {
+   "card_id": "market:14",
+   "resource_id": 14,
+   "asset_id": 14,
+   "name": "Sintetico 14",
+   "rating": 82,
+   "positions": [
+    "CB"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 12,
+   "rare": true,
+   "source": "market",
+   "price": 2100
+  },
+  {
+   "card_id": "market:15",
+   "resource_id": 15,
+   "asset_id": 15,
+   "name": "Sintetico 15",
+   "rating": 77,
+   "positions": [
+    "CB"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 31,
+   "rare": true,
+   "source": "market",
+   "price": 700
+  },
+  {
+   "card_id": "market:16",
+   "resource_id": 16,
+   "asset_id": 16,
+   "name": "Sintetico 16",
+   "rating": 84,
+   "positions": [
+    "RB"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 30,
+   "rare": true,
+   "source": "market",
+   "price": 3600
+  },
+  {
+   "card_id": "market:17",
+   "resource_id": 17,
+   "asset_id": 17,
+   "name": "Sintetico 17",
+   "rating": 77,
+   "positions": [
+    "LM"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 32,
+   "rare": true,
+   "source": "market",
+   "price": 700
+  },
+  {
+   "card_id": "market:18",
+   "resource_id": 18,
+   "asset_id": 18,
+   "name": "Sintetico 18",
+   "rating": 86,
+   "positions": [
+    "CM"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 11,
+   "rare": true,
+   "source": "market",
+   "price": 6300
+  },
+  {
+   "card_id": "market:19",
+   "resource_id": 19,
+   "asset_id": 19,
+   "name": "Sintetico 19",
+   "rating": 77,
+   "positions": [
+    "CM"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 32,
+   "rare": true,
+   "source": "market",
+   "price": 700
+  },
+  {
+   "card_id": "market:20",
+   "resource_id": 20,
+   "asset_id": 20,
+   "name": "Sintetico 20",
+   "rating": 77,
+   "positions": [
+    "RM"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 30,
+   "rare": true,
+   "source": "market",
+   "price": 700
+  },
+  {
+   "card_id": "market:21",
+   "resource_id": 21,
+   "asset_id": 21,
+   "name": "Sintetico 21",
+   "rating": 85,
+   "positions": [
+    "ST"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 11,
+   "rare": true,
+   "source": "market",
+   "price": 4750
+  },
+  {
+   "card_id": "market:22",
+   "resource_id": 22,
+   "asset_id": 22,
+   "name": "Sintetico 22",
+   "rating": 86,
+   "positions": [
+    "ST"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 31,
+   "rare": true,
+   "source": "market",
+   "price": 6300
+  },
+  {
+   "card_id": "market:23",
+   "resource_id": 23,
+   "asset_id": 23,
+   "name": "Sintetico 23",
+   "rating": 81,
+   "positions": [
+    "GK"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 22,
+   "rare": true,
+   "source": "market",
+   "price": 1600
+  },
+  {
+   "card_id": "market:24",
+   "resource_id": 24,
+   "asset_id": 24,
+   "name": "Sintetico 24",
+   "rating": 83,
+   "positions": [
+    "LB"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 21,
+   "rare": true,
+   "source": "market",
+   "price": 2750
+  },
+  {
+   "card_id": "market:25",
+   "resource_id": 25,
+   "asset_id": 25,
+   "name": "Sintetico 25",
+   "rating": 79,
+   "positions": [
+    "CB"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 12,
+   "rare": true,
+   "source": "market",
+   "price": 1000
+  },
+  {
+   "card_id": "market:26",
+   "resource_id": 26,
+   "asset_id": 26,
+   "name": "Sintetico 26",
+   "rating": 79,
+   "positions": [
+    "CB"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 12,
+   "rare": true,
+   "source": "market",
+   "price": 1000
+  },
+  {
+   "card_id": "market:27",
+   "resource_id": 27,
+   "asset_id": 27,
+   "name": "Sintetico 27",
+   "rating": 80,
+   "positions": [
+    "RB"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 31,
+   "rare": true,
+   "source": "market",
+   "price": 1250
+  },
+  {
+   "card_id": "market:28",
+   "resource_id": 28,
+   "asset_id": 28,
+   "name": "Sintetico 28",
+   "rating": 81,
+   "positions": [
+    "LM"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 31,
+   "rare": true,
+   "source": "market",
+   "price": 1600
+  },
+  {
+   "card_id": "market:29",
+   "resource_id": 29,
+   "asset_id": 29,
+   "name": "Sintetico 29",
+   "rating": 80,
+   "positions": [
+    "CM"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 30,
+   "rare": true,
+   "source": "market",
+   "price": 1250
+  },
+  {
+   "card_id": "market:30",
+   "resource_id": 30,
+   "asset_id": 30,
+   "name": "Sintetico 30",
+   "rating": 77,
+   "positions": [
+    "CM"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 31,
+   "rare": true,
+   "source": "market",
+   "price": 700
+  },
+  {
+   "card_id": "market:31",
+   "resource_id": 31,
+   "asset_id": 31,
+   "name": "Sintetico 31",
+   "rating": 78,
+   "positions": [
+    "RM"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 20,
+   "rare": true,
+   "source": "market",
+   "price": 800
+  },
+  {
+   "card_id": "market:32",
+   "resource_id": 32,
+   "asset_id": 32,
+   "name": "Sintetico 32",
+   "rating": 83,
+   "positions": [
+    "ST"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 20,
+   "rare": true,
+   "source": "market",
+   "price": 2750
+  },
+  {
+   "card_id": "market:33",
+   "resource_id": 33,
+   "asset_id": 33,
+   "name": "Sintetico 33",
+   "rating": 86,
+   "positions": [
+    "ST"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 12,
+   "rare": true,
+   "source": "market",
+   "price": 6300
+  },
+  {
+   "card_id": "market:34",
+   "resource_id": 34,
+   "asset_id": 34,
+   "name": "Sintetico 34",
+   "rating": 85,
+   "positions": [
+    "GK"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 21,
+   "rare": true,
+   "source": "market",
+   "price": 4750
+  },
+  {
+   "card_id": "market:35",
+   "resource_id": 35,
+   "asset_id": 35,
+   "name": "Sintetico 35",
+   "rating": 81,
+   "positions": [
+    "LB"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 31,
+   "rare": true,
+   "source": "market",
+   "price": 1600
+  },
+  {
+   "card_id": "market:36",
+   "resource_id": 36,
+   "asset_id": 36,
+   "name": "Sintetico 36",
+   "rating": 85,
+   "positions": [
+    "CB"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 20,
+   "rare": true,
+   "source": "market",
+   "price": 4750
+  },
+  {
+   "card_id": "market:37",
+   "resource_id": 37,
+   "asset_id": 37,
+   "name": "Sintetico 37",
+   "rating": 77,
+   "positions": [
+    "CB"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 21,
+   "rare": true,
+   "source": "market",
+   "price": 700
+  },
+  {
+   "card_id": "market:38",
+   "resource_id": 38,
+   "asset_id": 38,
+   "name": "Sintetico 38",
+   "rating": 86,
+   "positions": [
+    "RB"
+   ],
+   "league_id": 1,
+   "nation_id": 1,
+   "club_id": 10,
+   "rare": true,
+   "source": "market",
+   "price": 6300
+  },
+  {
+   "card_id": "market:39",
+   "resource_id": 39,
+   "asset_id": 39,
+   "name": "Sintetico 39",
+   "rating": 80,
+   "positions": [
+    "LM"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 32,
+   "rare": true,
+   "source": "market",
+   "price": 1250
+  },
+  {
+   "card_id": "market:40",
+   "resource_id": 40,
+   "asset_id": 40,
+   "name": "Sintetico 40",
+   "rating": 86,
+   "positions": [
+    "CM"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 21,
+   "rare": true,
+   "source": "market",
+   "price": 6300
+  },
+  {
+   "card_id": "market:41",
+   "resource_id": 41,
+   "asset_id": 41,
+   "name": "Sintetico 41",
+   "rating": 82,
+   "positions": [
+    "CM"
+   ],
+   "league_id": 3,
+   "nation_id": 3,
+   "club_id": 31,
+   "rare": true,
+   "source": "market",
+   "price": 2100
+  },
+  {
+   "card_id": "market:42",
+   "resource_id": 42,
+   "asset_id": 42,
+   "name": "Sintetico 42",
+   "rating": 76,
+   "positions": [
+    "RM"
+   ],
+   "league_id": 2,
+   "nation_id": 2,
+   "club_id": 21,
+   "rare": true,
+   "source": "market",
+   "price": 600
+  }
+ ],
+ "pool": "market",
+ "objective": "cheapest",
+ "time_limit_s": 10
+}
