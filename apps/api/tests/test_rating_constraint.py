@@ -87,18 +87,18 @@ def test_team_rating_infeasible():
     assert chosen == []
 
 
-def test_two_team_rating_requirements_share_literals():
+def test_two_team_rating_requirements_share_counts():
     ratings = [60, 70, 75, 80, 85, 90, 95]
     cards = _cards([{"rating": r, "positions": ["CM"]} for r in ratings])
     costs = [100 - r for r in ratings]
     m = build_base_model(cards, ["CM"] * 3, costs)
     apply_requirement(m, _team("min", 76))
-    first = m.rating_le
+    first = m.rating_count
     shared = dict(first)
     apply_requirement(m, _team("max", 77))
-    assert m.rating_le is first
-    # El literal S ≤ s de un valor ya creado se reutiliza, no se duplica.
-    assert all(m.rating_le[s] is lit for s, lit in shared.items())
+    assert m.rating_count is first
+    # Los conteos por rating se crean una vez y los comparten ambos requisitos.
+    assert all(m.rating_count[r] is var for r, var in shared.items())
     terms = [(costs[c], m.used[c]) for c in range(len(cards))]
     status, assignments, _ = solve_model(m, terms, 5.0)
     assert status == "optimal"

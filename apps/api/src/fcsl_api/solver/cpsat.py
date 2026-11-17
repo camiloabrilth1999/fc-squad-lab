@@ -1,5 +1,6 @@
 """Modelo CP-SAT base: huecos, elegibilidad por posición, jugador único y coste."""
 
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -24,8 +25,8 @@ class SbcModel:
     x: dict[tuple[int, int], cp_model.IntVar]  # (carta, hueco) -> 0/1, solo si es elegible
     used: list[cp_model.IntVar]  # used[c] = Σ_s x[c, s]
     sum_rating: cp_model.IntVar  # Σ rating·used
-    # le_s ⇔ sum_rating ≤ s, por valor s; se crean bajo demanda (TEAM_RATING).
-    rating_le: dict[int, cp_model.IntVar] | None = None
+    # k_r = nº de cartas usadas con rating r; se crean bajo demanda (TEAM_RATING).
+    rating_count: dict[int, cp_model.IntVar] | None = None
     # química 0..MAX_PLAYER_CHEM por índice de carta (0 si no se usa); ver add_chemistry.
     chem: dict[int, cp_model.IntVar] | None = None
     # present_g ⇔ Σ used del grupo ≥ 1, por familia ("league"/"nation"/"club") e id
@@ -146,19 +147,73 @@ def add_chemistry(m: SbcModel) -> dict[int, cp_model.IntVar]:
     return chem
 
 
+# Arranque en caliente para pools grandes: antes del modelo completo se resuelve
+# una copia restringida a un subconjunto prometedor y su solución se pasa como
+# pista. Solo acelera encontrar soluciones; no cambia el óptimo ni el estado.
+WARM_START_MIN_CARDS = 1000
+WARM_START_CARDS = 400
+WARM_START_MAX_S = 3.0
+WARM_START_SHARE = 0.3  # fracción máxima del tiempo total para la fase previa
+
+
+def _warm_start_subset(m: SbcModel, coef: list[int]) -> list[int]:
+    """Índices de carta prometedores: por (rating, posiciones∩huecos), las de menor
+    coeficiente de objetivo, tomando antes la 1.ª de cada grupo, luego la 2.ª…"""
+    slot_set = frozenset(m.slots)
+    groups: dict[tuple[int, frozenset[str]], list[int]] = defaultdict(list)
+    for c, card in enumerate(m.cards):
+        groups[card.rating, slot_set & frozenset(card.positions)].append(c)
+    ranked = []
+    for idxs in groups.values():
+        idxs.sort(key=lambda c: (coef[c], c))
+        ranked.extend((i, coef[c], c) for i, c in enumerate(idxs))
+    ranked.sort()
+    return [c for _, _, c in ranked[:WARM_START_CARDS]]
+
+
+def _warm_start(
+    m: SbcModel, objective_terms: list[tuple[int, cp_model.IntVar]], time_limit_s: float
+) -> None:
+    coef = [0] * len(m.cards)
+    card_of = {u.index: c for c, u in enumerate(m.used)}
+    for k, var in objective_terms:
+        if var.index in card_of:
+            coef[card_of[var.index]] += k
+    keep = set(_warm_start_subset(m, coef))
+    sub = m.model.clone()
+    for c, u in enumerate(m.used):
+        if c not in keep:
+            sub.add(sub.get_int_var_from_proto_index(u.index) == 0)
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = time_limit_s
+    solver.parameters.num_workers = 8
+    solver.parameters.random_seed = 0
+    if solver.solve(sub) not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        return
+    m.model.clear_hints()
+    for i in range(len(m.model.proto.variables)):
+        value = solver.value(sub.get_int_var_from_proto_index(i))
+        m.model.add_hint(m.model.get_int_var_from_proto_index(i), value)
+
+
 def solve_model(
     m: SbcModel,
     objective_terms: list[tuple[int, cp_model.IntVar]],
     time_limit_s: float,
 ) -> tuple[str, list[Assignment], float]:
+    start = time.perf_counter()
     if objective_terms:
         m.model.minimize(sum(coef * var for coef, var in objective_terms))
+        if len(m.cards) >= WARM_START_MIN_CARDS:
+            _warm_start(
+                m, objective_terms, min(WARM_START_MAX_S, WARM_START_SHARE * time_limit_s)
+            )
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = time_limit_s
+    solver.parameters.max_time_in_seconds = max(0.0, time_limit_s - (time.perf_counter() - start))
     solver.parameters.num_workers = 8
     solver.parameters.random_seed = 0
     status = solver.solve(m.model)
-    elapsed = solver.wall_time
+    elapsed = time.perf_counter() - start
 
     if status == cp_model.MODEL_INVALID:
         raise ValueError(f"Modelo CP-SAT inválido: {m.model.validate()}")

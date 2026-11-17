@@ -1,6 +1,6 @@
 """Traducción de requisitos SBC a restricciones CP-SAT sobre un `SbcModel`."""
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable
 
 from ortools.sat.python import cp_model
@@ -23,57 +23,108 @@ def apply_requirement(m: SbcModel, req: Requirement) -> None:
     handler(m, req)
 
 
-def _rating_le(m: SbcModel, s: int) -> cp_model.IntVar:
-    """Literal le_s ⇔ sum_rating ≤ s, cacheado por modelo (compartido entre requisitos)."""
-    if m.rating_le is None:
-        m.rating_le = {}
-    if s not in m.rating_le:
-        b = m.model.new_bool_var(f"sum_rating_le_{s}")
-        m.model.add(m.sum_rating <= s).only_enforce_if(b)
-        m.model.add(m.sum_rating >= s + 1).only_enforce_if(~b)
-        m.rating_le[s] = b
-    return m.rating_le[s]
+def _rating_counts(m: SbcModel) -> dict[int, cp_model.IntVar]:
+    """k_r = nº de cartas usadas con rating r, cacheado por modelo (compartido)."""
+    if m.rating_count is None:
+        n = len(m.slots)
+        by_rating: dict[int, list[int]] = defaultdict(list)
+        for c, card in enumerate(m.cards):
+            by_rating[card.rating].append(c)
+        m.rating_count = {}
+        for r, idxs in sorted(by_rating.items()):
+            count = m.model.new_int_var(0, min(n, len(idxs)), f"rating_count_{r}")
+            m.model.add(count == sum(m.used[c] for c in idxs))
+            m.rating_count[r] = count
+    return m.rating_count
 
 
 def _team_rating(m: SbcModel, req: Requirement) -> None:
     # team_rating = floor((S + Σ max(0, r_c − S/n)) / n). Multiplicando por n²:
-    #   team_rating ≥ v  ⇔  g_S ≥ n²·v        team_rating ≤ v  ⇔  g_S < n²·(v + 1)
-    # con g_s = n·s + Σ_c max(0, n·r_c − s)·used_c, lineal para s fijo.
-    # Como se usan exactamente n cartas, g_s es no decreciente en s (pendiente
-    # n − #{c usada: n·r_c > s} ≥ 0). Por eso, sin perder exactitud:
-    #   min: (S ≤ s) ⇒ g_s ≥ n²·v        para cada s posible (en s = S es la definición)
-    #   max: (S ≥ s) ⇒ g_s < n²·(v + 1)
-    # Estas implicaciones con literales de orden sobre S dan una relajación mucho
-    # más fuerte que modelar max(0, ·) con variables auxiliares.
+    #   team_rating ≥ v  ⇔  g_S ≥ n²·v        team_rating ≤ v  ⇔  g_S ≤ n²·(v + 1) − 1
+    # con g_d = n·d + Σ_r max(0, n·r − d)·k_r, lineal en los conteos k_r para d fijo.
+    # Solo depende de los conteos por rating, así que se modela como disyunción
+    # sobre el valor d de S en forma de envolvente convexa (Balas): una copia de
+    # los conteos k^d por disyunción activa e_d, con Σ_d e_d = 1 y k = Σ_d k^d.
+    # Es exacta (en una solución entera solo la disyunción activa tiene k^d = k) y
+    # su relajación lineal es mucho más fuerte que los literales de orden.
+    #
+    # Para acotar las disyunciones, opt(d) = n·d + Σ max(0, n·r − d) sobre los n
+    # mejores ratings es una cota superior de g_d para cualquier equipo y es no
+    # decreciente en d (pendiente n − #{n·r > d} ≥ 0); además g_d ≥ n·d siempre.
+    #   min: d con opt(d) < n²·v es imposible; d ≥ n·v se cumple solo (una
+    #        disyunción "alta" con S ≥ n·v).
+    #   max: d > ⌊tope / n⌋ es imposible; d con opt(d) ≤ tope se cumple solo (una
+    #        disyunción "baja" con S ≤ d_bajo).
     n = len(m.slots)
-    ratings = sorted(card.rating for card in m.cards)
-    s_lo, s_hi = sum(ratings[:n]), sum(ratings[-n:])  # cotas de S
+    by_rating = sorted((card.rating for card in m.cards), reverse=True)
+    if len(by_rating) < n:
+        return  # el modelo base ya es infactible: no hay cartas para todos los huecos
+    k = _rating_counts(m)
+    ratings = sorted(k)
+    available = Counter(by_rating)
+    top = by_rating[:n]
+    s_lo, s_hi = sum(by_rating[-n:]), sum(top)
 
-    def g(s: int) -> cp_model.LinearExprT:
-        above = [c for c, card in enumerate(m.cards) if n * card.rating > s]
-        return n * s + cp_model.LinearExpr.weighted_sum(
-            [m.used[c] for c in above], [n * m.cards[c].rating - s for c in above]
-        )
+    def opt(d: int) -> int:
+        return n * d + sum(max(0, n * r - d) for r in top)
 
-    if req.op in ("min", "exact"):
-        target = n * n * req.value
-        # Mejor caso de g_s: las n cartas con mayor exceso. Si ni así llega, S > s.
-        excess_desc = sorted(ratings, reverse=True)[:n]
-        s_start = s_lo
-        while s_start < n * req.value and n * s_start + sum(
-            max(0, n * r - s_start) for r in excess_desc
-        ) < target:
-            s_start += 1
-        m.model.add(m.sum_rating >= s_start)
-        # Para s ≥ n·v, g_s ≥ n·s ≥ n²·v se cumple solo.
-        for s in range(s_start, min(s_hi, n * req.value - 1) + 1):
-            m.model.add(g(s) >= target).only_enforce_if(_rating_le(m, s))
-    if req.op in ("max", "exact"):
-        bound = n * n * (req.value + 1) - 1
-        # Para s ≥ n·(v + 1), g_s ≥ n·s > bound: S no puede llegar ahí.
-        m.model.add(m.sum_rating <= n * (req.value + 1) - 1)
-        for s in range(s_lo, min(s_hi, n * (req.value + 1) - 1) + 1):
-            m.model.add(g(s) <= bound).only_enforce_if(~_rating_le(m, s - 1))
+    want_lo = req.op in ("min", "exact")
+    want_hi = req.op in ("max", "exact")
+    target = n * n * req.value  # g_S ≥ target
+    cap = n * n * (req.value + 1) - 1  # g_S ≤ cap
+    d_from, d_to = s_lo, s_hi
+    high = low = None  # rangos [a, b] resueltos con una sola disyunción
+    if want_lo:
+        while d_from <= d_to and opt(d_from) < target:
+            d_from += 1
+        if not want_hi and max(d_from, n * req.value) <= s_hi:
+            high = (max(d_from, n * req.value), s_hi)
+            d_to = high[0] - 1
+    if want_hi:
+        d_to = min(d_to, cap // n)
+        if not want_lo:
+            d_low = d_from - 1
+            while d_low + 1 <= d_to and opt(d_low + 1) <= cap:
+                d_low += 1
+            if d_low >= d_from:
+                low = (d_from, d_low)
+                d_from = d_low + 1
+
+    model = m.model
+    tag = f"{req.op}_{req.value}"
+    parts: dict[int, list[cp_model.IntVar]] = {r: [] for r in ratings}
+    choices: list[cp_model.IntVar] = []
+
+    def branch(name: str) -> tuple[cp_model.IntVar, dict[int, cp_model.IntVar]]:
+        e = model.new_bool_var(f"team_rating_{tag}_{name}")
+        kd = {}
+        for r in ratings:
+            ub = min(n, available[r])
+            kd[r] = model.new_int_var(0, ub, f"team_rating_{tag}_{name}_k{r}")
+            model.add(kd[r] <= ub * e)
+            parts[r].append(kd[r])
+        model.add(sum(kd.values()) == n * e)
+        choices.append(e)
+        return e, kd
+
+    for d in range(d_from, d_to + 1):
+        e, kd = branch(str(d))
+        model.add(sum(r * kd[r] for r in ratings) == d * e)
+        excess = sum(max(0, n * r - d) * kd[r] for r in ratings)
+        if want_lo and n * d < target:
+            model.add(excess >= (target - n * d) * e)
+        if want_hi:
+            model.add(excess <= (cap - n * d) * e)
+    for name, rng in (("high", high), ("low", low)):
+        if rng is not None:
+            e, kd = branch(name)
+            total = sum(r * kd[r] for r in ratings)
+            model.add(total >= rng[0] * e)
+            model.add(total <= rng[1] * e)
+
+    model.add_exactly_one(choices)  # sin disyunciones posibles: infactible
+    for r in ratings:
+        model.add(k[r] == sum(parts[r]))
 
 
 def _player_rating(m: SbcModel, req: Requirement) -> None:

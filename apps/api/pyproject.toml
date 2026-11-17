@@ -31,6 +31,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = [
+    "slow: benchmarks de rendimiento (excluidos por defecto; `pytest -m slow`)",
+]
 filterwarnings = [
     # Starlette's TestClient prefers httpx2; httpx still works. Revisit when upgrading.
     "ignore:Using `httpx` with `starlette.testclient` is deprecated",
