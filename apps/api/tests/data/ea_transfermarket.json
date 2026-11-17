@@ -1,0 +1,41 @@
+{
+  "_note": "Forma documentada de la web app de FUT; sustituir por muestras reales de /import/raw tras la Task 7.",
+  "auctionInfo": [
+    {
+      "tradeId": 900000001,
+      "buyNowPrice": 13500,
+      "startingBid": 10000,
+      "itemData": {
+        "id": 222000001,
+        "resourceId": 50000001,
+        "assetId": 1001,
+        "rating": 88,
+        "itemType": "player"
+      }
+    },
+    {
+      "tradeId": 900000002,
+      "buyNowPrice": 12000,
+      "startingBid": 9000,
+      "itemData": {
+        "id": 222000002,
+        "resourceId": 50000001,
+        "assetId": 1001,
+        "rating": 88,
+        "itemType": "player"
+      }
+    },
+    {
+      "tradeId": 900000003,
+      "buyNowPrice": 900,
+      "startingBid": 500,
+      "itemData": {
+        "id": 222000003,
+        "resourceId": 50000002,
+        "assetId": 1002,
+        "rating": 84,
+        "itemType": "player"
+      }
+    }
+  ]
+}

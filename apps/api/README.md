@@ -18,3 +18,11 @@ Requiere Postgres arriba y migrado (`make db-start db-migrate`). Cada sincroniza
 `--max-pages N` cuenta peticiones, no páginas de resultados: si FUT.GG particiona por media, parte de ese presupuesto se gasta bajando por los rangos y devuelve pocas cartas (con 3, unas 30). Es solo para pruebas rápidas. Las respuestas se cachean 6 h en `apps/api/var/cache/<fuente>`; `--no-cache` fuerza la descarga. Un sync de precios borra las filas `easysbc:*` viejas de cada carta vista (cambio de fuente o sin precio utilizable).
 
 Precio efectivo (`fcsl_api.prices.effective_prices`): `ea-session` con menos de 24 h; si no, `easysbc:market`; si no, `easysbc:sbc`; si no, ausente.
+
+## Importación desde la sesión de EA
+
+Los usa la extensión de Chrome (solo lectura). Requieren `FCSL_IMPORT_TOKEN` en el entorno de la API y la cabecera `X-FCSL-Token`: sin token configurado devuelven 503; con token ausente o incorrecto, 401.
+
+- `POST /import/club`: `{location, items, duplicate_item_ids}` → upsert en `club_items` (solo jugadores).
+- `POST /import/market`: `{observations:[{resourceId, buyNowPrice, seenAt}]}` → mínimo por recurso en `prices` (`source="ea-session"`, `platform="PC"`, `captured_at` = último `seenAt`).
+- `POST /import/raw`: `{url, body}` → guarda el JSON en `apps/api/var/samples/` (máx. 50 archivos, 2 MB por petición) para aprender los formatos reales.
