@@ -1,7 +1,7 @@
 [project]
 name = "fcsl-api"
 version = "0.1.0"
-description = "Add your description here"
+description = "API de FC Squad Lab: solver de SBC de EA FC 27 con OR-Tools y datos del club en Postgres"
 readme = "README.md"
 authors = [
     { name = "Camilo Obando", email = "camiloabrilth1999@gmail.com" }
@@ -34,6 +34,7 @@ testpaths = ["tests"]
 addopts = "-m 'not slow'"
 markers = [
     "slow: benchmarks de rendimiento (excluidos por defecto; `pytest -m slow`)",
+    "db: requieren Postgres local (se saltan si no responde)",
 ]
 filterwarnings = [
     # Starlette's TestClient prefers httpx2; httpx still works. Revisit when upgrading.
