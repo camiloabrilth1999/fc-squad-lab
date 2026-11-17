@@ -59,3 +59,21 @@ def test_api_invalid_requirement_inputs_422():
         {"kind": "LEVEL_PLAYERS", "value": 1, "tags": ["diamond"]},
     ):
         assert client.post("/solve", json=_body(requirements=[req])).status_code == 422
+
+
+def test_api_card_rating_out_of_range_422():
+    for rating in (39, 100):
+        r = client.post("/solve", json=_body(cards=[_card(1, rating=rating), _card(2, "ST")]))
+        assert r.status_code == 422
+
+
+def test_api_time_limit_out_of_range_422():
+    for limit in (0, -1, 60.5):
+        assert client.post("/solve", json=_body(time_limit_s=limit)).status_code == 422
+    assert client.post("/solve", json=_body(time_limit_s=60)).status_code == 200
+
+
+def test_api_duplicate_card_ids_422():
+    r = client.post("/solve", json=_body(cards=[_card(1), _card(1, "ST")]))
+    assert r.status_code == 422
+    assert "market:1" in r.text

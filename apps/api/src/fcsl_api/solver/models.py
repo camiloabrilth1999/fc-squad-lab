@@ -1,3 +1,4 @@
+from collections import Counter
 from enum import StrEnum
 from typing import Literal
 
@@ -11,7 +12,7 @@ class Card(BaseModel):
     resource_id: int
     asset_id: int
     name: str
-    rating: int  # 40..99
+    rating: int = Field(ge=40, le=99)
     positions: list[Position] = Field(min_length=1)  # preferida primero
     league_id: int
     nation_id: int
@@ -109,7 +110,16 @@ class SolveRequest(BaseModel):
     valuation: ValuationSettings = Field(default_factory=ValuationSettings)
     include_card_ids: list[str] = Field(default_factory=list)
     exclude_card_ids: list[str] = Field(default_factory=list)
-    time_limit_s: float = 10.0
+    # Segundos de reloj por pool (ver service.solve / solve_all_pools).
+    time_limit_s: float = Field(default=10.0, gt=0, le=60)
+
+    @model_validator(mode="after")
+    def _check_unique_card_ids(self) -> "SolveRequest":
+        counts = Counter(c.card_id for c in self.cards)
+        duplicates = sorted(card_id for card_id, n in counts.items() if n > 1)
+        if duplicates:
+            raise ValueError(f"card_id repetidos: {', '.join(duplicates)}")
+        return self
 
 
 class Assignment(BaseModel):
