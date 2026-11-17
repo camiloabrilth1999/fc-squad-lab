@@ -6,7 +6,7 @@ Nunca lanza por resultados del solver: infeasible/unknown vuelven como `Solution
 import time
 
 from .chemistry import player_chemistry, team_chemistry
-from .cpsat import build_base_model, eligibility_problem, solve_model
+from .cpsat import build_base_model, eligibility_problem, include_card, solve_model
 from .models import Solution, SolveRequest
 from .pool import build_pool
 from .rating import team_rating
@@ -50,7 +50,7 @@ def solve(req: SolveRequest) -> Solution:
         apply_requirement(m, requirement)
     index = {c.card_id: i for i, c in enumerate(cards)}
     for card_id in req.include_card_ids:
-        m.model.add(m.used[index[card_id]] == 1)
+        include_card(m, index[card_id])
 
     remaining = max(MIN_SOLVE_S, deadline - time.perf_counter() - SAFETY_S)
     status, assignments, seconds = solve_model(

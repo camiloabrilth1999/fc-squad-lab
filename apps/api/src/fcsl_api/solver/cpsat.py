@@ -34,6 +34,15 @@ class SbcModel:
     group_present: dict[str, dict[int, cp_model.IntVar]] | None = None
     # requisitos aplicados (apply_requirement); guían la fase restringida.
     requirements: list[Requirement] = field(default_factory=list)
+    # índices de carta fijados a used = 1 (include_card); siempre entran en los
+    # vecindarios de la fase restringida.
+    included: set[int] = field(default_factory=set)
+
+
+def include_card(m: SbcModel, c: int) -> None:
+    """Obliga a usar la carta `c` y la registra para la fase restringida."""
+    m.model.add(m.used[c] == 1)
+    m.included.add(c)
 
 
 def eligibility_problem(cards: list[Card], slots: list[Position]) -> str | None:
@@ -240,9 +249,9 @@ def _restricted_phase(
 ) -> tuple[int, list[int]] | None:
     """Mejor (objetivo, valores) de los vecindarios en `budget_s`, o None.
 
-    Cada vecindario incluye las cartas de la mejor solución hasta el momento y la
-    recibe como pista, así que nunca empeora. El primero puede gastar todo el
-    presupuesto; los siguientes solo usan lo que sobre.
+    Cada vecindario incluye las cartas obligadas (`m.included`) y las de la mejor
+    solución hasta el momento, que recibe como pista, así que nunca empeora. El
+    primero puede gastar todo el presupuesto; los siguientes solo usan lo que sobre.
     """
     deadline = time.perf_counter() + budget_s
     best: tuple[int, list[int]] | None = None
@@ -250,7 +259,7 @@ def _restricted_phase(
         left = deadline - time.perf_counter()
         if left < MIN_STEP_S:
             break
-        keep = set(hood)
+        keep = hood | m.included  # las incluidas, fuera de la ventana o no
         sub = m.model.clone()
         if best is not None:
             keep.update(c for c, u in enumerate(m.used) if best[1][u.index])

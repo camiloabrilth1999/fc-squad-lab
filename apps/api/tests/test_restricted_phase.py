@@ -156,3 +156,45 @@ def test_restricted_phase_respects_forced_cards(monkeypatch):
         assert status == "optimal"
         assert "market:99" in {a.card_id for a in assignments}
         assert _cost(cards, costs, assignments) == expected
+
+
+def _included_far_from_window(restricted_min_cards, monkeypatch):
+    # ≥150 cartas: la fase restringida corre con los umbrales reales. La carta
+    # incluida (media 60) queda muy fuera de las ventanas alrededor de 80.
+    monkeypatch.setattr(cpsat, "RESTRICTED_MIN_CARDS", restricted_min_cards)
+    rng = random.Random(7)
+    slots = ["CB", "CB", "CM", "ST", "ST"]
+    cards = [
+        _card(
+            i,
+            rating=rng.randint(70, 90),
+            positions=[rng.choice(slots)],
+            price=rng.randint(1, 100) * 100,
+        )
+        for i in range(1, 161)
+    ] + [_card(999, rating=60, positions=["ST"], price=50_000)]
+    m, costs = _model(cards, [RATING], slots)
+    cpsat.include_card(m, len(cards) - 1)
+    status, assignments, _ = solve_model(m, objective_terms(m, costs, Objective.CHEAPEST), 10.0)
+    return status, assignments, _cost(cards, costs, assignments)
+
+
+def test_restricted_phase_keeps_included_cards(monkeypatch):
+    found = []
+    real = cpsat._restricted_phase
+
+    def spy(m, coef, budget_s):
+        result = real(m, coef, budget_s)
+        found.append(result)
+        return result
+
+    monkeypatch.setattr(cpsat, "_restricted_phase", spy)
+    status, assignments, cost = _included_far_from_window(cpsat.RESTRICTED_MIN_CARDS, monkeypatch)
+    assert len(found) == 1 and found[0] is not None  # la fase encontró solución
+    assert status == "optimal"
+    assert "market:999" in {a.card_id for a in assignments}
+
+    # Mismo óptimo que el modelo completo sin fase restringida.
+    full_status, _, full_cost = _included_far_from_window(10**6, monkeypatch)
+    assert full_status == "optimal"
+    assert cost == full_cost
