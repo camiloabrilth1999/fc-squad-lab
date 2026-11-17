@@ -1,3 +1,7 @@
+check:
+	cd apps/api && uv run ruff check . && uv run ruff format --check . && uv run pytest
+	cd apps/web && npm run lint && npm test
+
 api-test:
 	cd apps/api && uv run pytest
 
@@ -16,4 +20,4 @@ db-stop:
 db-migrate:
 	cd apps/api && uv run alembic upgrade head
 
-.PHONY: api-test api-dev db-start db-stop db-migrate
+.PHONY: check api-test api-dev db-start db-stop db-migrate

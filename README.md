@@ -4,6 +4,7 @@ Herramienta personal para resolver SBC de EA FC 27. Monorepo: API en Python (Fas
 
 ## Desarrollo
 
+- Verificación completa antes de commitear: `make check` (API: `ruff check`, `ruff format --check` y `pytest` sin los lentos; web: `npm run lint` y `npm test`)
 - Tests de la API: `make api-test`
 - Servidor de la API (puerto 8787): `make api-dev`
 - Postgres local (Postgres.app 16, puerto 5544, usuario/clave/base `fcsl`; no arranca solo tras reiniciar): `make db-start` / `make db-stop`
