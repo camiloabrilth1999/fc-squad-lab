@@ -12,3 +12,18 @@ const nf = new Intl.NumberFormat("es-ES", { useGrouping: "always" });
 
 /** Formatea con separador de miles es-ES (también para 4 dígitos: 4.000). */
 export const formatNumber = (n: number) => nf.format(n);
+
+const rtf = new Intl.RelativeTimeFormat("es", { numeric: "always" });
+
+/** "Visto hace 3 días" a partir de un ISO; "Nunca visto" si no hay fecha. */
+export function formatSeenAgo(iso: string | null, now: number = Date.now()): string {
+  if (!iso) return "Nunca visto";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "Nunca visto";
+  const minutes = Math.max(0, Math.floor((now - t) / 60_000));
+  if (minutes < 1) return "Visto hace un momento";
+  if (minutes < 60) return `Visto ${rtf.format(-minutes, "minute")}`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Visto ${rtf.format(-hours, "hour")}`;
+  return `Visto ${rtf.format(-Math.floor(hours / 24), "day")}`;
+}
