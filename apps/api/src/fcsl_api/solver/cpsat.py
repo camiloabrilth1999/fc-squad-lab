@@ -40,15 +40,15 @@ def build_base_model(cards: list[Card], slots: list[Position], costs: list[int])
     for c, card in enumerate(cards):
         for s, pos in enumerate(slots):
             if pos in card.positions:
-                x[c, s] = model.NewBoolVar(f"x_{c}_{s}")
+                x[c, s] = model.new_bool_var(f"x_{c}_{s}")
 
     for s in range(len(slots)):
-        model.AddExactlyOne(x[c, s] for c in range(len(cards)) if (c, s) in x)
+        model.add_exactly_one(x[c, s] for c in range(len(cards)) if (c, s) in x)
 
     used: list[cp_model.IntVar] = []
     for c in range(len(cards)):
-        u = model.NewIntVar(0, 1, f"used_{c}")
-        model.Add(u == sum(x[c, s] for s in range(len(slots)) if (c, s) in x))
+        u = model.new_int_var(0, 1, f"used_{c}")
+        model.add(u == sum(x[c, s] for s in range(len(slots)) if (c, s) in x))
         used.append(u)
 
     by_asset: dict[int, list[int]] = defaultdict(list)
@@ -56,10 +56,10 @@ def build_base_model(cards: list[Card], slots: list[Position], costs: list[int])
         by_asset[card.asset_id].append(c)
     for idxs in by_asset.values():
         if len(idxs) > 1:
-            model.Add(sum(used[c] for c in idxs) <= 1)
+            model.add(sum(used[c] for c in idxs) <= 1)
 
-    sum_rating = model.NewIntVar(0, 99 * len(slots), "sum_rating")
-    model.Add(sum_rating == sum(card.rating * used[c] for c, card in enumerate(cards)))
+    sum_rating = model.new_int_var(0, 99 * len(slots), "sum_rating")
+    model.add(sum_rating == sum(card.rating * used[c] for c, card in enumerate(cards)))
 
     return SbcModel(model, cards, slots, x, used, sum_rating)
 
@@ -70,16 +70,16 @@ def solve_model(
     time_limit_s: float,
 ) -> tuple[str, list[Assignment], float]:
     if objective_terms:
-        m.model.Minimize(sum(coef * var for coef, var in objective_terms))
+        m.model.minimize(sum(coef * var for coef, var in objective_terms))
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = time_limit_s
     solver.parameters.num_workers = 8
     solver.parameters.random_seed = 0
-    status = solver.Solve(m.model)
-    elapsed = solver.WallTime()
+    status = solver.solve(m.model)
+    elapsed = solver.wall_time
 
     if status == cp_model.MODEL_INVALID:
-        raise ValueError(f"Modelo CP-SAT inválido: {m.model.Validate()}")
+        raise ValueError(f"Modelo CP-SAT inválido: {m.model.validate()}")
     if status == cp_model.OPTIMAL:
         name = "optimal"
     elif status == cp_model.FEASIBLE:
@@ -92,7 +92,7 @@ def solve_model(
     assignments = [
         Assignment(slot_index=s, position=m.slots[s], card_id=m.cards[c].card_id)
         for (c, s), var in m.x.items()
-        if solver.Value(var)
+        if solver.value(var)
     ]
     assignments.sort(key=lambda a: a.slot_index)
     return name, assignments, elapsed

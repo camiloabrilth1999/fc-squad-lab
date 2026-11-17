@@ -78,7 +78,9 @@ def test_not_enough_distinct_players():
 def test_sum_rating_domain():
     cards = _cards([{"positions": ["CM"], "rating": r} for r in (80, 70, 90)])
     m = build_base_model(cards, ["CM", "CM"], [1, 1, 1])
-    assert list(m.sum_rating.Proto().domain) == [0, 198]
+    # `.proto` (propiedad), no `.Proto()`: en ortools 9.15 el método deprecado corrompe
+    # el CpModelProto y el proceso hace segfault al liberarlo.
+    assert list(m.sum_rating.proto.domain) == [0, 198]
 
 
 def test_matches_bruteforce():
