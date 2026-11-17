@@ -8,7 +8,7 @@ app = FastAPI(title="FC Squad Lab API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3030"],
+    allow_origins=["http://localhost:3030", "http://127.0.0.1:3030"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

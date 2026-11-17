@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from fcsl_api.main import app
@@ -9,9 +10,15 @@ def test_health_ok():
     assert response.json()["status"] == "ok"
 
 
-def test_cors_allows_web_origin():
-    response = TestClient(app).get("/health", headers={"Origin": "http://localhost:3030"})
-    assert response.headers["access-control-allow-origin"] == "http://localhost:3030"
+@pytest.mark.parametrize("origin", ["http://localhost:3030", "http://127.0.0.1:3030"])
+def test_cors_allows_web_origin(origin):
+    response = TestClient(app).get("/health", headers={"Origin": origin})
+    assert response.headers["access-control-allow-origin"] == origin
+
+
+def test_cors_rejects_other_origin():
+    response = TestClient(app).get("/health", headers={"Origin": "http://evil.example"})
+    assert "access-control-allow-origin" not in response.headers
 
 
 def test_health_reports_db_down(monkeypatch):
