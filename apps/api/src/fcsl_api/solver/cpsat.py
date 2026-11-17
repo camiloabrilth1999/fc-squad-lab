@@ -5,6 +5,14 @@ from dataclasses import dataclass
 
 from ortools.sat.python import cp_model
 
+from .chemistry import (
+    CLUB_THRESHOLDS,
+    HERO_LEAGUE_WEIGHT,
+    ICON_NATION_WEIGHT,
+    LEAGUE_THRESHOLDS,
+    MAX_PLAYER_CHEM,
+    NATION_THRESHOLDS,
+)
 from .models import Assignment, Card, Position
 
 
@@ -18,6 +26,8 @@ class SbcModel:
     sum_rating: cp_model.IntVar  # Σ rating·used
     # e_c = max(0, n·rating_c·used_c − sum_rating); se crean bajo demanda (TEAM_RATING).
     rating_excess: list[cp_model.IntVar] | None = None
+    # química 0..MAX_PLAYER_CHEM por índice de carta (0 si no se usa); ver add_chemistry.
+    chem: dict[int, cp_model.IntVar] | None = None
 
 
 def eligibility_problem(cards: list[Card], slots: list[Position]) -> str | None:
@@ -64,6 +74,73 @@ def build_base_model(cards: list[Card], slots: list[Position], costs: list[int])
     model.add(sum_rating == sum(card.rating * used[c] for c, card in enumerate(cards)))
 
     return SbcModel(model, cards, slots, x, used, sum_rating)
+
+
+def add_chemistry(m: SbcModel) -> dict[int, cp_model.IntVar]:
+    """Química por carta dentro del modelo (espejo de `chemistry.player_chemistry`).
+
+    Se crea una sola vez y se cachea en `m.chem`. Para cada grupo (club, liga,
+    nación) count = Σ peso·used y reach_t ⇔ count ≥ umbral_t; los puntos del
+    grupo son Σ reach_t. Carta normal: min(MAX, pc+pl+pn), 0 si no se usa.
+    Icono/héroe: MAX·used.
+    """
+    if m.chem is not None:
+        return m.chem
+    model = m.model
+
+    def weighted(kind: str, card: Card) -> tuple[int, int]:
+        if kind == "club":
+            return card.club_id, 1
+        if kind == "league":
+            return card.league_id, HERO_LEAGUE_WEIGHT if card.is_hero else 1
+        return card.nation_id, ICON_NATION_WEIGHT if card.is_icon else 1
+
+    thresholds = {
+        "club": CLUB_THRESHOLDS,
+        "league": LEAGUE_THRESHOLDS,
+        "nation": NATION_THRESHOLDS,
+    }
+    # points[kind][group_id] = expresión lineal Σ reach_t (o 0 si nada es alcanzable)
+    points: dict[str, dict[int, cp_model.LinearExprT]] = {}
+    for kind, ts in thresholds.items():
+        members: dict[int, list[tuple[int, int]]] = defaultdict(list)
+        for c, card in enumerate(m.cards):
+            gid, w = weighted(kind, card)
+            members[gid].append((c, w))
+        points[kind] = {}
+        for gid, ms in members.items():
+            count = sum(w * m.used[c] for c, w in ms)
+            reachable = sum(w for _, w in ms)
+            reach = []
+            for t in ts:
+                if reachable < t:
+                    continue
+                b = model.new_bool_var(f"reach_{kind}_{gid}_{t}")
+                model.add(count >= t).only_enforce_if(b)
+                model.add(count <= t - 1).only_enforce_if(~b)
+                reach.append(b)
+            points[kind][gid] = sum(reach)
+
+    chem: dict[int, cp_model.IntVar] = {}
+    for c, card in enumerate(m.cards):
+        v = model.new_int_var(0, MAX_PLAYER_CHEM, f"chem_{c}")
+        if card.is_icon or card.is_hero:
+            model.add(v == MAX_PLAYER_CHEM * m.used[c])
+        else:
+            total = (
+                points["club"][card.club_id]
+                + points["league"][card.league_id]
+                + points["nation"][card.nation_id]
+            )
+            raw = model.new_int_var(0, MAX_PLAYER_CHEM, f"chem_raw_{c}")
+            model.add_min_equality(raw, [MAX_PLAYER_CHEM, total])
+            # v = raw si used, 0 si no
+            model.add(v <= MAX_PLAYER_CHEM * m.used[c])
+            model.add(v <= raw)
+            model.add(v >= raw - MAX_PLAYER_CHEM * (1 - m.used[c]))
+        chem[c] = v
+    m.chem = chem
+    return chem
 
 
 def solve_model(

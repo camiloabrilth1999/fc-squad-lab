@@ -2,7 +2,7 @@
 
 from ortools.sat.python import cp_model
 
-from .cpsat import SbcModel
+from .cpsat import SbcModel, add_chemistry
 from .models import Requirement, RequirementKind
 
 
@@ -50,6 +50,21 @@ def _player_rating(m: SbcModel, req: Requirement) -> None:
             m.model.add(m.used[c] == 0)
 
 
+def _team_chemistry(m: SbcModel, req: Requirement) -> None:
+    total = sum(add_chemistry(m).values())
+    if req.op in ("min", "exact"):
+        m.model.add(total >= req.value)
+    if req.op in ("max", "exact"):
+        m.model.add(total <= req.value)
+
+
+def _player_chemistry(m: SbcModel, req: Requirement) -> None:
+    if req.op != "min":
+        raise ValueError(f"PLAYER_CHEMISTRY solo admite op 'min', no {req.op!r}")
+    for c, v in add_chemistry(m).items():
+        m.model.add(v >= req.value * m.used[c])
+
+
 def _compare(actual: int, op: str, value: int) -> bool:
     if op == "min":
         return actual >= value
@@ -61,4 +76,6 @@ def _compare(actual: int, op: str, value: int) -> bool:
 _HANDLERS = {
     RequirementKind.TEAM_RATING: _team_rating,
     RequirementKind.PLAYER_RATING: _player_rating,
+    RequirementKind.TEAM_CHEMISTRY: _team_chemistry,
+    RequirementKind.PLAYER_CHEMISTRY: _player_chemistry,
 }

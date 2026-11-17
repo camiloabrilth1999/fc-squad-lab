@@ -126,8 +126,8 @@ def test_player_rating_bounds(op, value, ok):
 def test_unimplemented_kind_raises():
     cards = _cards([{"positions": ["CM"]}])
     m = build_base_model(cards, ["CM"], [1])
-    req = Requirement(kind=RequirementKind.TEAM_CHEMISTRY, value=10)
-    with pytest.raises(NotImplementedError, match="TEAM_CHEMISTRY"):
+    req = Requirement(kind=RequirementKind.LEAGUE_PLAYERS, value=1, ids=[1])
+    with pytest.raises(NotImplementedError, match="LEAGUE_PLAYERS"):
         apply_requirement(m, req)
 
 
