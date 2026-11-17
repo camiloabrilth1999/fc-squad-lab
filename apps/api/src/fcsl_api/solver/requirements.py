@@ -21,6 +21,7 @@ def apply_requirement(m: SbcModel, req: Requirement) -> None:
     if handler is None:
         raise NotImplementedError(f"Requirement kind {req.kind} not implemented yet")
     handler(m, req)
+    m.requirements.append(req)
 
 
 def _rating_counts(m: SbcModel) -> dict[int, cp_model.IntVar]:

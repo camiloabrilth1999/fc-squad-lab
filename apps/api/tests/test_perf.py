@@ -1,7 +1,9 @@
 """Benchmark de calidad (lento): `uv run pytest -m slow -s tests/test_perf.py`.
 
 Criterio de la spec: solución válida en < 10 s, indicando si es óptima. Se mide
-la calidad a 10 s frente a la mejor conocida con 30 s.
+la calidad a 10 s frente a la mejor conocida: la mejor entre una ejecución de
+60 s y la propia de 10 s (que incluye la fase restringida de `solve_model`).
+Listón (tarea 12): 10/10 válidas en < 10 s y ≥ 8/10 con coste ≤ 1,02 × mejor.
 """
 
 import time
@@ -27,7 +29,7 @@ SEEDS = range(10)
 RAW_CARDS = 620  # ≈ 500 cartas tras la poda
 WALL_LIMIT_S = 10.0
 SAFETY_S = 1.0  # margen de reloj para poda, modelo y respuesta
-BEST_KNOWN_S = 30.0
+BEST_KNOWN_S = 60.0
 MAX_GAP = 1.02
 REQS = [
     Requirement(kind=RequirementKind.TEAM_RATING, op="min", value=84),

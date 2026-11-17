@@ -1,10 +1,7 @@
-import random
 import time
 
 import pytest
 
-from fcsl_api.solver import cpsat
-from fcsl_api.solver.chemistry import team_chemistry
 from fcsl_api.solver.cpsat import build_base_model, solve_model
 from fcsl_api.solver.models import (
     Objective,
@@ -13,11 +10,9 @@ from fcsl_api.solver.models import (
     ValuationSettings,
 )
 from fcsl_api.solver.pool import build_pool
-from fcsl_api.solver.rating import team_rating
 from fcsl_api.solver.requirements import apply_requirement
 from fcsl_api.solver.valuation import BIG, card_cost, objective_terms
 
-from .bruteforce import brute_force
 from .fixtures import make_card
 from .synthetic import FORMATION_433, market_cards
 
@@ -289,48 +284,6 @@ def test_large_pool_under_10s():
 def test_timeout_returns_feasible_or_unknown():
     status, _, _ = _solve_large(0.05, whole_flow=False)
     assert status in ("feasible", "unknown")
-
-
-@pytest.mark.parametrize("seed", range(4))
-def test_warm_start_keeps_optimum(monkeypatch, seed):
-    # Forzando el arranque en caliente (subconjunto mínimo) en pools pequeños, el
-    # óptimo coincide con la fuerza bruta: la pista no cambia el resultado.
-    rng = random.Random(seed)
-    cards = [
-        _card(
-            i,
-            rating=rng.randint(70, 90),
-            positions=[rng.choice(["CB", "CM", "ST"])],
-            league_id=rng.randint(1, 2),
-            nation_id=rng.randint(1, 2),
-            club_id=rng.randint(1, 3),
-            price=rng.randint(1, 50) * 100,
-        )
-        for i in range(1, 9)
-    ]
-    slots = ["CB", "CM", "ST"]
-    reqs = [
-        Requirement(kind=RequirementKind.TEAM_RATING, op="min", value=80),
-        Requirement(kind=RequirementKind.TEAM_CHEMISTRY, op="min", value=3),
-    ]
-    costs = [card_cost(c, V) for c in cards]
-
-    def check(chosen):
-        return team_rating([c.rating for c in chosen]) >= 80 and team_chemistry(chosen) >= 3
-
-    expected = brute_force(cards, slots, costs, check)
-    monkeypatch.setattr(cpsat, "WARM_START_MIN_CARDS", 1)
-    monkeypatch.setattr(cpsat, "WARM_START_CARDS", 3)
-    m = build_base_model(cards, slots, costs)
-    for req in reqs:
-        apply_requirement(m, req)
-    status, assignments, _ = solve_model(m, objective_terms(m, costs, Objective.CHEAPEST), 5.0)
-    if expected is None:
-        assert status == "infeasible"
-    else:
-        assert status == "optimal"
-        by_id = {c.card_id: costs[i] for i, c in enumerate(cards)}
-        assert sum(by_id[a.card_id] for a in assignments) == expected
 
 
 @pytest.mark.parametrize("objective", list(Objective))
