@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from fcsl_api.main import app
@@ -77,3 +80,10 @@ def test_api_duplicate_card_ids_422():
     r = client.post("/solve", json=_body(cards=[_card(1), _card(1, "ST")]))
     assert r.status_code == 422
     assert "market:1" in r.text
+
+
+def test_api_example_request_solves():
+    body = json.loads((Path(__file__).parent / "data" / "example_request.json").read_text())
+    r = client.post("/solve", json=body)
+    assert r.status_code == 200
+    assert r.json()["status"] in ("optimal", "feasible")
