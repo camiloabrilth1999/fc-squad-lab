@@ -14,7 +14,11 @@ describe("DataStatus", () => {
   it("shows Nunca when there are no syncs", async () => {
     mockStatus({ cards: 0, prices: {}, club_items: 0, last_sync: {} });
     render(<DataStatus apiUrl={URL_} />);
-    expect(await screen.findAllByText("Nunca")).toHaveLength(3);
+    expect(await screen.findAllByText("Nunca")).toHaveLength(4);
+    const sync = screen.getByRole("heading", { name: "Última sincronización" }).nextElementSibling!;
+    for (const label of ["Cartas (FUT.GG)", "Precios (EasySBC)", "Club (tu sesión)", "Mercado (tu sesión)"]) {
+      expect(sync.textContent).toContain(`${label}: Nunca`);
+    }
     expect(fetch).toHaveBeenCalledWith(`${URL_}/data/status`, expect.anything());
   });
 
@@ -23,14 +27,25 @@ describe("DataStatus", () => {
       cards: 12345,
       prices: { "ea-session": 40, "easysbc:market": 7 },
       club_items: 812,
+      // Tipos reales que escribe el backend: cards/prices (CLI) y club/market (/import/*).
       last_sync: {
+        cards: { status: "ok", finished_at: "2026-11-17T09:00:00Z", items: 12345, error: null },
+        prices: { status: "partial", finished_at: "2026-11-17T11:00:00Z", items: 7, error: "boom" },
         club: { status: "ok", finished_at: "2026-11-17T10:00:00Z", items: 812, error: null },
-        prices: { status: "error", finished_at: "2026-11-17T11:00:00Z", items: 0, error: "boom" },
+        market: { status: "ok", finished_at: "2026-11-17T12:00:00Z", items: 40, error: null },
       },
     });
     render(<DataStatus apiUrl={URL_} />);
     expect(await screen.findByText("12.345")).toBeInTheDocument();
-    expect(screen.getByText("Mercado (tu sesión)")).toBeInTheDocument();
+    expect(screen.queryByText("Nunca")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^cards:/)).not.toBeInTheDocument();
+    const sync = screen.getByRole("heading", { name: "Última sincronización" }).nextElementSibling!;
+    expect(sync.textContent).toContain("Cartas (FUT.GG):");
+    expect(sync.textContent).toContain("Precios (EasySBC):");
+    expect(sync.textContent).toContain("(partial)");
+    expect(sync.textContent).toContain("Club (tu sesión):");
+    expect(sync.textContent).toContain("Mercado (tu sesión):");
+    expect(sync.querySelectorAll("li")).toHaveLength(4);
     expect(screen.getByText("EasySBC mercado")).toBeInTheDocument();
     expect(screen.getByText("812", { selector: "dd" })).toBeInTheDocument();
     const err = screen.getByText(/boom/);

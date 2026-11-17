@@ -11,13 +11,15 @@ type Status = {
   last_sync: Record<string, Sync>;
 };
 
+// Tipos que escribe el backend en sync_runs: cards/prices (CLI de ingesta), club/market (/import/*).
 const KIND_LABELS: Record<string, string> = {
-  club: "Club",
-  prices: "Precios",
-  market: "Mercado",
+  cards: "Cartas (FUT.GG)",
+  prices: "Precios (EasySBC)",
+  club: "Club (tu sesión)",
+  market: "Mercado (tu sesión)",
 };
 
-const SYNC_KINDS = ["club", "prices", "market"];
+const SYNC_KINDS = Object.keys(KIND_LABELS);
 
 function formatDate(iso: string | null) {
   if (!iso) return "Nunca";
