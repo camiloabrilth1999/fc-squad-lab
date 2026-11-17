@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -9,13 +10,15 @@ from fcsl_api.ingest.easysbc import PriceRow, iter_easysbc_prices, parse_easysbc
 from fcsl_api.ingest.http import PoliteClient
 from fcsl_api.ingest.sync import sync_prices
 from fcsl_api.models_db import Price
+from fcsl_api.prices import effective_prices
 
 PAGE = json.loads((Path(__file__).parent / "data" / "easysbc_page.json").read_text())
 
 
-def client_for(handler) -> PoliteClient:
+def client_for(handler, cache_dir=None) -> PoliteClient:
     return PoliteClient(
         "https://easysbc.test",
+        cache_dir=cache_dir,
         min_interval_s=0,
         user_agent="test-agent",
         transport=httpx.MockTransport(handler),
@@ -85,3 +88,50 @@ def test_sync_prices_ok_and_failed(clean_db):
     assert (ok.status, ok.items, ok.error) == ("ok", 1, None)
     failed = sync_prices(clean_db, client_for(lambda r: httpx.Response(403)))
     assert (failed.status, failed.items) == ("failed", 0)
+
+
+@pytest.mark.db
+def test_second_sync_within_ttl_makes_no_requests(clean_db, tmp_path):
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, json={"players": [entry(7)], "totalPages": 1})
+
+    assert sync_prices(clean_db, client_for(handler, tmp_path)).status == "ok"
+    assert len(calls) == 1
+    run = sync_prices(clean_db, client_for(handler, tmp_path))
+    assert (run.status, run.items) == ("ok", 1)
+    assert len(calls) == 1
+
+
+@pytest.mark.db
+def test_sync_prices_replaces_stale_source_rows(clean_db):
+    def page(source, price=1000):
+        return lambda r: httpx.Response(
+            200, json={"players": [entry(7, source, price)], "totalPages": 1}
+        )
+
+    sync_prices(clean_db, client_for(page("market", 9000)))
+    sync_prices(clean_db, client_for(page("sbc", 500)))
+    assert effective_prices(clean_db, [7], now=datetime.now(UTC)) == {7: (500, "easysbc:sbc")}
+    assert [p.source for p in clean_db.scalars(select(Price))] == ["easysbc:sbc"]
+
+
+@pytest.mark.db
+def test_sync_prices_drops_rows_of_cards_without_usable_price(clean_db):
+    sync_prices(
+        clean_db,
+        client_for(
+            lambda r: httpx.Response(200, json={"players": [entry(7), entry(8)], "totalPages": 1})
+        ),
+    )
+    sync_prices(
+        clean_db,
+        client_for(
+            lambda r: httpx.Response(
+                200, json={"players": [entry(7, "market", 0), entry(8)], "totalPages": 1}
+            )
+        ),
+    )
+    assert {p.resource_id for p in clean_db.scalars(select(Price))} == {8}

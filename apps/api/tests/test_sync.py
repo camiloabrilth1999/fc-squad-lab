@@ -88,3 +88,22 @@ def test_sync_partial_when_coverage_incomplete(clean_db):
     assert "cobertura parcial" in run.error
     assert "ignorado" in run.error
     assert run.items == (10000 // 30) * 30
+
+
+def test_sync_cards_second_run_within_ttl_uses_cache(clean_db, tmp_path):
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(
+            200, json={"data": [player(1)], "next": None, "currentPage": 1, "total": 1}
+        )
+
+    def cached():
+        c = client_for(handler)
+        c._cache_dir = tmp_path
+        return c
+
+    assert sync_cards(clean_db, cached()).status == "ok"
+    assert sync_cards(clean_db, cached()).status == "ok"
+    assert len(calls) == 1

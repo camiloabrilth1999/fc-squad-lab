@@ -19,6 +19,7 @@ API_CAP = 10_000  # tope de resultados que la API entrega por consulta
 RATING_FILTER_PARAMS = ("overall__gte", "overall__lte")
 RATING_MIN = 40
 RATING_MAX = 99
+CACHE_TTL_S = 6 * 3600  # los listados se reutilizan 6 h
 MAX_REQUESTS = 1500  # tope duro de peticiones reales por sincronización
 
 
@@ -113,7 +114,9 @@ class _Pager:
 
     def fetch(self, page: int, filters: dict[str, int]) -> dict[str, Any]:
         self.pages += 1
-        return self.client.get_json(PLAYERS_PATH, params={**filters, "page": page})
+        return self.client.get_json(
+            PLAYERS_PATH, params={**filters, "page": page}, cache_ttl_s=CACHE_TTL_S
+        )
 
     def rows(self, payload: dict[str, Any]) -> Iterator[CardRow]:
         for p in payload.get("data") or []:

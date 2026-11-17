@@ -55,19 +55,25 @@ def sync_prices(session: Session, client: PoliteClient, max_pages: int | None = 
     error: str | None = None
     coverage: list[str] = []
     batch: list[PriceRow] = []
+    unusable: set[int] = set()
     try:
         try:
-            for row in iter_easysbc_prices(client, max_pages=max_pages, coverage=coverage):
+            for row in iter_easysbc_prices(
+                client, max_pages=max_pages, coverage=coverage, unusable=unusable
+            ):
                 batch.append(row)
                 if len(batch) >= BATCH_SIZE:
-                    saved += upsert_prices(session, batch, started)
+                    saved += upsert_prices(session, batch, started, unusable, prune_stale=True)
                     batch = []
+                    unusable.clear()  # el generador conserva este mismo set
         except SQLAlchemyError:
             raise
         except Exception as exc:  # noqa: BLE001 - SourceBlocked, red, JSON inválido
             error = f"{type(exc).__name__}: {exc}"
             logger.warning("sync de precios interrumpida: %s", error)
-        saved += upsert_prices(session, batch, started)  # lo ya descargado se conserva
+        saved += upsert_prices(
+            session, batch, started, unusable, prune_stale=True
+        )  # lo ya descargado se conserva
     except SQLAlchemyError as exc:
         session.rollback()
         error = f"{type(exc).__name__}: {exc}"

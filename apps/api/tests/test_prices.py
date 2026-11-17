@@ -39,3 +39,14 @@ def test_upsert_prices_updates_same_key(clean_db):
     put(clean_db, 1, "easysbc:market", 1000)
     put(clean_db, 1, "easysbc:market", 1200)
     assert effective_prices(clean_db, [1], now=NOW) == {1: (1200, "easysbc:market")}
+
+
+def test_ea_session_boundary_exactly_24h_falls_back_and_future_is_fresh(clean_db):
+    put(clean_db, 1, "ea-session", 900, age_h=24)
+    put(clean_db, 1, "easysbc:market", 1000)
+    put(clean_db, 2, "ea-session", 900, age_h=-3)  # captured_at en el futuro
+    put(clean_db, 2, "easysbc:market", 1000)
+    assert effective_prices(clean_db, [1, 2], now=NOW) == {
+        1: (1000, "easysbc:market"),
+        2: (900, "ea-session"),
+    }

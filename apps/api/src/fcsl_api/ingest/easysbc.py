@@ -12,6 +12,7 @@ BASE_URL = "https://api-fc27.easysbc.io"
 PLAYERS_PATH = "/players"
 PLATFORM = "PC"
 HEADERS = {"Platform": PLATFORM, "Origin": "https://www.easysbc.io"}
+CACHE_TTL_S = 6 * 3600  # los listados se reutilizan 6 h
 MAX_REQUESTS = 1000  # tope duro de peticiones reales por sincronización
 
 _SOURCES = {"market": "easysbc:market", "sbc": "easysbc:sbc"}
@@ -41,17 +42,23 @@ def iter_easysbc_prices(
     max_pages: int | None = None,
     max_requests: int = MAX_REQUESTS,
     coverage: list[str] | None = None,
+    unusable: set[int] | None = None,
 ) -> Iterator[PriceRow]:
-    """Itera los precios páginas 1..totalPages. `coverage` recibe razones de cobertura incompleta."""
+    """Itera los precios páginas 1..totalPages. `coverage` recibe razones de cobertura incompleta;
+    `unusable` recibe los resourceId vistos sin precio utilizable."""
     limit = max_requests if max_pages is None else min(max_pages, max_requests)
     page, total, discarded = 1, 1, 0
     while page <= min(total, limit):
-        payload = client.get_json(PLAYERS_PATH, params={"v2": "", "page": page})
+        payload = client.get_json(
+            PLAYERS_PATH, params={"v2": "", "page": page}, cache_ttl_s=CACHE_TTL_S
+        )
         total = payload.get("totalPages") or 1
         for p in payload.get("players") or []:
             row = parse_easysbc_price(p)
             if row is None:
                 discarded += 1
+                if unusable is not None and p.get("resourceId") is not None:
+                    unusable.add(p["resourceId"])
             else:
                 yield row
         page += 1

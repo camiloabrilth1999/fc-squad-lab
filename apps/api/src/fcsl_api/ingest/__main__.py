@@ -3,6 +3,7 @@
 import argparse
 import logging
 import sys
+from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -12,6 +13,13 @@ from fcsl_api.ingest import easysbc, futgg
 from fcsl_api.ingest.http import make_client
 from fcsl_api.ingest.sync import sync_cards, sync_prices
 from fcsl_api.models_db import Card, Price, SyncRun
+
+API_DIR = Path(__file__).resolve().parents[3]  # apps/api, sin depender del CWD
+CACHE_DIR = API_DIR / "var" / "cache"
+
+
+def cache_dir(source: str, no_cache: bool) -> Path | None:
+    return None if no_cache else CACHE_DIR / source
 
 
 def _print_run(run: SyncRun) -> int:
@@ -50,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("sync-cards", "sync-prices"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--max-pages", type=int, default=None)
+        cmd.add_argument("--no-cache", action="store_true", help="ignora la caché de disco")
     sub.add_parser("status")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -58,10 +67,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "status":
             return _status(session)
         if args.command == "sync-cards":
-            client = make_client(futgg.BASE_URL)
+            client = make_client(futgg.BASE_URL, cache_dir=cache_dir("futgg", args.no_cache))
             sync = sync_cards
         else:
-            client = make_client(easysbc.BASE_URL, headers=easysbc.HEADERS)
+            client = make_client(
+                easysbc.BASE_URL,
+                headers=easysbc.HEADERS,
+                cache_dir=cache_dir("easysbc", args.no_cache),
+            )
             sync = sync_prices
         try:
             return _print_run(sync(session, client, max_pages=args.max_pages))

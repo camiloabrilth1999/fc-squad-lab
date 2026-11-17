@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from dataclasses import asdict
 from datetime import UTC, datetime
 
-from sqlalchemy import func
+from sqlalchemy import delete, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -27,10 +27,41 @@ def upsert_cards(session: Session, rows: Iterable[CardRow], source: str) -> int:
     return len(unique)
 
 
-def upsert_prices(session: Session, rows: Iterable[PriceRow], captured_at: datetime) -> int:
-    """Inserta o actualiza precios por (resource_id, platform, source); devuelve las filas escritas."""
+def upsert_prices(
+    session: Session,
+    rows: Iterable[PriceRow],
+    captured_at: datetime,
+    unusable_ids: Iterable[int] = (),
+    platform: str = "PC",
+    prune_stale: bool = False,
+) -> int:
+    """Inserta o actualiza precios por (resource_id, platform, source); devuelve las filas escritas.
+
+    Con `prune_stale`, las filas `easysbc:*` de un recurso que no vienen en este lote se borran en la misma
+    transacción, igual que todas las de `unusable_ids` (vistos sin precio utilizable): así una
+    fuente vieja no gana a datos frescos.
+    """
     unique = {(r.resource_id, r.platform, r.source): r for r in rows}
+    gone = set(unusable_ids)
+    for rid, plat, source in unique if prune_stale else ():
+        session.execute(
+            delete(Price).where(
+                Price.resource_id == rid,
+                Price.platform == plat,
+                Price.source.like("easysbc:%"),
+                Price.source != source,
+            )
+        )
+    if prune_stale and gone:
+        session.execute(
+            delete(Price).where(
+                Price.resource_id.in_(gone),
+                Price.platform == platform,
+                Price.source.like("easysbc:%"),
+            )
+        )
     if not unique:
+        session.commit()
         return 0
     values = [{**asdict(r), "captured_at": captured_at} for r in unique.values()]
     stmt = insert(Price).values(values)

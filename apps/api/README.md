@@ -15,4 +15,6 @@ Requiere Postgres arriba y migrado (`make db-start db-migrate`). Cada sincroniza
 - `make sync-prices [ARGS="--max-pages N"]`: precios PC desde EasySBC (`easysbc:market` y `easysbc:sbc`).
 - `make data-status`: nº de cartas, precios por fuente y última sincronización por tipo.
 
+`--max-pages N` cuenta peticiones, no páginas de resultados: si FUT.GG particiona por media, parte de ese presupuesto se gasta bajando por los rangos y devuelve pocas cartas (con 3, unas 30). Es solo para pruebas rápidas. Las respuestas se cachean 6 h en `apps/api/var/cache/<fuente>`; `--no-cache` fuerza la descarga. Un sync de precios borra las filas `easysbc:*` viejas de cada carta vista (cambio de fuente o sin precio utilizable).
+
 Precio efectivo (`fcsl_api.prices.effective_prices`): `ea-session` con menos de 24 h; si no, `easysbc:market`; si no, `easysbc:sbc`; si no, ausente.

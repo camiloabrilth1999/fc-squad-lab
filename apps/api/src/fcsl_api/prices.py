@@ -16,7 +16,11 @@ FALLBACK_SOURCES = ("easysbc:market", "easysbc:sbc")
 def effective_prices(
     session: Session, resource_ids: Collection[int], now: datetime, platform: str = "PC"
 ) -> dict[int, tuple[int, str]]:
-    """{resource_id: (precio, fuente)}; las cartas sin precio utilizable no aparecen."""
+    """{resource_id: (precio, fuente)}; las cartas sin precio utilizable no aparecen.
+
+    `ea-session` vale si `now - captured_at < 24 h`: con exactamente 24 h ya cae a EasySBC, y un
+    `captured_at` futuro (reloj desajustado) cuenta como reciente.
+    """
     if not resource_ids:
         return {}
     rows = session.scalars(
