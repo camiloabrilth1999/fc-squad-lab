@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fcsl_api.main import app
@@ -28,6 +29,10 @@ def session(clean_db: Session) -> Iterator[Session]:
 @pytest.fixture
 def client(session: Session) -> TestClient:
     return TestClient(app)
+
+
+TOKEN = "secreto-de-prueba"
+H = {"X-FCSL-Token": TOKEN}
 
 
 def _card(rid: int, name: str, rating: int, positions: list[str], league: int = 1) -> Card:
@@ -180,3 +185,80 @@ def test_data_status(client: TestClient, session: Session) -> None:
     assert body["last_sync"]["cards"]["error"] is None
     assert body["last_sync"]["prices"]["status"] == "partial"
     assert set(body["last_sync"]) == {"cards", "prices"}
+
+
+def _seed_ages(session: Session) -> None:
+    session.add_all([_card(1, "Alfa", 90, ["ST"]), _card(2, "Beta", 85, ["CB"])])
+    session.add_all(
+        [
+            _item(31, 1, 90, seen_at=NOW - timedelta(days=1), last_sale_price=1000),
+            _item(32, 2, 85, seen_at=NOW - timedelta(days=45), last_sale_price=2000),
+            _item(33, 2, 85, seen_at=None, last_sale_price=4000),
+        ]
+    )
+    session.commit()
+
+
+def test_club_row_has_seen_at(client: TestClient, session: Session) -> None:
+    _seed_ages(session)
+    (row,) = client.get("/club").json()["items"]
+    assert row["item_id"] == 31
+    assert datetime.fromisoformat(row["seen_at"]) == NOW - timedelta(days=1)
+
+
+def test_default_max_age_hides_stale_from_list_and_summary(
+    client: TestClient, session: Session
+) -> None:
+    _seed_ages(session)
+    body = client.get("/club").json()
+    assert [r["item_id"] for r in body["items"]] == [31]
+    assert body["total"] == 1
+    assert body["summary"]["count"] == 1
+    assert body["summary"]["value"] == round(1000 * 0.95)
+
+
+def test_max_age_zero_shows_all(client: TestClient, session: Session) -> None:
+    _seed_ages(session)
+    body = client.get("/club", params={"max_age_days": 0}).json()
+    assert sorted(r["item_id"] for r in body["items"]) == [31, 32, 33]
+    assert body["summary"]["count"] == 3
+    sixty = client.get("/club", params={"max_age_days": 60}).json()["items"]
+    assert [r["item_id"] for r in sixty] == [31, 32]
+    assert client.get("/club", params={"max_age_days": -1}).status_code == 422
+
+
+def test_forget_requires_token(
+    client: TestClient, session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FCSL_IMPORT_TOKEN", TOKEN)
+    _seed_ages(session)
+    body = {"older_than_days": 30}
+    assert client.post("/club/forget", json=body).status_code == 401
+    assert client.post("/club/forget", json=body, headers={"X-FCSL-Token": "x"}).status_code == 401
+    monkeypatch.delenv("FCSL_IMPORT_TOKEN")
+    assert client.post("/club/forget", json=body, headers=H).status_code == 503
+    session.expire_all()
+    assert len(session.scalars(select(ClubItem)).all()) == 3
+
+
+def test_forget_deletes_stale_and_unseen(
+    client: TestClient, session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FCSL_IMPORT_TOKEN", TOKEN)
+    _seed_ages(session)
+    r = client.post("/club/forget", json={"older_than_days": 30}, headers=H)
+    assert r.status_code == 200
+    assert r.json() == {"deleted": 2}
+    session.expire_all()
+    assert [i.item_id for i in session.scalars(select(ClubItem))] == [31]
+    assert client.post("/club/forget", json={"older_than_days": 30}, headers=H).json() == {
+        "deleted": 0
+    }
+
+
+@pytest.mark.parametrize("body", [{"older_than_days": 0}, {"older_than_days": -3}, {}])
+def test_forget_validates_days(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, body: dict
+) -> None:
+    monkeypatch.setenv("FCSL_IMPORT_TOKEN", TOKEN)
+    assert client.post("/club/forget", json=body, headers=H).status_code == 422

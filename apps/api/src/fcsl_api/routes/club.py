@@ -1,18 +1,22 @@
 """Club importado (unido a datos de cartas y precios PC) y estado de los datos."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel, ValidationError
-from sqlalchemy import any_, func, literal, select
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import any_, delete, func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from ..models_db import Card, ClubItem, Price, SyncRun
 from ..prices import effective_prices
 from ..solver import models as solver_models
 from ..solver.valuation import card_cost
-from .imports import DbSession, get_db  # noqa: F401  (get_db se reexporta para los overrides)
+from .imports import (  # noqa: F401  (get_db se reexporta para los overrides)
+    DbSession,
+    get_db,
+    require_token,
+)
 
 router = APIRouter(tags=["club"])
 
@@ -36,6 +40,7 @@ class ClubRow(BaseModel):
     price: int | None
     price_source: str | None
     value: int
+    seen_at: datetime | None
 
 
 class ClubSummary(BaseModel):
@@ -49,6 +54,10 @@ class ClubPage(BaseModel):
     items: list[ClubRow]
     total: int
     summary: ClubSummary
+
+
+class ForgetBody(BaseModel):
+    older_than_days: int = Field(ge=1)
 
 
 def _price_used(item: ClubItem, effective: tuple[int, str] | None) -> tuple[int | None, str | None]:
@@ -115,6 +124,7 @@ def get_club(
     position: str | None = None,
     untradeable: bool | None = None,
     location: str | None = None,
+    max_age_days: Annotated[int | None, Query(ge=0)] = 30,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> ClubPage:
@@ -128,6 +138,10 @@ def get_club(
         stmt = stmt.where(ClubItem.location.is_distinct_from("watchlist"))
     else:
         stmt = stmt.where(ClubItem.location == location)
+    # La importación es pasiva y no ve bajas: lo no visto en `max_age_days` se oculta (0/None = todo).
+    now = datetime.now(UTC)
+    if max_age_days:
+        stmt = stmt.where(ClubItem.seen_at >= now - timedelta(days=max_age_days))
     if min_rating is not None:
         stmt = stmt.where(rating >= min_rating)
     if max_rating is not None:
@@ -141,7 +155,7 @@ def get_club(
 
     pairs = [(i, c) for i, c in session.execute(stmt)]
     resource_ids = {i.resource_id for i, _ in pairs if i.resource_id is not None}
-    effective = effective_prices(session, resource_ids, datetime.now(UTC))
+    effective = effective_prices(session, resource_ids, now)
 
     rows: list[ClubRow] = []
     for item, card in pairs:
@@ -164,6 +178,7 @@ def get_club(
                 price=price,
                 price_source=source,
                 value=_value(item, card, price),
+                seen_at=item.seen_at,
             )
         )
     summary = ClubSummary(
@@ -174,6 +189,17 @@ def get_club(
     )
     start = (page - 1) * page_size
     return ClubPage(items=rows[start : start + page_size], total=len(rows), summary=summary)
+
+
+@router.post("/club/forget", dependencies=[Depends(require_token)])
+def forget_club(body: ForgetBody, session: DbSession) -> dict[str, int]:
+    """Borra las cartas no vistas en `older_than_days` días (o nunca vistas)."""
+    cutoff = datetime.now(UTC) - timedelta(days=body.older_than_days)
+    result = session.execute(
+        delete(ClubItem).where(or_(ClubItem.seen_at.is_(None), ClubItem.seen_at < cutoff))
+    )
+    session.commit()
+    return {"deleted": result.rowcount or 0}
 
 
 def _count(session: Session, column: Any) -> int:
