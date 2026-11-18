@@ -14,10 +14,12 @@ def _cards(specs):
 
 
 def test_service_infeasible_message():
-    req = SolveRequest(slots=["GK", "CM"], cards=_cards([{"positions": ["CM"]}] * 3))
+    # La posición ya no hace infactible (se puede jugar fuera de posición); lo que
+    # sí: no tener suficientes jugadores distintos para los huecos.
+    req = SolveRequest(slots=["CM", "CM"], cards=_cards([{"positions": ["CM"]}]))
     sol = service.solve(req)
     assert sol.status == "infeasible"
-    assert "GK" in sol.message
+    assert "distintos" in sol.message
     assert sol.solve_time_s == 0.0
 
 
@@ -50,9 +52,10 @@ def test_service_metrics_consistent():
     assert sol.status == "optimal"
     by_id = {c.card_id: c for c in cards}
     chosen = [by_id[a.card_id] for a in sol.assignments]
+    chosen_slots = [a.position for a in sol.assignments]  # química según el hueco real
     assert sol.team_rating == team_rating([c.rating for c in chosen]) >= 80
-    assert sol.team_chemistry == team_chemistry(chosen)
-    assert sol.player_chemistry == player_chemistry(chosen)
+    assert sol.team_chemistry == team_chemistry(chosen, chosen_slots)
+    assert sol.player_chemistry == player_chemistry(chosen, chosen_slots)
     assert sol.cost == sum(service.card_cost(c, req.valuation) for c in chosen)
 
 

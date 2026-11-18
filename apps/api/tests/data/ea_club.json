@@ -1,0 +1,47 @@
+{
+  "_note": "Forma documentada de la web app de FUT; sustituir por muestras reales de /import/raw tras la Task 7.",
+  "itemData": [
+    {
+      "id": 111000001,
+      "resourceId": 50000001,
+      "assetId": 1001,
+      "rating": 88,
+      "untradeable": false,
+      "lastSalePrice": 15000,
+      "marketDataMinPrice": 12000,
+      "marketDataMaxPrice": 90000,
+      "owners": 1,
+      "loans": 0,
+      "itemType": "player"
+    },
+    {
+      "id": 111000002,
+      "resourceId": 50000002,
+      "assetId": 1002,
+      "rating": 84,
+      "untradeable": true,
+      "lastSalePrice": null,
+      "marketDataMinPrice": 800,
+      "marketDataMaxPrice": 20000,
+      "owners": 3,
+      "loans": -1,
+      "itemType": "player"
+    },
+    {
+      "id": 111000003,
+      "resourceId": 50000001,
+      "assetId": 1001,
+      "rating": 88,
+      "untradeable": false,
+      "owners": 2,
+      "loans": 0,
+      "itemType": "player"
+    }
+  ],
+  "duplicateItemIdList": [
+    {
+      "itemId": 111000003,
+      "duplicateItemId": 111000001
+    }
+  ]
+}

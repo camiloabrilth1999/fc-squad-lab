@@ -98,8 +98,8 @@ def test_restricted_phase_keeps_optimum(monkeypatch, seed, reqs):
     cards = _random_cards(seed)
     m, costs = _model(cards, reqs)
 
-    def check(chosen):
-        ok = team_chemistry(chosen) >= 3
+    def check(chosen, slots):
+        ok = team_chemistry(chosen, slots) >= 3
         if RATING in reqs:
             ok = ok and team_rating([c.rating for c in chosen]) >= 80
         return ok
@@ -141,11 +141,11 @@ def test_restricted_phase_respects_forced_cards(monkeypatch):
     m, costs = _model(cards, [RATING, CHEM])
     m.model.add(m.used[len(cards) - 1] == 1)
 
-    def check(chosen):
+    def check(chosen, slots):
         return (
             any(c.card_id == "market:99" for c in chosen)
             and team_rating([c.rating for c in chosen]) >= 80
-            and team_chemistry(chosen) >= 3
+            and team_chemistry(chosen, slots) >= 3
         )
 
     expected = brute_force(cards, SLOTS, costs, check)

@@ -127,16 +127,22 @@ def test_pool_filters_by_source():
     assert _ids(build_pool(cards, "both", ["CM"], [], [], [])) == ["club:2", "market:1"]
 
 
-def test_pool_drops_excluded_unplayable_and_player_rating():
+def test_pool_drops_excluded_and_player_rating():
     cards = [
         _card(1, rating=80),
-        _card(2, rating=80, positions=["ST"]),  # no juega en ningún hueco
         _card(3, rating=70),  # viola PLAYER_RATING
-        _card(4, rating=82),
+        _card(4, rating=82),  # excluida
     ]
     reqs = [Requirement(kind=RequirementKind.PLAYER_RATING, op="min", value=75)]
     pool = build_pool(cards, "market", ["CM", "CM"], reqs, [], ["market:4"])
     assert _ids(pool) == ["market:1"]
+
+
+def test_pool_keeps_out_of_position_when_worthwhile():
+    # Ya no se descarta por posición. market:2 no juega en el hueco pero es más
+    # barata, así que sobrevive: puede usarse fuera de posición (0 química).
+    cards = [_card(1, positions=["CM"], price=500), _card(2, positions=["ST"], price=100)]
+    assert _ids(build_pool(cards, "market", ["CM"], [], [], [])) == ["market:1", "market:2"]
 
 
 def test_pruning_keeps_two_cheapest():

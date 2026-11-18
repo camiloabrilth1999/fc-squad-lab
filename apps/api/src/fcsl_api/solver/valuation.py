@@ -39,30 +39,32 @@ def _spare(card: Card) -> bool:
     return card.duplicate or card.in_sbc_storage
 
 
-def objective_terms(
-    m: SbcModel, costs: list[int], objective: Objective
-) -> list[tuple[int, cp_model.IntVar]]:
-    """Un término (coef, used_c) por carta; `solve_model` minimiza Σ coef·used.
+def objective_coefficient(card: Card, cost: int, objective: Objective) -> int:
+    """Coeficiente del objetivo para una carta (independiente del modelo).
 
     - CHEAPEST: 100·coste − bonus (1 si propia intransferible, +1 si duplicada o
       en almacén): el coste manda y el bonus solo desempata.
     - FEWEST_BUYS: BIG·[mercado] + coste.
     - USE_CLUB: −BIG·[propia intransferible o duplicada] + coste.
     """
+    if objective == Objective.CHEAPEST:
+        bonus = int(_owned_untradeable(card)) + int(_spare(card))
+        return 100 * cost - bonus
+    if objective == Objective.FEWEST_BUYS:
+        return BIG * int(card.source == "market") + cost
+    if objective == Objective.USE_CLUB:
+        preferred = card.source == "club" and (card.untradeable or card.duplicate)
+        return -BIG * int(preferred) + cost
+    raise ValueError(f"Objetivo desconocido: {objective!r}")
+
+
+def objective_terms(
+    m: SbcModel, costs: list[int], objective: Objective
+) -> list[tuple[int, cp_model.IntVar]]:
+    """Un término (coef, used_c) por carta; `solve_model` minimiza Σ coef·used."""
     if len(costs) != len(m.cards):
         raise ValueError("costs debe tener una entrada por carta")
-    terms: list[tuple[int, cp_model.IntVar]] = []
-    for c, card in enumerate(m.cards):
-        cost = costs[c]
-        if objective == Objective.CHEAPEST:
-            bonus = int(_owned_untradeable(card)) + int(_spare(card))
-            coef = 100 * cost - bonus
-        elif objective == Objective.FEWEST_BUYS:
-            coef = BIG * int(card.source == "market") + cost
-        elif objective == Objective.USE_CLUB:
-            preferred = card.source == "club" and (card.untradeable or card.duplicate)
-            coef = -BIG * int(preferred) + cost
-        else:
-            raise ValueError(f"Objetivo desconocido: {objective!r}")
-        terms.append((coef, m.used[c]))
-    return terms
+    return [
+        (objective_coefficient(card, costs[c], objective), m.used[c])
+        for c, card in enumerate(m.cards)
+    ]

@@ -1,25 +1,70 @@
 @import "tailwindcss";
 
+/*
+  Sistema de diseño FC Squad Lab. Oscuro por defecto (como las apps companion:
+  EasySBC, fut.gg), con modo claro bajo prefers-color-scheme. Los tokens se
+  exponen como utilidades Tailwind v4 vía @theme inline: bg-surface, text-muted,
+  border-line, bg-accent, etc.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0b0e14;
+  --surface: #121722;
+  --surface-2: #1a2130;
+  --line: #273040;
+  --fg: #e8ecf2;
+  --muted: #9aa6b6;
+  --accent: #2ee6a6;
+  --accent-strong: #15c489;
+  --accent-fg: #052016;
+  --danger: #ff5d6c;
+  --warn: #f5b945;
+  --radius: 0.85rem;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f7fa;
+    --surface: #ffffff;
+    --surface-2: #eef1f6;
+    --line: #dfe4ec;
+    --fg: #0e1116;
+    --muted: #5b6572;
+    --accent: #0bbf7a;
+    --accent-strong: #099c63;
+    --accent-fg: #ffffff;
+    --danger: #d83a4a;
+    --warn: #b9811a;
+    color-scheme: light;
+  }
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+
+  --radius-card: var(--radius);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--bg);
+  color: var(--fg);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+/* Enlaces y foco accesibles con el acento del tema. */
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
 }

@@ -1,0 +1,311 @@
+{
+ "players": [
+  {
+   "resourceId": 50496642,
+   "assetId": 164994,
+   "eaPlayerId": null,
+   "playerRoleId": 26,
+   "name": "Jakub Błaszczykowski",
+   "rating": 87,
+   "metaRatingZeroChem": 85.98712464159897,
+   "positions": [
+    "RM",
+    "RW"
+   ],
+   "possiblePositions": [
+    "RM",
+    "RW"
+   ],
+   "metaRating": 85.98712464159897,
+   "owned": false,
+   "sbcStorage": false,
+   "attributes": [
+    94,
+    85,
+    83,
+    87,
+    60,
+    78
+   ],
+   "countryId": 37,
+   "leagueId": 19,
+   "clubId": 132794,
+   "price": 40250,
+   "priceInfo": {
+    "displayPrice": 40250,
+    "source": "market"
+   },
+   "isObjectivePlayer": false,
+   "isSbcPlayer": false,
+   "skillMoves": 3,
+   "weakFoot": 4,
+   "preferredFoot": "Right",
+   "untradeable": false,
+   "firstOwner": false,
+   "versionId": 10,
+   "preferredPosition": "RM",
+   "metalId": 3,
+   "hasDynamicImage": true,
+   "playerUrl": "https://assets.easysbc.io/fc27/players/50496642.png",
+   "playStylesPlus": [
+    12
+   ],
+   "cardName": "Błaszczykowski",
+   "cardFont": "cruyff",
+   "rolesPlus": [
+    123,
+    124,
+    125,
+    126,
+    135,
+    136,
+    137
+   ],
+   "playStyles": [
+    20,
+    21,
+    25,
+    26,
+    6
+   ],
+   "canEvolve": true,
+   "newPlayer": false,
+   "itemScore": 8250
+  },
+  {
+   "resourceId": 50536198,
+   "assetId": 204550,
+   "eaPlayerId": null,
+   "playerRoleId": 44,
+   "name": "Víctor Ibarbo",
+   "rating": 86,
+   "metaRatingZeroChem": 85.54847590206738,
+   "positions": [
+    "RM",
+    "RW",
+    "ST"
+   ],
+   "possiblePositions": [
+    "RM",
+    "RW",
+    "ST"
+   ],
+   "metaRating": 85.54847590206738,
+   "owned": false,
+   "sbcStorage": false,
+   "attributes": [
+    94,
+    84,
+    75,
+    86,
+    45,
+    85
+   ],
+   "countryId": 56,
+   "leagueId": 31,
+   "clubId": 132794,
+   "price": 58000,
+   "priceInfo": {
+    "displayPrice": 58000,
+    "source": "market"
+   },
+   "isObjectivePlayer": false,
+   "isSbcPlayer": false,
+   "skillMoves": 3,
+   "weakFoot": 4,
+   "preferredFoot": "Right",
+   "untradeable": false,
+   "firstOwner": false,
+   "versionId": 10,
+   "preferredPosition": "RW",
+   "metalId": 3,
+   "hasDynamicImage": true,
+   "playerUrl": "https://assets.easysbc.io/fc27/players/50536198.png",
+   "playStylesPlus": [
+    21
+   ],
+   "cardName": "Ibarbo",
+   "cardFont": "cruyff",
+   "rolesPlus": [
+    123,
+    124,
+    125,
+    126,
+    135,
+    136,
+    137,
+    141,
+    142,
+    143,
+    144
+   ],
+   "playStyles": [
+    2,
+    25,
+    29,
+    6
+   ],
+   "canEvolve": true,
+   "evoPopularity": 1,
+   "newPlayer": false,
+   "itemScore": 6150
+  },
+  {
+   "resourceId": 50511175,
+   "assetId": 179527,
+   "eaPlayerId": null,
+   "playerRoleId": 44,
+   "name": "Loïc Rémy",
+   "rating": 86,
+   "metaRatingZeroChem": 85.24640308798453,
+   "positions": [
+    "RM",
+    "RW",
+    "ST"
+   ],
+   "possiblePositions": [
+    "RM",
+    "RW",
+    "ST"
+   ],
+   "metaRating": 85.24640308798453,
+   "owned": false,
+   "sbcStorage": false,
+   "attributes": [
+    92,
+    86,
+    74,
+    82,
+    40,
+    75
+   ],
+   "countryId": 18,
+   "leagueId": 16,
+   "clubId": 132794,
+   "price": 60000,
+   "priceInfo": {
+    "displayPrice": 60000,
+    "source": "market"
+   },
+   "isObjectivePlayer": false,
+   "isSbcPlayer": false,
+   "skillMoves": 4,
+   "weakFoot": 3,
+   "preferredFoot": "Right",
+   "untradeable": false,
+   "firstOwner": false,
+   "versionId": 10,
+   "preferredPosition": "ST",
+   "metalId": 3,
+   "hasDynamicImage": true,
+   "playerUrl": "https://assets.easysbc.io/fc27/players/50511175.png",
+   "playStylesPlus": [
+    25
+   ],
+   "cardName": "Rémy",
+   "cardFont": "cruyff",
+   "rolesPlus": [
+    123,
+    124,
+    125,
+    126,
+    135,
+    136,
+    137,
+    141,
+    142,
+    143,
+    144
+   ],
+   "playStyles": [
+    0,
+    21,
+    4,
+    6
+   ],
+   "canEvolve": true,
+   "evoPopularity": 2,
+   "newPlayer": false,
+   "itemScore": 6150
+  },
+  {
+   "resourceId": 50603892,
+   "assetId": 272244,
+   "eaPlayerId": null,
+   "playerRoleId": 8,
+   "name": "Raiderlín Carrasco",
+   "rating": 84,
+   "metaRatingZeroChem": 86.01295536393881,
+   "positions": [
+    "LB",
+    "LM",
+    "LW"
+   ],
+   "possiblePositions": [
+    "LB",
+    "LM",
+    "LW"
+   ],
+   "metaRating": 86.01295536393881,
+   "owned": false,
+   "sbcStorage": false,
+   "attributes": [
+    89,
+    70,
+    76,
+    84,
+    80,
+    81
+   ],
+   "countryId": 61,
+   "leagueId": 2222,
+   "clubId": 116334,
+   "price": 0,
+   "sbcPrice": 7200,
+   "priceInfo": {
+    "displayPrice": 7200,
+    "source": "sbc"
+   },
+   "isObjectivePlayer": false,
+   "isSbcPlayer": false,
+   "skillMoves": 3,
+   "weakFoot": 3,
+   "preferredFoot": "Left",
+   "untradeable": false,
+   "firstOwner": false,
+   "versionId": 87,
+   "preferredPosition": "LB",
+   "metalId": 3,
+   "hasDynamicImage": true,
+   "playerUrl": "https://assets.easysbc.io/fc27/players/50603892.png",
+   "playStylesPlus": [],
+   "cardName": "Carrasco",
+   "cardFont": "cruyff",
+   "rolesPlus": [
+    107,
+    108,
+    109,
+    110,
+    127,
+    128,
+    129,
+    130,
+    138,
+    139,
+    140,
+    147
+   ],
+   "playStyles": [
+    10,
+    14,
+    24,
+    28
+   ],
+   "canEvolve": true,
+   "evoPopularity": 2,
+   "newPlayer": true,
+   "itemScore": 830
+  }
+ ],
+ "totalPages": 862
+}

@@ -33,8 +33,16 @@ def _solve(cards, slots, costs, reqs, time_limit_s=5.0):
     return status, [card for _, card in chosen], sum(costs[c] for c, _ in chosen)
 
 
-def _req(kind, op, value, ids=(), tags=()):
-    return Requirement(kind=kind, op=op, value=value, ids=list(ids), tags=list(tags))
+def _req(kind, op, value, ids=(), tags=(), min_rating=None, max_rating=None):
+    return Requirement(
+        kind=kind,
+        op=op,
+        value=value,
+        ids=list(ids),
+        tags=list(tags),
+        min_rating=min_rating,
+        max_rating=max_rating,
+    )
 
 
 OPS = {
@@ -56,16 +64,19 @@ SAME_KIND = {"league": K.SAME_LEAGUE, "nation": K.SAME_NATION, "club": K.SAME_CL
 # --- Comprobaciones en Python (semántica de referencia) ---
 
 
+# Las comprobaciones de requisitos no dependen de la posición: cuentan cartas
+# usadas, estén o no en posición. Aceptan `slots` por la firma de `brute_force`
+# (chosen, slots) pero lo ignoran. Solo la química (test_chem_constraint) lo usa.
 def check_players(attr, ids, op, value):
-    return lambda chosen: OPS[op](sum(getattr(c, attr) in ids for c in chosen), value)
+    return lambda chosen, slots=None: OPS[op](sum(getattr(c, attr) in ids for c in chosen), value)
 
 
 def check_distinct(attr, op, value):
-    return lambda chosen: OPS[op](len({getattr(c, attr) for c in chosen}), value)
+    return lambda chosen, slots=None: OPS[op](len({getattr(c, attr) for c in chosen}), value)
 
 
 def check_same(attr, op, value):
-    def check(chosen):
+    def check(chosen, slots=None):
         biggest = max(Counter(getattr(c, attr) for c in chosen).values())
         return OPS[op](biggest, value)
 
@@ -73,15 +84,21 @@ def check_same(attr, op, value):
 
 
 def check_level(levels, op, value):
-    return lambda chosen: OPS[op](sum(c.level in levels for c in chosen), value)
+    return lambda chosen, slots=None: OPS[op](sum(c.level in levels for c in chosen), value)
 
 
 def check_rare(op, value):
-    return lambda chosen: OPS[op](sum(c.rare for c in chosen), value)
+    return lambda chosen, slots=None: OPS[op](sum(c.rare for c in chosen), value)
 
 
 def check_tag(tags, op, value):
-    return lambda chosen: OPS[op](sum(any(t in c.rarity_tags for t in tags) for c in chosen), value)
+    return lambda chosen, slots=None: OPS[op](
+        sum(any(t in c.rarity_tags for t in tags) for c in chosen), value
+    )
+
+
+def check_rating(threshold, op, value):
+    return lambda chosen, slots=None: OPS[op](sum(c.rating >= threshold for c in chosen), value)
 
 
 # --- *_PLAYERS ---
@@ -340,13 +357,19 @@ def _random_case(rng, family_kind):
         op = rng.choice(["min", "max", "exact"])
         value = rng.randint(1, 4)
         return _req(SAME_KIND[family], op, value), check_same(ATTR[family], op, value)
-    choice = rng.choice(["level", "rare", "tag"])
+    choice = rng.choice(["level", "rare", "tag", "rating"])
     value = rng.randint(1, 3)
     if choice == "level":
         levels = rng.sample(["bronze", "silver", "gold"], rng.randint(1, 2))
         return _req(K.LEVEL_PLAYERS, op, value, tags=levels), check_level(set(levels), op, value)
     if choice == "rare":
         return _req(K.RARE_PLAYERS, op, value), check_rare(op, value)
+    if choice == "rating":
+        threshold = rng.randint(70, 85)  # «N jugadores con GRL ≥ threshold»
+        return (
+            _req(K.RATING_PLAYERS, op, value, min_rating=threshold),
+            check_rating(threshold, op, value),
+        )
     tags = rng.sample(["TOTW", "SPECIAL"], rng.randint(1, 2))
     return _req(K.TAG_PLAYERS, op, value, tags=tags), check_tag(tags, op, value)
 
@@ -374,7 +397,7 @@ def test_combined_bruteforce(seed):
     cards, costs = _random_pool(rng, 8)
     slots = ["GK", "CB", "CM", "ST"]
     cases = [_random_case(rng, f) for f in ("players", "distinct", "same", "attrs")]
-    expected = brute_force(cards, slots, costs, lambda ch: all(chk(ch) for _, chk in cases))
+    expected = brute_force(cards, slots, costs, lambda ch, sl: all(chk(ch, sl) for _, chk in cases))
     status, chosen, cost = _solve(cards, slots, costs, [r for r, _ in cases])
     if expected is None:
         assert status == "infeasible"
@@ -446,8 +469,8 @@ def test_combined_realistic():
     status, chosen, _ = _solve(cards, SLOTS_442, costs, reqs, time_limit_s=10.0)
     assert status == "optimal"
     assert len(chosen) == 11
-    assert all(slot in c.positions for c, slot in zip(chosen, SLOTS_442, strict=True))
+    # `chosen` va en orden de hueco: su química se evalúa según SLOTS_442.
     assert team_rating([c.rating for c in chosen]) >= 84
-    assert team_chemistry(chosen) >= 25
+    assert team_chemistry(chosen, SLOTS_442) >= 25
     assert check_tag(["TOTW"], "min", 1)(chosen)
     assert check_same("league_id", "max", 5)(chosen)

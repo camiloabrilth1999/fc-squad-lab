@@ -1,5 +1,9 @@
+from collections.abc import Iterator
+from contextlib import contextmanager
+
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from .settings import get_settings
 
@@ -20,3 +24,9 @@ def ping() -> bool:
         return True
     except SQLAlchemyError:
         return False
+
+
+@contextmanager
+def get_session() -> Iterator[Session]:
+    with Session(get_engine()) as session:
+        yield session

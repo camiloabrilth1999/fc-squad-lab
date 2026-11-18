@@ -1,0 +1,769 @@
+{
+  "capturedAt": "2026-11-18",
+  "game": "fc27",
+  "source": "ea-web-app services.SBC (one-click)",
+  "challenges": [
+    {
+      "setId": 7,
+      "setName": "Un nuevo fichaje",
+      "id": 19,
+      "name": "Un nuevo fichaje",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 1,
+          "count": -1,
+          "kv": {
+            "40": [
+              64
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL máximo: 64"
+        }
+      ]
+    },
+    {
+      "setId": 7,
+      "setName": "Cambio a mejor",
+      "id": 20,
+      "name": "Cambio a mejor",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 3,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ],
+            "42": [
+              74
+            ]
+          },
+          "text": "GRL: entre 45 y 74"
+        }
+      ]
+    },
+    {
+      "setId": 7,
+      "setName": "El DCP regio",
+      "id": 22,
+      "name": "El DCP regio",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 2,
+          "count": -1,
+          "kv": {
+            "40": [
+              13
+            ],
+            "41": [
+              44
+            ]
+          },
+          "text": "Liga: Premier League"
+        }
+      ]
+    },
+    {
+      "setId": 7,
+      "setName": "Envío múltiple",
+      "id": 33,
+      "name": "Envío múltiple",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 1,
+          "count": -1,
+          "kv": {
+            "40": [
+              64
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL máximo: 64"
+        }
+      ]
+    },
+    {
+      "setId": 8,
+      "setName": "Reemplazo Bronce y Plata",
+      "id": 23,
+      "name": "Reemplazo Bronce y Plata",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 1,
+          "count": -1,
+          "kv": {
+            "40": [
+              74
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL máximo: 74"
+        }
+      ]
+    },
+    {
+      "setId": 9,
+      "setName": "Reemplazo de Oro",
+      "id": 24,
+      "name": "Reemplazo de Oro",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 1,
+          "count": -1,
+          "kv": {
+            "40": [
+              83
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL máximo: 83"
+        }
+      ]
+    },
+    {
+      "setId": 20,
+      "setName": "Introducción a DCP de futb.",
+      "id": 47,
+      "name": "Introducción a DCP de futb.",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 91,
+      "setName": "Bundesliga",
+      "id": 136,
+      "name": "Bundesliga",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 91,
+      "setName": "Google Pixel Frauen-Bundesliga",
+      "id": 137,
+      "name": "Google Pixel Frauen-Bundesliga",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 92,
+      "setName": "Ligue 1",
+      "id": 138,
+      "name": "Ligue 1",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 92,
+      "setName": "Arkema Première Ligue",
+      "id": 139,
+      "name": "Arkema Première Ligue",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 93,
+      "setName": "Premier League",
+      "id": 140,
+      "name": "Premier League",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 93,
+      "setName": "Barclays WSL",
+      "id": 141,
+      "name": "Barclays WSL",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 94,
+      "setName": "LALIGA",
+      "id": 142,
+      "name": "LALIGA",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 94,
+      "setName": "Liga F",
+      "id": 143,
+      "name": "Liga F",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 99,
+      "setName": "Serie A",
+      "id": 148,
+      "name": "Serie A",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 99,
+      "setName": "ROSHN Saudi League",
+      "id": 149,
+      "name": "ROSHN Saudi League",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 100,
+      "setName": "MLS",
+      "id": 150,
+      "name": "MLS",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 100,
+      "setName": "NWSL",
+      "id": 151,
+      "name": "NWSL",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 121,
+      "setName": "POTM Liga F octubre",
+      "id": 182,
+      "name": "POTM Liga F octubre",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 122,
+      "setName": "Ethan Nwaneri",
+      "id": 183,
+      "name": "Ethan Nwaneri",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 128,
+      "setName": "POTM LALIGA octubre",
+      "id": 189,
+      "name": "POTM LALIGA octubre",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 130,
+      "setName": "Mejora TOTW 1-9 81+",
+      "id": 191,
+      "name": "Mejora TOTW 1-9 81+",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 147,
+      "setName": "Arnaut Danjuma",
+      "id": 211,
+      "name": "Arnaut Danjuma",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 148,
+      "setName": "POTM Premier League octubre",
+      "id": 212,
+      "name": "POTM Premier League octubre",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 151,
+      "setName": "Mejora de mezcla campañas",
+      "id": 215,
+      "name": "Mejora de mezcla campañas",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 152,
+      "setName": "POTM Serie A octubre",
+      "id": 216,
+      "name": "POTM Serie A octubre",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 154,
+      "setName": "POTM de la Bundesliga octubre",
+      "id": 224,
+      "name": "POTM de la Bundesliga octubre",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 155,
+      "setName": "Alessandro Florenzi",
+      "id": 225,
+      "name": "Alessandro Florenzi",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 156,
+      "setName": "Leon Goretzka",
+      "id": 226,
+      "name": "Leon Goretzka",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 158,
+      "setName": "Mejora x5 79+ transferible",
+      "id": 228,
+      "name": "Mejora x5 79+ transferible",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 159,
+      "setName": "EF Icono básico Jornada",
+      "id": 229,
+      "name": "EF Icono básico Jornada",
+      "formation": "",
+      "repeatable": false,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    },
+    {
+      "setId": 161,
+      "setName": "Mejora x2 84+",
+      "id": 232,
+      "name": "Mejora x2 84+",
+      "formation": "",
+      "repeatable": true,
+      "requirements": [
+        {
+          "scope": 0,
+          "count": -1,
+          "kv": {
+            "40": [
+              45
+            ],
+            "41": [
+              1
+            ]
+          },
+          "text": "GRL mínimo: 45"
+        }
+      ]
+    }
+  ]
+}

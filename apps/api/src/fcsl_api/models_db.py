@@ -34,6 +34,10 @@ class Card(Base):
     is_icon: Mapped[bool | None] = mapped_column(Boolean)
     is_hero: Mapped[bool | None] = mapped_column(Boolean)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    card_name: Mapped[str | None] = mapped_column(Text)
+    rarity_ea_id: Mapped[int | None] = mapped_column(Integer)
+    rarity_name: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str | None] = mapped_column(Text)
 
 
 class Price(Base):
@@ -41,9 +45,9 @@ class Price(Base):
 
     resource_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
     platform: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = mapped_column(Text, primary_key=True)
     price: Mapped[int | None] = mapped_column(Integer)
     captured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    source: Mapped[str | None] = mapped_column(Text)
 
 
 class ClubItem(Base):
@@ -57,3 +61,21 @@ class ClubItem(Base):
     loan: Mapped[bool | None] = mapped_column(Boolean)
     last_sale_price: Mapped[int | None] = mapped_column(Integer)
     imported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    asset_id: Mapped[int | None] = mapped_column(Integer)
+    rating: Mapped[int | None] = mapped_column(SmallInteger)
+    market_min: Mapped[int | None] = mapped_column(Integer)
+    market_max: Mapped[int | None] = mapped_column(Integer)
+    first_owner: Mapped[bool | None] = mapped_column(Boolean)
+    seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SyncRun(Base):
+    __tablename__ = "sync_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(Text, nullable=False)  # ok | partial | failed
+    items: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(Text)

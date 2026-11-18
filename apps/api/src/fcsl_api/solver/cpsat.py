@@ -1,7 +1,13 @@
-"""Modelo CP-SAT base: huecos, elegibilidad por posición, jugador único y coste."""
+"""Modelo CP-SAT base: huecos, jugador único y coste.
+
+Como en los DCP de EA, cualquier carta puede ocupar cualquier hueco (fuera de
+posición): la posición no limita la elegibilidad, solo la química. `inpos[c]` vale
+1 si la carta `c` se usa en un hueco que es una de sus posiciones; la química se
+calcula sobre `inpos` (una carta fuera de posición no aporta nada ni se lleva nada).
+"""
 
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 from ortools.sat.python import cp_model
@@ -22,8 +28,14 @@ class SbcModel:
     model: cp_model.CpModel
     cards: list[Card]
     slots: list[Position]
-    x: dict[tuple[int, int], cp_model.IntVar]  # (carta, hueco) -> 0/1, solo si es elegible
-    used: list[cp_model.IntVar]  # used[c] = Σ_s x[c, s]
+    # x[c, k] -> 0/1: la carta c ocupa un hueco. Clave k = posición (str, modelo por
+    # cupos: huecos de igual posición comparten cupo) o índice de hueco (int, modelo
+    # en posición hueco a hueco en pools pequeños). `_assignments` distingue ambas.
+    x: dict[tuple[int, int | str], cp_model.IntVar]
+    used: list[cp_model.IntVar]  # used[c] = Σ x[c, ·]
+    # inpos[c] = 1 si la carta c ocupa un hueco de una de sus posiciones; 0 si no se
+    # usa o se usa fuera de posición. La química depende de inpos, no de used.
+    inpos: list[cp_model.IntVar]
     sum_rating: cp_model.IntVar  # Σ rating·used
     # k_r = nº de cartas usadas con rating r; se crean bajo demanda (TEAM_RATING).
     rating_count: dict[int, cp_model.IntVar] | None = None
@@ -46,37 +58,83 @@ def include_card(m: SbcModel, c: int) -> None:
 
 
 def eligibility_problem(cards: list[Card], slots: list[Position]) -> str | None:
-    """Mensaje si es imposible cubrir los huecos por posición; None si no hay problema."""
-    eligible_assets: set[int] = set()
-    for pos in slots:
-        eligible = [c for c in cards if pos in c.positions]
-        if not eligible:
-            return f"Ningún jugador puede ocupar la posición {pos}"
-        eligible_assets.update(c.asset_id for c in eligible)
-    if len(eligible_assets) < len(slots):
+    """Mensaje si es imposible cubrir los huecos; None si no hay problema.
+
+    Cualquier carta puede ir en cualquier hueco (fuera de posición), así que lo
+    único que puede impedir una plantilla es no tener suficientes jugadores
+    distintos (por asset) para los huecos.
+    """
+    distinct_assets = {c.asset_id for c in cards}
+    if len(distinct_assets) < len(slots):
         return f"No hay suficientes jugadores distintos para {len(slots)} huecos"
     return None
 
 
-def build_base_model(cards: list[Card], slots: list[Position], costs: list[int]) -> SbcModel:
+def build_base_model(
+    cards: list[Card],
+    slots: list[Position],
+    costs: list[int],
+    *,
+    in_position_only: bool = False,
+) -> SbcModel:
+    """Modelo base. Cualquier carta puede ocupar cualquier hueco (fuera de posición
+    permitido): los huecos se agrupan por posición con un cupo (`x[c, p]`, clave por
+    posición), lo que mantiene el modelo pequeño pese a esa libertad. `inpos[c]`
+    marca si la carta juega en una de sus posiciones (la química depende de inpos).
+
+    Con `in_position_only` cada carta solo puede ocupar huecos de sus posiciones:
+    resuelve rápido una plantilla en posición que es a la vez solución válida (y
+    cota) del modelo completo. Es infactible si algún hueco no tiene ninguna carta
+    de su posición (en ese caso el modelo completo la resuelve fuera de posición).
+    En pools pequeños ese modelo se formula hueco a hueco (`x[c, s]`, clave por
+    hueco), más denso pero con mejor convergencia al óptimo; en pools grandes usa
+    los mismos cupos que el completo, que escala mejor. `_assignments` distingue las
+    dos claves (int = hueco, str = posición).
+    """
     # `costs` se acepta por contrato; el objetivo llega vía `objective_terms` en solve_model.
     if len(costs) != len(cards):
         raise ValueError("costs debe tener una entrada por carta")
     model = cp_model.CpModel()
-    x: dict[tuple[int, int], cp_model.IntVar] = {}
-    for c, card in enumerate(cards):
-        for s, pos in enumerate(slots):
-            if pos in card.positions:
-                x[c, s] = model.new_bool_var(f"x_{c}_{s}")
-
-    for s in range(len(slots)):
-        model.add_exactly_one(x[c, s] for c in range(len(cards)) if (c, s) in x)
-
+    x: dict[tuple[int, int | str], cp_model.IntVar] = {}
     used: list[cp_model.IntVar] = []
-    for c in range(len(cards)):
-        u = model.new_int_var(0, 1, f"used_{c}")
-        model.add(u == sum(x[c, s] for s in range(len(slots)) if (c, s) in x))
-        used.append(u)
+    inpos: list[cp_model.IntVar] = []
+
+    if in_position_only and len(cards) <= PERSLOT_MAX_CARDS:
+        # Formulación densa hueco a hueco: una var por (carta, hueco jugable).
+        for c, card in enumerate(cards):
+            for s, pos in enumerate(slots):
+                if pos in card.positions:
+                    x[c, s] = model.new_bool_var(f"x_{c}_{s}")
+        for s in range(len(slots)):
+            model.add_exactly_one(x[c, s] for c in range(len(cards)) if (c, s) in x)
+        for c in range(len(cards)):
+            u = model.new_int_var(0, 1, f"used_{c}")
+            model.add(u == sum(x[c, s] for s in range(len(slots)) if (c, s) in x))
+            used.append(u)
+            inpos.append(u)  # en posición: inpos == used
+    else:
+        # Cupos por posición: cualquier carta en cualquier posición (modelo completo)
+        # o solo en las suyas (in_position_only en pools grandes).
+        pos_caps = Counter(slots)  # posición -> nº de huecos de esa posición
+        positions = list(pos_caps)
+
+        def eligible(card: Card, p: str) -> bool:
+            return not in_position_only or p in card.positions
+
+        for c, card in enumerate(cards):
+            for p in positions:
+                if eligible(card, p):
+                    x[c, p] = model.new_bool_var(f"x_{c}_{p}")
+        for p in positions:  # cada posición se llena con exactamente su cupo
+            model.add(sum(x[c, p] for c in range(len(cards)) if (c, p) in x) == pos_caps[p])
+        for c, card in enumerate(cards):
+            mine = [p for p in positions if (c, p) in x]
+            u = model.new_int_var(0, 1, f"used_{c}")  # ≤ 1 fuerza a la carta a ≤ 1 hueco
+            model.add(u == sum(x[c, p] for p in mine))
+            used.append(u)
+            ip = model.new_int_var(0, 1, f"inpos_{c}")
+            model.add(ip == sum(x[c, p] for p in mine if p in card.positions))
+            inpos.append(ip)
 
     by_asset: dict[int, list[int]] = defaultdict(list)
     for c, card in enumerate(cards):
@@ -88,16 +146,17 @@ def build_base_model(cards: list[Card], slots: list[Position], costs: list[int])
     sum_rating = model.new_int_var(0, 99 * len(slots), "sum_rating")
     model.add(sum_rating == sum(card.rating * used[c] for c, card in enumerate(cards)))
 
-    return SbcModel(model, cards, slots, x, used, sum_rating)
+    return SbcModel(model, cards, slots, x, used, inpos, sum_rating)
 
 
 def add_chemistry(m: SbcModel) -> dict[int, cp_model.IntVar]:
     """Química por carta dentro del modelo (espejo de `chemistry.player_chemistry`).
 
     Se crea una sola vez y se cachea en `m.chem`. Para cada grupo (club, liga,
-    nación) count = Σ peso·used y reach_t ⇔ count ≥ umbral_t; los puntos del
-    grupo son Σ reach_t. Carta normal: min(MAX, pc+pl+pn), 0 si no se usa.
-    Icono/héroe: MAX·used.
+    nación) count = Σ peso·inpos y reach_t ⇔ count ≥ umbral_t; los puntos del
+    grupo son Σ reach_t. Carta normal: min(MAX, pc+pl+pn), 0 si no se usa o se usa
+    fuera de posición. Icono/héroe: MAX·inpos. Se usa `inpos` (no `used`) porque
+    una carta fuera de posición no aporta ni recibe química.
     """
     if m.chem is not None:
         return m.chem
@@ -124,7 +183,7 @@ def add_chemistry(m: SbcModel) -> dict[int, cp_model.IntVar]:
             members[gid].append((c, w))
         points[kind] = {}
         for gid, ms in members.items():
-            count = sum(w * m.used[c] for c, w in ms)
+            count = sum(w * m.inpos[c] for c, w in ms)
             reachable = sum(w for _, w in ms)
             reach = []
             for t in ts:
@@ -140,7 +199,7 @@ def add_chemistry(m: SbcModel) -> dict[int, cp_model.IntVar]:
     for c, card in enumerate(m.cards):
         v = model.new_int_var(0, MAX_PLAYER_CHEM, f"chem_{c}")
         if card.is_icon or card.is_hero:
-            model.add(v == MAX_PLAYER_CHEM * m.used[c])
+            model.add(v == MAX_PLAYER_CHEM * m.inpos[c])
         else:
             total = (
                 points["club"][card.club_id]
@@ -149,10 +208,10 @@ def add_chemistry(m: SbcModel) -> dict[int, cp_model.IntVar]:
             )
             raw = model.new_int_var(0, MAX_PLAYER_CHEM, f"chem_raw_{c}")
             model.add_min_equality(raw, [MAX_PLAYER_CHEM, total])
-            # v = raw si used, 0 si no
-            model.add(v <= MAX_PLAYER_CHEM * m.used[c])
+            # v = raw si en posición, 0 si no se usa o se usa fuera de posición
+            model.add(v <= MAX_PLAYER_CHEM * m.inpos[c])
             model.add(v <= raw)
-            model.add(v >= raw - MAX_PLAYER_CHEM * (1 - m.used[c]))
+            model.add(v >= raw - MAX_PLAYER_CHEM * (1 - m.inpos[c]))
         chem[c] = v
     m.chem = chem
     return chem
@@ -168,6 +227,11 @@ def add_chemistry(m: SbcModel) -> dict[int, cp_model.IntVar]:
 # Las plantillas baratas usan cartas cerca de la media pedida (el precio crece
 # muy deprisa con el rating), y con ~100 cartas la química, cuya relajación
 # lineal es débil, se resuelve en segundos en vez de minutos.
+# El modelo en posición de pools pequeños se formula hueco a hueco (denso), que
+# converge más al óptimo; por encima de este tamaño usa cupos por posición (como el
+# modelo completo), que escala sin quedarse sin encontrar factible.
+PERSLOT_MAX_CARDS = 2000
+
 RESTRICTED_MIN_CARDS = 150
 RESTRICTED_MAX_S = 6.0
 RESTRICTED_SHARE = 0.6  # fracción máxima del límite para la fase restringida
@@ -319,10 +383,26 @@ def solve_model(
         return "unknown", [], elapsed
 
     assert values is not None
-    assignments = [
-        Assignment(slot_index=s, position=m.slots[s], card_id=m.cards[c].card_id)
-        for (c, s), var in m.x.items()
-        if values[var.index]
-    ]
+    return name, _assignments(m, values), elapsed
+
+
+def _assignments(m: SbcModel, values: list[int]) -> list[Assignment]:
+    """Cartas elegidas → huecos concretos. Si la clave es el hueco (int, modelo en
+    posición) ya es directa; si es la posición (str, modelo por cupos) se reparten
+    las cartas de cada posición en sus huecos (cada posición tiene su cupo lleno)."""
+    chosen = [(c, key) for (c, key), var in m.x.items() if values[var.index]]
+    assignments: list[Assignment] = []
+    if chosen and isinstance(chosen[0][1], int):
+        for c, s in chosen:
+            assignments.append(
+                Assignment(slot_index=s, position=m.slots[s], card_id=m.cards[c].card_id)
+            )
+    else:
+        free: dict[str, list[int]] = defaultdict(list)
+        for s, pos in enumerate(m.slots):
+            free[pos].append(s)
+        for c, p in chosen:
+            s = free[p].pop()
+            assignments.append(Assignment(slot_index=s, position=p, card_id=m.cards[c].card_id))
     assignments.sort(key=lambda a: a.slot_index)
-    return name, assignments, elapsed
+    return assignments

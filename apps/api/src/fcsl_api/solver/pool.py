@@ -1,6 +1,6 @@
 """Selección de las cartas que entran al modelo CP-SAT y poda exacta del mercado."""
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Callable, Hashable
 from typing import Literal
 
@@ -32,13 +32,13 @@ def build_pool(
 ) -> list[Card]:
     """Cartas candidatas para el modelo, en el orden de entrada.
 
-    1. Filtra por origen (`pool`); 2. quita excluidas, mercado sin precio y las
-    que no juegan en ningún hueco; 3. quita las que violan PLAYER_RATING;
-    4. poda el mercado por grupos de cartas intercambiables (ver `_prune_market`).
-    Las propias y las de `include_ids` nunca se podan.
+    1. Filtra por origen (`pool`); 2. quita excluidas y mercado sin precio;
+    3. quita las que violan PLAYER_RATING; 4. poda el mercado por grupos de cartas
+    intercambiables (ver `_prune_market`). Las propias y las de `include_ids` nunca
+    se podan. No se descarta ninguna carta por posición: cualquier carta puede ir
+    en cualquier hueco (fuera de posición), la posición solo afecta a la química.
     """
     sources = {"club": {"club"}, "market": {"market"}, "both": {"club", "market"}}[pool]
-    slot_set = frozenset(slots)
     include, exclude = set(include_ids), set(exclude_ids)
     candidates = [
         card
@@ -46,7 +46,6 @@ def build_pool(
         if card.source in sources
         and card.card_id not in exclude
         and not (card.source == "market" and card.price is None)
-        and slot_set & set(card.positions)
         and _passes_player_rating(card, requirements)
     ]
     keep = _prune_market(candidates, slots, requirements, include)
@@ -82,6 +81,7 @@ _KNOWN_KINDS = (
         RequirementKind.LEVEL_PLAYERS,
         RequirementKind.RARE_PLAYERS,
         RequirementKind.TAG_PLAYERS,
+        RequirementKind.RATING_PLAYERS,
     }
 )
 
@@ -131,6 +131,11 @@ def _rating_mode(requirements: list[Requirement]) -> str:
     kinds = {req.kind for req in requirements}
     if not kinds <= _KNOWN_KINDS:
         return "exact"
+    if RequirementKind.RATING_PLAYERS in kinds:
+        # Una ventana de GRL por carta: subir el rating puede sacar a una carta de
+        # la ventana (máx) o meterla (mín), así que no es monótono; poda por rating
+        # exacto (dos cartas solo se dominan con el mismo rating).
+        return "exact"
     team = [r for r in requirements if r.kind == RequirementKind.TEAM_RATING]
     if not team:
         return "ignore"  # PLAYER_RATING ya se filtró; LEVEL va en la clave
@@ -159,11 +164,10 @@ def _prune_market(
     dominadora d queda libre (ni usada ni bloqueada por asset):
     - R0: una dominadora tiene el mismo asset que c (c la bloquea a ella sola);
     - R1: las dominadoras tienen ≥ n assets distintos de c (las otras n − 1
-      cartas de la solución excluyen como mucho un asset cada una);
-    - R2: hay ≥ k dominadoras con exactamente las mismas posiciones∩huecos cuyo
-      asset no aparece en ninguna otra carta candidata, con k = nº de huecos
-      donde juega c (como mucho k − 1 de ellas pueden estar en la solución y
-      nadie más puede bloquearlas).
+      cartas de la solución excluyen como mucho un asset cada una).
+    Ambas reglas se basan solo en assets, así que siguen siendo válidas aunque las
+    cartas puedan jugar fuera de posición (el intercambio c→d mantiene la química:
+    d juega en el mismo hueco que c, en posición o fuera de ella, igual que c).
     Repitiendo el cambio (el orden total es estricto) se llega a una solución
     igual o mejor que solo usa cartas conservadas: la poda es exacta.
     """
@@ -171,7 +175,6 @@ def _prune_market(
     slot_set = frozenset(slots)
     key = _class_key(requirements)
     mode = _rating_mode(requirements)
-    asset_total = Counter(card.asset_id for card in cards)
     keep = {card.card_id for card in cards if card.source == "club" or card.card_id in include}
 
     classes: dict[Hashable, list[Card]] = defaultdict(list)
@@ -191,7 +194,7 @@ def _prune_market(
         for card in members:
             if card.card_id in keep:
                 continue
-            if not _dominated(card, buckets, slot_set, slots, n, mode, asset_total, rank):
+            if not _dominated(card, buckets, slot_set, n, mode, rank):
                 keep.add(card.card_id)
     return keep
 
@@ -200,18 +203,14 @@ def _dominated(
     card: Card,
     buckets: dict[tuple[frozenset[str], int], list[Card]],
     slot_set: frozenset[str],
-    slots: list[Position],
     n: int,
     mode: str,
-    asset_total: Counter[int],
     rank: Callable[[Card], tuple],
 ) -> bool:
     playable = frozenset(slot_set & set(card.positions))
     rating = card.rating if mode != "ignore" else 0
-    k = sum(1 for pos in slots if pos in playable)
     my_rank = rank(card)
     assets: set[int] = set()
-    exclusive_eq = 0
     for (pos_set, r), bucket in buckets.items():
         if not pos_set >= playable:
             continue
@@ -225,8 +224,6 @@ def _dominated(
             if other.asset_id == card.asset_id:
                 return True  # R0
             assets.add(other.asset_id)
-            if pos_set == playable and asset_total[other.asset_id] == 1:
-                exclusive_eq += 1
-            if len(assets) >= n or exclusive_eq >= k:
-                return True  # R1 / R2
+            if len(assets) >= n:
+                return True  # R1
     return False

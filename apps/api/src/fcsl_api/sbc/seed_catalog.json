@@ -1,0 +1,67 @@
+[
+  {
+    "id": "mejora-81",
+    "set_id": "mejoras",
+    "set_name": "Mejoras",
+    "name": "Mejora de plantilla 81+",
+    "formation": "442",
+    "category": "Mejoras",
+    "reward": "Sobre de oro pequeño",
+    "repeatable": true,
+    "requirements": [
+      { "kind": "TEAM_RATING", "op": "min", "value": 81 }
+    ]
+  },
+  {
+    "id": "mejora-84",
+    "set_id": "mejoras",
+    "set_name": "Mejoras",
+    "name": "Mejora de plantilla 84+",
+    "formation": "433",
+    "category": "Mejoras",
+    "reward": "Sobre de oro premium",
+    "repeatable": true,
+    "requirements": [
+      { "kind": "TEAM_RATING", "op": "min", "value": 84 }
+    ]
+  },
+  {
+    "id": "fundamentos-quimica",
+    "set_id": "fundamentos",
+    "set_name": "Fundamentos",
+    "name": "Química de equipo",
+    "formation": "442",
+    "category": "Fundamentos",
+    "reward": "Sobre de plata",
+    "requirements": [
+      { "kind": "TEAM_RATING", "op": "min", "value": 75 },
+      { "kind": "TEAM_CHEMISTRY", "op": "min", "value": 15 }
+    ]
+  },
+  {
+    "id": "retos-oro-raro",
+    "set_id": "retos",
+    "set_name": "Retos",
+    "name": "Oro raro",
+    "formation": "442",
+    "category": "Retos",
+    "reward": "Sobre de jugadores oro raro",
+    "requirements": [
+      { "kind": "TEAM_RATING", "op": "min", "value": 82 },
+      { "kind": "RARE_PLAYERS", "op": "min", "value": 11 }
+    ]
+  },
+  {
+    "id": "retos-ligas-variadas",
+    "set_id": "retos",
+    "set_name": "Retos",
+    "name": "Ligas variadas",
+    "formation": "433",
+    "category": "Retos",
+    "reward": "Sobre de jugadores raro",
+    "requirements": [
+      { "kind": "TEAM_RATING", "op": "min", "value": 80 },
+      { "kind": "DISTINCT_LEAGUES", "op": "min", "value": 5 }
+    ]
+  }
+]
