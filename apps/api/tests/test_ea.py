@@ -79,18 +79,47 @@ def test_rating_players_max():
     assert r.max_rating == 70 and r.min_rating is None
 
 
+def _reqs(raw_req: dict) -> list:
+    (ch,) = ea.parse({"challenges": [_challenge([raw_req])]})
+    return ch.requirements
+
+
+def test_oneclick_rating_min_max_and_band():
+    # Forma de atributo (DCP de un clic): scope 0 = mín, 1 = máx, 3 = banda.
+    (r,) = _reqs({"scope": 0, "count": -1, "kv": {"40": [45], "41": [1]}, "text": "GRL mínimo: 45"})
+    assert r.kind == "TEAM_RATING" and r.op == "min" and r.value == 45
+    (r,) = _reqs({"scope": 1, "count": -1, "kv": {"40": [64], "41": [1]}, "text": "GRL máximo: 64"})
+    assert r.kind == "TEAM_RATING" and r.op == "max" and r.value == 64
+    lo, hi = _reqs(
+        {"scope": 3, "count": -1, "kv": {"40": [45], "41": [1], "42": [74]}, "text": "entre"}
+    )
+    assert (lo.kind, lo.op, lo.value) == ("TEAM_RATING", "min", 45)
+    assert (hi.kind, hi.op, hi.value) == ("TEAM_RATING", "max", 74)
+
+
+def test_oneclick_league():
+    (r,) = _reqs({"scope": 2, "count": -1, "kv": {"40": [13], "41": [44]}, "text": "Liga: PL"})
+    assert r.kind == "LEAGUE_PLAYERS" and r.ids == [13] and r.value == 11 and r.op == "min"
+
+
 def test_unsupported_code_skips_whole_challenge():
-    # Código 40 (topes de rating de un clic) aún sin traducir: el reto se omite.
-    raw = _challenge([_req(0, 2, 40, [65], "Requisito aún no soportado")])
+    # Código 99 (sin traducción): el reto se omite en vez de romper el catálogo.
+    raw = _challenge([_req(0, 2, 99, [65], "Requisito aún no soportado")])
     assert ea.parse({"challenges": [raw]}) == []
 
 
 def test_real_capture_loads_all_as_ea_source():
     challenges = ea.load()
-    assert len(challenges) == 22
+    assert len(challenges) == 55  # 22 de construcción (OPEN) + 33 de un clic
     assert all(c.source == "ea" for c in challenges)
     ids = {c.id for c in challenges}
-    assert {"ea-18", "ea-217", "ea-168"} <= ids
+    assert {"ea-18", "ea-217", "ea-168"} <= ids  # OPEN
+    assert {"ea-19", "ea-20", "ea-22", "ea-47"} <= ids  # un clic (máx, banda, liga, mín)
+    band = next(c for c in challenges if c.id == "ea-20")  # banda → dos requisitos
+    assert [(r.kind, r.op) for r in band.requirements] == [
+        ("TEAM_RATING", "min"),
+        ("TEAM_RATING", "max"),
+    ]
     # Todos sus requisitos deben poder resolverse (kinds soportados por el solver).
     for c in challenges:
         assert c.requirements, c.id

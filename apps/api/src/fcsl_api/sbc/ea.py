@@ -27,6 +27,8 @@ from .models import SbcChallenge
 log = logging.getLogger(__name__)
 
 CAPTURE_PATH = Path(__file__).resolve().parent / "ea_capture.json"
+# Captura aparte de los DCP de un clic (misma forma, requisitos de atributo 40/41/42).
+ONECLICK_PATH = Path(__file__).resolve().parent / "ea_capture_oneclick.json"
 
 # Código de atributo de EA → cómo construir el `Requirement`.
 TEAM_RATING = 19
@@ -57,6 +59,16 @@ _BY_ID = {
     12: RequirementKind.CLUB_PLAYERS,
 }
 
+# Forma de atributo combinada (DCP de un clic): el requisito es un tope sobre un
+# atributo, con el scope como dirección (0 = mín, 1 = máx, 3 = banda [40, 42]).
+ATTR_VALUE = "40"  # valor (mínimo, o el valor del tope)
+ATTR_SELECTOR = "41"  # qué atributo: 1 = GRL (valoración), 44 = liga
+ATTR_UPPER = "42"  # tope superior en bandas
+ATTR_RATING = 1
+ATTR_LEAGUE = 44
+_SCOPE_BAND = 3
+_SCOPE_MAX = 1
+
 
 class UnsupportedRequirement(Exception):
     """Un código de requisito de EA que el adaptador todavía no sabe traducir."""
@@ -76,53 +88,87 @@ def _tiers_at_least(tier: int) -> list[str]:
     return _TIERS_ORDER[tier - 1 :]
 
 
-def _requirement(raw: dict, slots: int) -> Requirement:
+def _attribute_requirement(raw: dict, slots: int) -> list[Requirement]:
+    """Forma de atributo (40/41/42): tope sobre GRL o liga. La banda da dos reqs."""
+    kv: dict[str, list[int]] = raw["kv"]
+    attr = kv[ATTR_SELECTOR][0]
+    scope = raw.get("scope")
+    if attr == ATTR_RATING:
+        value = kv[ATTR_VALUE][0]
+        if scope == _SCOPE_BAND:  # GRL entre value y kv[42]
+            return [
+                Requirement(kind=RequirementKind.TEAM_RATING, op="min", value=value),
+                Requirement(kind=RequirementKind.TEAM_RATING, op="max", value=kv[ATTR_UPPER][0]),
+            ]
+        op = "max" if scope == _SCOPE_MAX else "min"
+        return [Requirement(kind=RequirementKind.TEAM_RATING, op=op, value=value)]
+    if attr == ATTR_LEAGUE:
+        # «toda la plantilla de esta liga»: N = nº de huecos, id de liga en kv.
+        return [
+            Requirement(
+                kind=RequirementKind.LEAGUE_PLAYERS, op="min", value=slots, ids=[kv[ATTR_VALUE][0]]
+            )
+        ]
+    raise UnsupportedRequirement(f"atributo {attr} ({raw.get('text')!r})")
+
+
+def _requirement(raw: dict, slots: int) -> list[Requirement]:
     """Traduce un requisito crudo de EA; lanza `UnsupportedRequirement` si no mapea."""
     kv: dict[str, list[int]] = raw["kv"]
+    if ATTR_SELECTOR in kv:  # forma de atributo combinada (DCP de un clic)
+        return _attribute_requirement(raw, slots)
     code = int(next(iter(kv)))
     values = kv[str(code)]
     count = raw.get("count", -1)
     op = _op(raw.get("text"))
 
     if code == TEAM_RATING:
-        return Requirement(kind=RequirementKind.TEAM_RATING, op=op, value=values[0])
+        return [Requirement(kind=RequirementKind.TEAM_RATING, op=op, value=values[0])]
     if code == TEAM_CHEMISTRY:
-        return Requirement(kind=RequirementKind.TEAM_CHEMISTRY, op=op, value=values[0])
+        return [Requirement(kind=RequirementKind.TEAM_CHEMISTRY, op=op, value=values[0])]
     if code in _DISTINCT:
-        return Requirement(kind=_DISTINCT[code], op=op, value=values[0])
+        return [Requirement(kind=_DISTINCT[code], op=op, value=values[0])]
     if code in _SAME:
-        return Requirement(kind=_SAME[code], op=op, value=values[0])
+        return [Requirement(kind=_SAME[code], op=op, value=values[0])]
     if code in _BY_ID:
         # «N jugadores de estas naciones/ligas/clubes»: ids en kv, N en count.
-        return Requirement(kind=_BY_ID[code], op="min", value=count, ids=list(values))
+        return [Requirement(kind=_BY_ID[code], op="min", value=count, ids=list(values))]
     if code == QUALITY_COUNT:
         # «N jugadores de calidad X»: X en kv (1/2/3), N en count.
-        return Requirement(
-            kind=RequirementKind.LEVEL_PLAYERS, op="min", value=count, tags=[_TIER[values[0]]]
-        )
+        return [
+            Requirement(
+                kind=RequirementKind.LEVEL_PLAYERS, op="min", value=count, tags=[_TIER[values[0]]]
+            )
+        ]
     if code == RATING_COUNT_MIN:
         # «N jugadores con GRL ≥ X»: X en kv, N en count; op (Mín./Máx.) acota N.
-        return Requirement(
-            kind=RequirementKind.RATING_PLAYERS, op=op, value=count, min_rating=values[0]
-        )
+        return [
+            Requirement(
+                kind=RequirementKind.RATING_PLAYERS, op=op, value=count, min_rating=values[0]
+            )
+        ]
     if code == RATING_COUNT_MAX:
         # «N jugadores con GRL ≤ X»: X en kv, N en count; op (Mín./Máx.) acota N.
-        return Requirement(
-            kind=RequirementKind.RATING_PLAYERS, op=op, value=count, max_rating=values[0]
-        )
+        return [
+            Requirement(
+                kind=RequirementKind.RATING_PLAYERS, op=op, value=count, max_rating=values[0]
+            )
+        ]
     if code == QUALITY_FLOOR:
         # Calidad de TODA la plantilla: exact → solo esa; min → esa o mejor.
         tier = values[0]
         tags = [_TIER[tier]] if op == "exact" else _tiers_at_least(tier)
-        return Requirement(kind=RequirementKind.LEVEL_PLAYERS, op="min", value=slots, tags=tags)
+        return [Requirement(kind=RequirementKind.LEVEL_PLAYERS, op="min", value=slots, tags=tags)]
 
     raise UnsupportedRequirement(f"código {code} ({raw.get('text')!r})")
 
 
 def _challenge(raw: dict) -> SbcChallenge:
-    formation = normalize(raw.get("formation", "442"))
+    # Los DCP de un clic no traen formación; la posición no importa (solo topes de
+    # valoración/liga), así que se usa 442 por defecto para tener 11 huecos.
+    formation = normalize(raw.get("formation") or "442")
     slots = 11
-    reqs = [_requirement(r, slots) for r in raw.get("requirements", [])]
+    reqs = [req for r in raw.get("requirements", []) for req in _requirement(r, slots)]
     return SbcChallenge(
         id=f"ea-{raw['id']}",
         set_id=f"ea-set-{raw['setId']}",
@@ -146,7 +192,12 @@ def parse(data: dict) -> list[SbcChallenge]:
     return out
 
 
-def load(path: Path = CAPTURE_PATH) -> list[SbcChallenge]:
+def _load_file(path: Path) -> list[SbcChallenge]:
     if not path.exists():
         return []
     return parse(json.loads(path.read_text(encoding="utf-8")))
+
+
+def load() -> list[SbcChallenge]:
+    """Todos los DCP capturados: construcción (OPEN) + de un clic."""
+    return _load_file(CAPTURE_PATH) + _load_file(ONECLICK_PATH)
