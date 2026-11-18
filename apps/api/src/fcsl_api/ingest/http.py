@@ -75,17 +75,32 @@ class PoliteClient:
         return False, None
 
     def get_json(self, path: str, params: dict | None = None, cache_ttl_s: int = 0) -> Any:
+        return self._get(path, params, cache_ttl_s, lambda r: r.json())
+
+    def get_text(self, path: str, params: dict | None = None, cache_ttl_s: int = 0) -> str:
+        """Como `get_json` pero devuelve el cuerpo como texto (p. ej. HTML)."""
+        return self._get(path, params, cache_ttl_s, lambda r: r.text)
+
+    def _get(
+        self,
+        path: str,
+        params: dict | None,
+        cache_ttl_s: int,
+        decode: Callable[[httpx.Response], Any],
+    ) -> Any:
         file = self._cache_path(path, params)
         hit, data = self._read_cache(file, cache_ttl_s)
         if hit:
             return data
-        data = self._fetch(path, params)
+        data = self._fetch(path, params, decode)
         if file is not None and cache_ttl_s > 0:
             file.parent.mkdir(parents=True, exist_ok=True)
             file.write_text(json.dumps({"fetched_at": self._wall_clock(), "data": data}))
         return data
 
-    def _fetch(self, path: str, params: dict | None) -> Any:
+    def _fetch(
+        self, path: str, params: dict | None, decode: Callable[[httpx.Response], Any]
+    ) -> Any:
         for attempt in range(self.RETRIES + 1):
             self._wait_turn()
             try:
@@ -98,7 +113,7 @@ class PoliteClient:
                     raise SourceBlocked(f"{response.status_code} en {response.url}")
                 if response.status_code < 500:
                     response.raise_for_status()
-                    return response.json()
+                    return decode(response)
                 if attempt == self.RETRIES:
                     response.raise_for_status()
             self._sleep(self.BACKOFF_S * (attempt + 1))

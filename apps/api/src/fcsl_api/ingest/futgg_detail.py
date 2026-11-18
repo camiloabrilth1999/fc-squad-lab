@@ -9,6 +9,16 @@ se obtienen del listado (sync-cards), inequívocos por carta, no de esta página
 """
 
 import re
+from typing import Protocol
+
+# La ficha de carta: /players/<slug-del-jugador-base>/27-<eaId>/
+DETAIL_PATH = "/players/{slug}/27-{ea_id}/"
+DETAIL_CACHE_TTL_S = 7 * 24 * 3600  # los stats de una carta no cambian: caché larga
+
+
+class _TextClient(Protocol):
+    def get_text(self, path: str, params: dict | None = ..., cache_ttl_s: int = ...) -> str: ...
+
 
 # Nombre de FUT.GG (CamelCase, sin el prefijo `attribute`) → nuestro nombre de stat.
 _STAT_MAP: dict[str, str] = {
@@ -58,3 +68,12 @@ def parse_card_attributes(html: str, ea_id: int) -> dict[str, int] | None:
         block[name] = value
     out = {_STAT_MAP[name]: int(value) for name, value in block.items() if name in _STAT_MAP}
     return out or None
+
+
+def fetch_card_attributes(
+    client: _TextClient, base_player_slug: str, ea_id: int
+) -> dict[str, int] | None:
+    """Baja la ficha de la carta de FUT.GG y devuelve sus stats de campo."""
+    path = DETAIL_PATH.format(slug=base_player_slug, ea_id=ea_id)
+    html = client.get_text(path, cache_ttl_s=DETAIL_CACHE_TTL_S)
+    return parse_card_attributes(html, ea_id)

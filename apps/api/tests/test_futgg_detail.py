@@ -37,3 +37,22 @@ def test_parse_wrong_card_returns_none():
 
 def test_parse_no_attributes_returns_none():
     assert parse_card_attributes("eaId:84117827,sin:stats", 84117827) is None
+
+
+class _FakeClient:
+    def __init__(self, html: str) -> None:
+        self.html = html
+        self.calls: list[str] = []
+
+    def get_text(self, path: str, params=None, cache_ttl_s: int = 0) -> str:
+        self.calls.append(path)
+        return self.html
+
+
+def test_fetch_builds_detail_url_and_parses():
+    from fcsl_api.ingest.futgg_detail import fetch_card_attributes
+
+    client = _FakeClient(FIXTURE)
+    attrs = fetch_card_attributes(client, "231747-kylian-mbappe", 84117827)
+    assert attrs["finishing"] == 96
+    assert client.calls == ["/players/231747-kylian-mbappe/27-84117827/"]
