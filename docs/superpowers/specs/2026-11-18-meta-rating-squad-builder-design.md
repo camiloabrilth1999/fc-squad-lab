@@ -60,14 +60,22 @@ Decisión de Camilo: **C**. Nuestro meta rating propio; EasySBC como guía para 
 
 ## Decisiones de diseño
 
-### Datos (atributos detallados)
+### Datos (atributos detallados) — fuente confirmada (recon 2026-11-18)
 
-- **Club (Fase A)**: capturar los atributos detallados **de EA** (la extensión ya
-  lee los ítems del club; el `attributeArray` + PlayStyles + AcceleRATE están en el
-  mismo objeto) → se amplía la importación y el modelo para guardarlos. ~179 cartas,
-  sin coste extra de red. (Alternativa descartada por ahora: detalle por carta de
-  FUT.GG, una llamada por carta.)
-- Para Fase B (DB completa) ya se verá (detalle masivo de FUT.GG/EA) — aparcado.
+- El **ítem de club de EA** solo da rating + mercado (y, como mucho, los 6 stats de
+  la cara). El **listado de FUT.GG** (nuestro sync) no trae stats (solo
+  `attributeStrength`). Los **34 stats detallados** (`attributeAcceleration`,
+  `attributeFinishing`, …) + `accelerateType` + PlayStyles(+) + roles + SM/WF están
+  **solo en la ficha de carta de FUT.GG**: `/players/<basePlayerSlug>/27-<eaId>/`,
+  embebidos en el HTML (SSR, estado de TanStack Router) — sin API JSON limpia, pero
+  **parseables** del HTML crudo (p. ej. `attributeFinishing:96`).
+- **Club (Fase A)**: una petición de detalle **por carta del club** (~179), ≤ 1 req/s,
+  con caché; parsear el blob embebido y guardar los atributos por `resource_id`/`eaId`.
+  Fuente permitida (FUT.GG, no la ruta de precios). Es scraping de HTML (frágil): el
+  parser localiza el objeto de la carta y extrae los `attribute*`.
+- Referencia extra: `GET /api/fut/tier-list/player-tier/27/<eaId>/` da el tier/meta de
+  FUT.GG en JSON limpio — segunda referencia de calibración además de EasySBC.
+- Fase B (DB completa ~21k): detalle masivo — **aparcado** (coste de red alto).
 
 ### Meta rating
 
