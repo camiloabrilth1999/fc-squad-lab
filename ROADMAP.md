@@ -31,6 +31,12 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   - por **(carta, rol)**; entradas: atributos detallados (~35) + PlayStyles(+) +
     AcceleRATE + WF/SM; tabla rol→atributos sembrada desde los "top stats por rol"
     **públicos** de EasySBC; salida 0–99.9 + tiers (S/A+/A/B+/B) por percentil.
+  - **Módulo de cálculo `fcsl_api.meta`: HECHO** (atributos, roles/pesos semilla,
+    `meta_rating`, tiers; 14 tests). En `feat/squad-builder`.
+  - Pendiente: (a) **capturar los atributos** del club de EA; (b) mapear ids de
+    PlayStyle+ de EA (ahora provisionales en la semilla); (c) **calibrar pesos**
+    contra EasySBC (script dev); (d) stats de portero propios (el rol GK es
+    placeholder); (e) los PlayStyles no-plus aún no suman al score.
 - **Squad Builder — Fase A (solo club)**: "mejor XI de tu club" maximizando
   meta + química (la función "best possible squad" de EasySBC). Reusa el solver;
   objetivo = maximizar Σ meta en vez de minimizar coste.
