@@ -138,10 +138,12 @@ def _random_pool(rng, size):
     return cards, costs
 
 
+# La valoración no depende de la posición; `slots` se acepta por la firma de
+# brute_force (chosen, slots) pero se ignora.
 CHECKS = {
-    "min": lambda t: lambda chosen: team_rating([c.rating for c in chosen]) >= t,
-    "max": lambda t: lambda chosen: team_rating([c.rating for c in chosen]) <= t,
-    "exact": lambda t: lambda chosen: team_rating([c.rating for c in chosen]) == t,
+    "min": lambda t: lambda chosen, slots=None: team_rating([c.rating for c in chosen]) >= t,
+    "max": lambda t: lambda chosen, slots=None: team_rating([c.rating for c in chosen]) <= t,
+    "exact": lambda t: lambda chosen, slots=None: team_rating([c.rating for c in chosen]) == t,
 }
 
 

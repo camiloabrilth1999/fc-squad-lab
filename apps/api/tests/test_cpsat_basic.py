@@ -27,12 +27,15 @@ def test_fills_every_slot():
     assert len({a.card_id for a in assignments}) == 2
 
 
-def test_respects_positions():
+def test_allows_out_of_position():
+    # Como en EA, una carta puede ocupar un hueco fuera de su posición: el solver
+    # prefiere dos CM baratas (una en el hueco GK, fuera de posición) antes que
+    # pagar por el GK caro. La posición no limita la elegibilidad.
     cards = _cards([{"positions": ["CM"]}, {"positions": ["GK"]}, {"positions": ["CM"]}])
     status, assignments, _ = _solve(cards, ["GK", "CM"], [1, 500, 1])
     assert status == "optimal"
-    assert assignments[0].card_id == "market:2"
-    assert assignments[0].position == "GK"
+    assert {a.card_id for a in assignments} == {"market:1", "market:3"}
+    assert all(a.card_id != "market:2" for a in assignments)  # no se usa el GK caro
 
 
 def test_picks_cheapest():
@@ -55,13 +58,15 @@ def test_never_same_asset():
     assert len(ids & {"market:1", "club:2"}) == 1
 
 
-def test_infeasible_when_no_eligible():
+def test_position_never_makes_it_infeasible():
+    # Antes un hueco sin cartas de esa posición era infactible; ahora cualquier
+    # carta puede cubrirlo (fuera de posición), así que hay solución.
     cards = _cards([{"positions": ["CM"]}, {"positions": ["CB"]}])
-    assert "ST" in eligibility_problem(cards, ["CM", "ST"])
+    assert eligibility_problem(cards, ["CM", "ST"]) is None
     assert eligibility_problem(cards, ["CM", "CB"]) is None
     status, assignments, _ = _solve(cards, ["CM", "ST"], [1, 1])
-    assert status == "infeasible"
-    assert assignments == []
+    assert status == "optimal"
+    assert len(assignments) == 2
 
 
 def test_not_enough_distinct_players():
@@ -95,7 +100,7 @@ def test_matches_bruteforce():
         for i in rng.sample(range(n), 2):  # fuerza duplicados de asset_id
             cards[i] = cards[i].model_copy(update={"asset_id": 999})
         costs = [rng.randint(1, 100) for _ in range(n)]
-        expected = brute_force(cards, slots, costs, lambda chosen: True)
+        expected = brute_force(cards, slots, costs, lambda chosen, slots: True)
         status, assignments, _ = _solve(cards, slots, costs)
         if expected is None:
             assert status == "infeasible"

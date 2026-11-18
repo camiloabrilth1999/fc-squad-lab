@@ -151,9 +151,11 @@ class _Collector(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self):
         self.solutions += 1
-        used = [c for c in range(len(self._m.cards)) if self.value(self._m.used[c])]
-        expected = player_chemistry([self._m.cards[c] for c in used])
-        model_chem = {self._m.cards[c].card_id: self.value(v) for c, v in self._chem.items()}
+        m = self._m
+        used = [c for c in range(len(m.cards)) if self.value(m.used[c])]
+        slot_of = {c: p for (c, p), var in m.x.items() if self.value(var)}
+        expected = player_chemistry([m.cards[c] for c in used], [slot_of[c] for c in used])
+        model_chem = {m.cards[c].card_id: self.value(v) for c, v in self._chem.items()}
         got = {cid: v for cid, v in model_chem.items() if cid in expected}
         unused_nonzero = {cid: v for cid, v in model_chem.items() if cid not in expected and v}
         if got != expected or unused_nonzero:
@@ -227,10 +229,10 @@ def test_model_chem_unused_is_zero():
 
 
 def _chem_check(team_min=None, player_min=None):
-    def check(chosen):
-        if team_min is not None and team_chemistry(chosen) < team_min:
+    def check(chosen, slots):
+        if team_min is not None and team_chemistry(chosen, slots) < team_min:
             return False
-        return player_min is None or min(player_chemistry(chosen).values()) >= player_min
+        return player_min is None or min(player_chemistry(chosen, slots).values()) >= player_min
 
     return check
 
@@ -258,4 +260,4 @@ def test_chem_matches_bruteforce(seed):
     else:
         assert status == "optimal"
         assert cost == expected
-        assert check(chosen)
+        assert check(chosen, slots)  # `chosen` va en orden de hueco (slots)
