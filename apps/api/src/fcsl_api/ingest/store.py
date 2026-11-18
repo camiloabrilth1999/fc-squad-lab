@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from fcsl_api.ingest.easysbc import PriceRow
 from fcsl_api.ingest.futgg import CardRow
-from fcsl_api.models_db import Card, Price, SyncRun
+from fcsl_api.models_db import Card, CardAttributes, Price, SyncRun
 
 
 def upsert_cards(session: Session, rows: Iterable[CardRow], source: str) -> int:
@@ -25,6 +25,20 @@ def upsert_cards(session: Session, rows: Iterable[CardRow], source: str) -> int:
     session.execute(stmt.on_conflict_do_update(index_elements=[Card.resource_id], set_=update))
     session.commit()
     return len(unique)
+
+
+def upsert_card_attributes(session: Session, resource_id: int, stats: dict[str, int]) -> None:
+    """Inserta o actualiza los stats detallados de una carta por resource_id."""
+    stmt = insert(CardAttributes).values(
+        resource_id=resource_id, stats=stats, updated_at=func.clock_timestamp()
+    )
+    session.execute(
+        stmt.on_conflict_do_update(
+            index_elements=[CardAttributes.resource_id],
+            set_={"stats": stmt.excluded.stats, "updated_at": stmt.excluded.updated_at},
+        )
+    )
+    session.commit()
 
 
 def upsert_prices(
