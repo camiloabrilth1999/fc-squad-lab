@@ -23,9 +23,7 @@ def meta_rating(attrs: PlayerAttributes, role: str) -> float:
     rw = get_role(role)
     total_w = sum(rw.key_stats.values())
     base = (
-        sum(w * attrs.get(stat) for stat, w in rw.key_stats.items()) / total_w
-        if total_w
-        else 0.0
+        sum(w * attrs.get(stat) for stat, w in rw.key_stats.items()) / total_w if total_w else 0.0
     )
     bonus = PLAYSTYLE_PLUS_BONUS * sum(1 for p in attrs.play_styles_plus if p in rw.playstyles_plus)
     if rw.best_accelerate is not None and attrs.accelerate == rw.best_accelerate:
