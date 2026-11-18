@@ -32,8 +32,10 @@ Proyecto personal de Camilo: web local para EA FC 27 Ultimate Team (solver de SB
 - Máximo 1 petición/s por fuente, caché, parar ante 403/429, **nunca** saltarse protecciones anti-bots (FUTBIN y la ruta de precios de FUT.GG quedan fuera).
 - La extensión **solo lee**. Observa lo que la web app de EA recibe y, desde 2026-11-17 (decisión de Camilo, como EasySBC), al iniciar sesión pide a la propia web app que lea el club y el Almacén SBC con sus servicios internos (`services.Club.search`, `services.Item.searchStorageItems`): ≥ 1 s entre peticiones, tope de páginas, una vez por sesión (enfriamiento de 15 min), parar ante el primer error y desactivable en Opciones. **Nunca** peticiones `fetch` propias a EA, ni mercado, pujas, ventas, movimientos o envíos de SBC.
 
-## Estado (2026-11-17)
+## Estado y seguimiento
 
-- Plan 1 (cimientos + motor solver): en `main`.
-- Plan 2 (Datos fase 1): terminado y revisado en `feat/datos-fase-1`. Falta la prueba manual con el club real (cargar la extensión con "modo muestras", navegar Club, Almacén SBC, Lista de transferencias y una búsqueda manual), revisar `apps/api/var/samples/`, ajustar `apps/extension/src/parse.ts` y los fixtures si el formato real de EA difiere, y luego integrar en `main`.
-- Siguiente: Plan 3 (retos SBC desde la extensión/EasySBC, pantalla de reto, solver sobre el club real).
+El estado vivo de la app (hecho / en curso / pendiente) está en **`ROADMAP.md`** en
+la raíz. Mantenerlo actualizado al cerrar cada avance para no perder el seguimiento.
+
+- Fases 0–1 (cimientos, solver, datos reales de EA, SBC) mezcladas en `main` (PR #1).
+- En curso: **meta rating propio** + **Squad Builder (Fase A, solo club)**.
