@@ -242,6 +242,14 @@ def _level_players(m: SbcModel, req: Requirement) -> None:
     _bound(m, _count_where(m, lambda card: card.level in levels), req.op, req.value)
 
 
+def _rating_players(m: SbcModel, req: Requirement) -> None:
+    # «N jugadores con GRL en [min, max]»: el rating es constante, así que es un
+    # conteo de cartas que cumplen la ventana, acotado por op/value (como LEVEL).
+    lo = req.min_rating if req.min_rating is not None else 0
+    hi = req.max_rating if req.max_rating is not None else 99
+    _bound(m, _count_where(m, lambda card: lo <= card.rating <= hi), req.op, req.value)
+
+
 def _rare_players(m: SbcModel, req: Requirement) -> None:
     _bound(m, _count_where(m, lambda card: card.rare), req.op, req.value)
 
@@ -270,4 +278,5 @@ _HANDLERS = {
     RequirementKind.LEVEL_PLAYERS: _level_players,
     RequirementKind.RARE_PLAYERS: _rare_players,
     RequirementKind.TAG_PLAYERS: _tag_players,
+    RequirementKind.RATING_PLAYERS: _rating_players,
 }

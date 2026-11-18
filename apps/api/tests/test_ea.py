@@ -67,8 +67,21 @@ def test_quality_floor_min_includes_better_tiers():
     assert r.kind == "LEVEL_PLAYERS" and r.value == 11 and r.tags == ["silver", "gold"]
 
 
+def test_rating_players_min():
+    r = _one(_req(0, 2, 26, [65], "Futbolistas con GRL mínima de 65: Mín. 2"))
+    assert r.kind == "RATING_PLAYERS" and r.op == "min" and r.value == 2
+    assert r.min_rating == 65 and r.max_rating is None
+
+
+def test_rating_players_max():
+    r = _one(_req(0, 3, 28, [70], "Futbolistas con GRL máxima de 70: Máx. 3"))
+    assert r.kind == "RATING_PLAYERS" and r.op == "max" and r.value == 3
+    assert r.max_rating == 70 and r.min_rating is None
+
+
 def test_unsupported_code_skips_whole_challenge():
-    raw = _challenge([_req(0, 2, 26, [65], "Futbolistas con GRL mínima de 65: Mín. 2")])
+    # Código 40 (topes de rating de un clic) aún sin traducir: el reto se omite.
+    raw = _challenge([_req(0, 2, 40, [65], "Requisito aún no soportado")])
     assert ea.parse({"challenges": [raw]}) == []
 
 

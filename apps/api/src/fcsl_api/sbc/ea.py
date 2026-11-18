@@ -33,6 +33,8 @@ TEAM_RATING = 19
 TEAM_CHEMISTRY = 35
 QUALITY_FLOOR = 3  # calidad mínima/exacta de TODA la plantilla
 QUALITY_COUNT = 17  # nº de jugadores de una calidad (bronce/plata/oro)
+RATING_COUNT_MIN = 26  # nº de jugadores con GRL ≥ X
+RATING_COUNT_MAX = 28  # nº de jugadores con GRL ≤ X
 _TIER = {1: "bronze", 2: "silver", 3: "gold"}
 _TIERS_ORDER = ["bronze", "silver", "gold"]
 
@@ -97,6 +99,16 @@ def _requirement(raw: dict, slots: int) -> Requirement:
         # «N jugadores de calidad X»: X en kv (1/2/3), N en count.
         return Requirement(
             kind=RequirementKind.LEVEL_PLAYERS, op="min", value=count, tags=[_TIER[values[0]]]
+        )
+    if code == RATING_COUNT_MIN:
+        # «N jugadores con GRL ≥ X»: X en kv, N en count; op (Mín./Máx.) acota N.
+        return Requirement(
+            kind=RequirementKind.RATING_PLAYERS, op=op, value=count, min_rating=values[0]
+        )
+    if code == RATING_COUNT_MAX:
+        # «N jugadores con GRL ≤ X»: X en kv, N en count; op (Mín./Máx.) acota N.
+        return Requirement(
+            kind=RequirementKind.RATING_PLAYERS, op=op, value=count, max_rating=values[0]
         )
     if code == QUALITY_FLOOR:
         # Calidad de TODA la plantilla: exact → solo esa; min → esa o mejor.

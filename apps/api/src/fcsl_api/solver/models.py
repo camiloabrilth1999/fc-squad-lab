@@ -53,6 +53,9 @@ class RequirementKind(StrEnum):
     LEVEL_PLAYERS = "LEVEL_PLAYERS"
     RARE_PLAYERS = "RARE_PLAYERS"
     TAG_PLAYERS = "TAG_PLAYERS"
+    # "N jugadores con GRL ≥/≤ X": op/value acotan N (cuántos jugadores), y
+    # min_rating/max_rating la ventana de GRL que deben cumplir esos jugadores.
+    RATING_PLAYERS = "RATING_PLAYERS"
 
 
 class Requirement(BaseModel):
@@ -61,6 +64,9 @@ class Requirement(BaseModel):
     value: int
     ids: list[int] = Field(default_factory=list)  # *_PLAYERS: ids aceptados
     tags: list[str] = Field(default_factory=list)  # LEVEL: ["gold"]; TAG: ["TOTW"]
+    # RATING_PLAYERS: ventana de GRL que cuenta un jugador (≥ min, ≤ max).
+    min_rating: int | None = None
+    max_rating: int | None = None
 
     @model_validator(mode="after")
     def _check_inputs(self) -> "Requirement":
@@ -77,6 +83,12 @@ class Requirement(BaseModel):
             raise ValueError(
                 f"LEVEL_PLAYERS requiere tags no vacíos entre bronze/silver/gold, no {self.tags!r}"
             )
+        if (
+            k == RequirementKind.RATING_PLAYERS
+            and self.min_rating is None
+            and self.max_rating is None
+        ):
+            raise ValueError("RATING_PLAYERS requiere min_rating o max_rating")
         return self
 
 

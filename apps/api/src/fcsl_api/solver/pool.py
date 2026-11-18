@@ -81,6 +81,7 @@ _KNOWN_KINDS = (
         RequirementKind.LEVEL_PLAYERS,
         RequirementKind.RARE_PLAYERS,
         RequirementKind.TAG_PLAYERS,
+        RequirementKind.RATING_PLAYERS,
     }
 )
 
@@ -129,6 +130,11 @@ def _rating_mode(requirements: list[Requirement]) -> str:
     """
     kinds = {req.kind for req in requirements}
     if not kinds <= _KNOWN_KINDS:
+        return "exact"
+    if RequirementKind.RATING_PLAYERS in kinds:
+        # Una ventana de GRL por carta: subir el rating puede sacar a una carta de
+        # la ventana (máx) o meterla (mín), así que no es monótono; poda por rating
+        # exacto (dos cartas solo se dominan con el mismo rating).
         return "exact"
     team = [r for r in requirements if r.kind == RequirementKind.TEAM_RATING]
     if not team:

@@ -33,8 +33,16 @@ def _solve(cards, slots, costs, reqs, time_limit_s=5.0):
     return status, [card for _, card in chosen], sum(costs[c] for c, _ in chosen)
 
 
-def _req(kind, op, value, ids=(), tags=()):
-    return Requirement(kind=kind, op=op, value=value, ids=list(ids), tags=list(tags))
+def _req(kind, op, value, ids=(), tags=(), min_rating=None, max_rating=None):
+    return Requirement(
+        kind=kind,
+        op=op,
+        value=value,
+        ids=list(ids),
+        tags=list(tags),
+        min_rating=min_rating,
+        max_rating=max_rating,
+    )
 
 
 OPS = {
@@ -87,6 +95,10 @@ def check_tag(tags, op, value):
     return lambda chosen, slots=None: OPS[op](
         sum(any(t in c.rarity_tags for t in tags) for c in chosen), value
     )
+
+
+def check_rating(threshold, op, value):
+    return lambda chosen, slots=None: OPS[op](sum(c.rating >= threshold for c in chosen), value)
 
 
 # --- *_PLAYERS ---
@@ -345,13 +357,19 @@ def _random_case(rng, family_kind):
         op = rng.choice(["min", "max", "exact"])
         value = rng.randint(1, 4)
         return _req(SAME_KIND[family], op, value), check_same(ATTR[family], op, value)
-    choice = rng.choice(["level", "rare", "tag"])
+    choice = rng.choice(["level", "rare", "tag", "rating"])
     value = rng.randint(1, 3)
     if choice == "level":
         levels = rng.sample(["bronze", "silver", "gold"], rng.randint(1, 2))
         return _req(K.LEVEL_PLAYERS, op, value, tags=levels), check_level(set(levels), op, value)
     if choice == "rare":
         return _req(K.RARE_PLAYERS, op, value), check_rare(op, value)
+    if choice == "rating":
+        threshold = rng.randint(70, 85)  # «N jugadores con GRL ≥ threshold»
+        return (
+            _req(K.RATING_PLAYERS, op, value, min_rating=threshold),
+            check_rating(threshold, op, value),
+        )
     tags = rng.sample(["TOTW", "SPECIAL"], rng.randint(1, 2))
     return _req(K.TAG_PLAYERS, op, value, tags=tags), check_tag(tags, op, value)
 

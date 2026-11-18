@@ -22,6 +22,12 @@ def _max_rating_needed(challenge: SbcChallenge) -> int:
         for r in challenge.requirements
         if r.kind in (RequirementKind.TEAM_RATING, RequirementKind.PLAYER_RATING)
     ]
+    # RATING_PLAYERS pide N jugadores con GRL ≥ min_rating: hay que traerlos.
+    ratings += [
+        r.min_rating
+        for r in challenge.requirements
+        if r.kind == RequirementKind.RATING_PLAYERS and r.min_rating is not None
+    ]
     return max(ratings) if ratings else 99
 
 
