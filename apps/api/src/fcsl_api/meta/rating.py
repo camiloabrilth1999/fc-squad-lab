@@ -8,6 +8,8 @@ pesos, así que los pesos no tienen que sumar 1) → 0–99.
 recortado a [0, 99.9]. Los pesos y bonus son nuestros y se afinan por calibración.
 """
 
+from collections.abc import Sequence
+
 from .attributes import PlayerAttributes
 from .roles import get_role
 
@@ -30,3 +32,19 @@ def meta_rating(attrs: PlayerAttributes, role: str) -> float:
         bonus += ACCELERATE_BONUS
     bonus += STAR_STEP * (max(0, attrs.skill_moves - 3) + max(0, attrs.weak_foot - 3))
     return round(min(MAX_META, max(0.0, base + bonus)), 1)
+
+
+TIERS = ("S", "A+", "A", "B+", "B")
+# Corte por percentil (fracción de la población ≤ score) para cada tier; ajustable.
+_TIER_CUTS = (("S", 0.95), ("A+", 0.85), ("A", 0.65), ("B+", 0.40), ("B", 0.0))
+
+
+def tier_for(score: float, population: Sequence[float]) -> str:
+    """Tier del score según su percentil en `population` (uno de `TIERS`)."""
+    if not population:
+        return "B"
+    rank = sum(1 for v in population if v <= score) / len(population)
+    for tier, cut in _TIER_CUTS:
+        if rank >= cut:
+            return tier
+    return "B"
