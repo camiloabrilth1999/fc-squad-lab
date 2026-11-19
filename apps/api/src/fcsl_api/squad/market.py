@@ -52,17 +52,26 @@ def market_candidates(
     *,
     per_position: int = PER_POSITION,
     min_rating: int = MIN_RATING,
+    league_ids: Iterable[int] | None = None,
+    nation_ids: Iterable[int] | None = None,
+    club_ids: Iterable[int] | None = None,
 ) -> list[SolverCard]:
     """Cartas del mercado (con precio ≤ presupuesto) candidatas para las posiciones dadas."""
     positions = set(slot_positions)
-    cards = session.scalars(
-        select(Card).where(
-            Card.rating >= min_rating,
-            Card.league_id.is_not(None),
-            Card.nation_id.is_not(None),
-            Card.club_id.is_not(None),
-        )
-    ).all()
+    stmt = select(Card).where(
+        Card.rating >= min_rating,
+        Card.league_id.is_not(None),
+        Card.nation_id.is_not(None),
+        Card.club_id.is_not(None),
+    )
+    for column, ids in (
+        (Card.league_id, league_ids),
+        (Card.nation_id, nation_ids),
+        (Card.club_id, club_ids),
+    ):
+        if ids:
+            stmt = stmt.where(column.in_(list(ids)))
+    cards = session.scalars(stmt).all()
     prices = effective_prices(session, [c.resource_id for c in cards], now)
     by_pos: dict[str, list[tuple[int, int, int]]] = {p: [] for p in positions}
     by_id = {c.resource_id: c for c in cards}
@@ -85,3 +94,14 @@ def market_candidates(
         if sc is not None:
             out.append(sc)
     return out
+
+
+def market_card(session: Session, resource_id: int, now: datetime) -> SolverCard | None:
+    """Una carta concreta del mercado (p. ej. fijada por el usuario), o None sin precio."""
+    card = session.get(Card, resource_id)
+    price = effective_prices(session, [resource_id], now).get(resource_id)
+    if card is None or price is None:
+        return None
+    return _solver_card(
+        f"market:{resource_id}", card, source="market", price=price[0], untradeable=False
+    )

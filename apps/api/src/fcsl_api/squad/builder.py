@@ -52,15 +52,23 @@ def build_squad(
     chem_weight: float = DEFAULT_CHEM_WEIGHT,
     min_chemistry: int = 0,
     exclude_card_ids: list[str] | None = None,
+    include_card_ids: list[str] | None = None,
     time_limit_s: float = 10.0,
 ) -> SquadResult:
     """Mejor asignación cartas→huecos. `meta` da el meta de cada carta (por `card_id`),
     único o por posición. `allowed` (card_id → posiciones) abre el juego fuera de posición;
     sin él solo se juega en posición. `max_out_of_position` acota cuántos pueden ir fuera.
     `prices` (card_id → monedas; las cartas sin precio cuestan 0, p. ej. las del club) y
-    `budget` limitan el gasto total en cartas a comprar."""
+    `budget` limitan el gasto total en cartas a comprar. `include_card_ids` fija cartas en
+    el once (infactible si no caben o no están en el pool)."""
     excluded = set(exclude_card_ids or ())
     pool = [c for c in cards if c.card_id not in excluded]
+    in_pool = {c.card_id for c in pool}
+    missing = [i for i in (include_card_ids or []) if i not in in_pool]
+    if missing:
+        return SquadResult(
+            status="infeasible", message=f"Carta fijada no disponible: {', '.join(missing)}"
+        )
 
     def may_play(card: Card) -> set[str]:
         return allowed[card.card_id] if allowed is not None else set(card.positions)
@@ -75,6 +83,8 @@ def build_squad(
         m = build_base_model(pool, slots, [0] * len(pool), allowed=by_index)
     chem = add_chemistry(m)
     team_chem = sum(chem.values())
+    for card_id in include_card_ids or []:  # cartas fijadas: siempre en el once
+        m.model.add(m.used[next(c for c, x in enumerate(pool) if x.card_id == card_id)] == 1)
     if min_chemistry:
         m.model.add(team_chem >= min_chemistry)
     price_of = [(prices or {}).get(card.card_id, 0) for card in pool]

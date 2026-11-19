@@ -15,11 +15,11 @@ from ..sbc import formations
 from ..sbc.pool import club_cards
 from ..solver.models import Card
 from .builder import DEFAULT_CHEM_WEIGHT, build_squad
-from .market import market_candidates
+from .market import market_candidates, market_card
 
 
 class SquadBuildRequest(BaseModel):
-    formation: str = formations.DEFAULT_FORMATION
+    formation: str = formations.DEFAULT_FORMATION  # o "best": prueba todas y elige la mejor
     chem_weight: float = Field(default=DEFAULT_CHEM_WEIGHT, ge=0, le=20)
     min_chemistry: int = Field(default=0, ge=0, le=33)
     # none = solo en posición; family = también en posiciones de su misma familia de rol
@@ -27,6 +27,11 @@ class SquadBuildRequest(BaseModel):
     out_of_position: Literal["none", "family", "any"] = "family"
     max_out_of_position: int | None = Field(default=None, ge=0, le=10)
     exclude_card_ids: list[str] = Field(default_factory=list)
+    include_card_ids: list[str] = Field(default_factory=list)  # cartas fijadas en el once
+    # filtros: solo cartas de estas ligas / naciones / clubes (las fijadas se respetan)
+    league_ids: list[int] = Field(default_factory=list)
+    nation_ids: list[int] = Field(default_factory=list)
+    club_ids: list[int] = Field(default_factory=list)
     time_limit_s: float = Field(default=10.0, gt=0, le=60)
     # club = solo tus cartas; both = tus cartas + candidatos del mercado dentro del presupuesto
     pool: Literal["club", "both"] = "club"
@@ -80,11 +85,46 @@ def _allowed_positions(card: Card, slot_positions: set[str], mode: str) -> set[s
     return {p for p in slot_positions if p != "GK" and role_for(p) == family} | own
 
 
+BEST_PER_FORMATION_S = 4.0  # tiempo por formación al buscar la mejor
+
+
+def _score(r: SquadBuildResponse, chem_weight: float) -> float:
+    return r.total_meta + chem_weight * r.team_chemistry
+
+
 def build_club_squad(session: Session, req: SquadBuildRequest) -> SquadBuildResponse:
-    formation = formations.normalize(req.formation)
+    if req.formation.lower() != "best":
+        return _build(session, req, formations.normalize(req.formation))
+    quick = req.model_copy(update={"time_limit_s": min(req.time_limit_s, BEST_PER_FORMATION_S)})
+    best: SquadBuildResponse | None = None
+    for name in formations.FORMATIONS:
+        r = _build(session, quick, name)
+        if r.status in ("optimal", "feasible") and (
+            best is None or _score(r, req.chem_weight) > _score(best, req.chem_weight)
+        ):
+            best = r
+    if best is None:
+        return SquadBuildResponse(
+            status="infeasible",
+            formation="best",
+            message="Ninguna formación se puede armar con estas cartas",
+        )
+    return best
+
+
+def _passes(card: Card, req: SquadBuildRequest) -> bool:
+    return (
+        (not req.league_ids or card.league_id in req.league_ids)
+        and (not req.nation_ids or card.nation_id in req.nation_ids)
+        and (not req.club_ids or card.club_id in req.club_ids)
+    )
+
+
+def _build(session: Session, req: SquadBuildRequest, formation: str) -> SquadBuildResponse:
     slots = formations.slots_for(formation)
     now = datetime.now(UTC)
-    cards = club_cards(session, now)
+    pinned = set(req.include_card_ids)
+    cards = [c for c in club_cards(session, now) if c.card_id in pinned or _passes(c, req)]
     stats = {
         rid: s
         for rid, s in session.execute(select(CardAttributes.resource_id, CardAttributes.stats))
@@ -94,9 +134,23 @@ def build_club_squad(session: Session, req: SquadBuildRequest) -> SquadBuildResp
         owned = {c.resource_id for c in cards}
         candidates = [
             c
-            for c in market_candidates(session, set(slots), req.budget or 0, now)
+            for c in market_candidates(
+                session,
+                set(slots),
+                req.budget or 0,
+                now,
+                league_ids=req.league_ids,
+                nation_ids=req.nation_ids,
+                club_ids=req.club_ids,
+            )
             if c.resource_id not in owned
         ]
+        have = {c.resource_id for c in candidates}
+        for card_id in pinned:  # una carta de mercado fijada entra aunque no sea candidata
+            if card_id.startswith("market:") and int(card_id.split(":")[1]) not in have:
+                extra = market_card(session, int(card_id.split(":")[1]), now)
+                if extra is not None:
+                    candidates.append(extra)
         ready = [c for c in candidates if c.resource_id in stats]
         pending = len(candidates) - len(ready)
         cards = cards + ready
@@ -138,6 +192,7 @@ def build_club_squad(session: Session, req: SquadBuildRequest) -> SquadBuildResp
         chem_weight=req.chem_weight,
         min_chemistry=req.min_chemistry,
         exclude_card_ids=req.exclude_card_ids,
+        include_card_ids=req.include_card_ids,
         prices=prices,
         budget=req.budget if req.pool == "both" else None,
         time_limit_s=req.time_limit_s,

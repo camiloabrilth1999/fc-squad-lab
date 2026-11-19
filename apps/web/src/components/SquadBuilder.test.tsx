@@ -143,3 +143,40 @@ describe("SquadBuilder con mercado", () => {
     expect(body.budget).toBeUndefined();
   });
 });
+
+describe("SquadBuilder: mejor formación, fijar y excluir", () => {
+  it("manda formation=best y muestra la formación elegida", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json({ ...built, formation: "4231" }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SquadBuilder apiUrl={URL_} />);
+    fireEvent.change(screen.getByLabelText("Formación"), { target: { value: "best" } });
+    fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
+    expect(await screen.findByText("4231")).toBeInTheDocument();
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).formation).toBe("best");
+  });
+
+  it("fijar un jugador vuelve a calcular con include_card_ids", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(built));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SquadBuilder apiUrl={URL_} />);
+    fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
+    await screen.findByText("Central Uno");
+    fireEvent.click(screen.getByRole("button", { name: "Fijar a Central Uno" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).include_card_ids).toEqual(["club:1"]);
+  });
+
+  it("excluir un jugador manda exclude_card_ids y permite quitarlo", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(built));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SquadBuilder apiUrl={URL_} />);
+    fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
+    await screen.findByText("Delantero Uno");
+    fireEvent.click(screen.getByRole("button", { name: "Excluir a Delantero Uno" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).exclude_card_ids).toEqual(["club:2"]);
+    fireEvent.click(await screen.findByRole("button", { name: "Quitar exclusión de Delantero Uno" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body).exclude_card_ids).toBeUndefined();
+  });
+});
