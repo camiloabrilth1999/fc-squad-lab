@@ -7,6 +7,8 @@ from .attributes import ALL_STATS, PlayerAttributes
 from .rating import meta_rating
 from .roles import role_for
 
+DEFAULT_HEIGHT = 182  # cm; si la carta no trae altura, no se hunde el meta
+
 
 @dataclass(frozen=True)
 class MetaValue:
@@ -22,7 +24,7 @@ def attributes_for(stats: dict[str, int], card: Any) -> PlayerAttributes:
         accelerate=getattr(card, "accelerate_type", None),
         play_styles=list(getattr(card, "play_styles", None) or []),
         play_styles_plus=list(getattr(card, "play_styles_plus", None) or []),
-        height=getattr(card, "height", None) or 0,
+        height=getattr(card, "height", None) or DEFAULT_HEIGHT,
         skill_moves=getattr(card, "skill_moves", None) or 0,
         weak_foot=getattr(card, "weak_foot", None) or 0,
     )

@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from ..sbc import formations
 from ..sbc.pool import club_cards
 from ..solver.models import Card
 from .builder import DEFAULT_CHEM_WEIGHT, build_squad
+from .market import market_candidates
 
 
 class SquadBuildRequest(BaseModel):
@@ -27,6 +28,15 @@ class SquadBuildRequest(BaseModel):
     max_out_of_position: int | None = Field(default=None, ge=0, le=10)
     exclude_card_ids: list[str] = Field(default_factory=list)
     time_limit_s: float = Field(default=10.0, gt=0, le=60)
+    # club = solo tus cartas; both = tus cartas + candidatos del mercado dentro del presupuesto
+    pool: Literal["club", "both"] = "club"
+    budget: int | None = Field(default=None, ge=0)  # monedas para comprar; obligatorio con both
+
+    @model_validator(mode="after")
+    def _budget_with_market(self) -> "SquadBuildRequest":
+        if self.pool == "both" and self.budget is None:
+            raise ValueError("pool 'both' requiere budget")
+        return self
 
 
 class SquadSlot(BaseModel):
@@ -40,6 +50,8 @@ class SquadSlot(BaseModel):
     meta_source: Literal["stats", "rating"]  # "rating" = sin stats (o portero): se usa el rating
     chemistry: int
     in_position: bool = True
+    source: Literal["club", "market"] = "club"
+    price: int | None = None  # monedas, solo si hay que comprarla
 
 
 class SquadBuildResponse(BaseModel):
@@ -50,6 +62,9 @@ class SquadBuildResponse(BaseModel):
     team_rating: int = 0
     team_chemistry: int = 0
     solve_time_s: float = 0.0
+    spent: int = 0  # monedas a gastar en cartas de mercado
+    # candidatos de mercado sin stats detallados aún (excluidos): `make squad-scan` los baja
+    pending_stats: int = 0
     message: str | None = None
 
 
@@ -68,11 +83,24 @@ def _allowed_positions(card: Card, slot_positions: set[str], mode: str) -> set[s
 def build_club_squad(session: Session, req: SquadBuildRequest) -> SquadBuildResponse:
     formation = formations.normalize(req.formation)
     slots = formations.slots_for(formation)
-    cards = club_cards(session, datetime.now(UTC))
+    now = datetime.now(UTC)
+    cards = club_cards(session, now)
     stats = {
         rid: s
         for rid, s in session.execute(select(CardAttributes.resource_id, CardAttributes.stats))
     }
+    pending = 0
+    if req.pool == "both":
+        owned = {c.resource_id for c in cards}
+        candidates = [
+            c
+            for c in market_candidates(session, set(slots), req.budget or 0, now)
+            if c.resource_id not in owned
+        ]
+        ready = [c for c in candidates if c.resource_id in stats]
+        pending = len(candidates) - len(ready)
+        cards = cards + ready
+    prices = {c.card_id: c.price for c in cards if c.source == "market" and c.price}
     rows = {
         r.resource_id: r
         for r in session.scalars(
@@ -110,6 +138,8 @@ def build_club_squad(session: Session, req: SquadBuildRequest) -> SquadBuildResp
         chem_weight=req.chem_weight,
         min_chemistry=req.min_chemistry,
         exclude_card_ids=req.exclude_card_ids,
+        prices=prices,
+        budget=req.budget if req.pool == "both" else None,
         time_limit_s=req.time_limit_s,
     )
     by_id = {c.card_id: c for c in cards}
@@ -125,6 +155,8 @@ def build_club_squad(session: Session, req: SquadBuildRequest) -> SquadBuildResp
             meta_source=source[a.card_id],
             chemistry=result.player_chemistry.get(a.card_id, 0),
             in_position=a.position in by_id[a.card_id].positions,
+            source=by_id[a.card_id].source,
+            price=prices.get(a.card_id),
         )
         for a in result.assignments
     ]
@@ -136,5 +168,7 @@ def build_club_squad(session: Session, req: SquadBuildRequest) -> SquadBuildResp
         team_rating=result.team_rating,
         team_chemistry=result.team_chemistry,
         solve_time_s=result.solve_time_s,
+        spent=result.spent,
+        pending_stats=pending,
         message=result.message,
     )

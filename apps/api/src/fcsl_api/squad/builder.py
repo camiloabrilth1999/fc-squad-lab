@@ -22,6 +22,7 @@ DEFAULT_CHEM_WEIGHT = 1.5  # puntos de meta que vale cada punto de química
 class SquadResult(BaseModel):
     status: Literal["optimal", "feasible", "infeasible", "unknown"]
     assignments: list[Assignment] = Field(default_factory=list)
+    spent: int = 0  # coste de las cartas con precio usadas (las del mercado)
     out_of_position: list[str] = Field(default_factory=list)  # card_id jugando fuera de posición
     total_meta: float = 0.0
     team_rating: int = 0
@@ -46,6 +47,8 @@ def build_squad(
     *,
     allowed: dict[str, set[str]] | None = None,
     max_out_of_position: int | None = None,
+    prices: dict[str, int] | None = None,
+    budget: int | None = None,
     chem_weight: float = DEFAULT_CHEM_WEIGHT,
     min_chemistry: int = 0,
     exclude_card_ids: list[str] | None = None,
@@ -53,7 +56,9 @@ def build_squad(
 ) -> SquadResult:
     """Mejor asignación cartas→huecos. `meta` da el meta de cada carta (por `card_id`),
     único o por posición. `allowed` (card_id → posiciones) abre el juego fuera de posición;
-    sin él solo se juega en posición. `max_out_of_position` acota cuántos pueden ir fuera."""
+    sin él solo se juega en posición. `max_out_of_position` acota cuántos pueden ir fuera.
+    `prices` (card_id → monedas; las cartas sin precio cuestan 0, p. ej. las del club) y
+    `budget` limitan el gasto total en cartas a comprar."""
     excluded = set(exclude_card_ids or ())
     pool = [c for c in cards if c.card_id not in excluded]
 
@@ -72,6 +77,9 @@ def build_squad(
     team_chem = sum(chem.values())
     if min_chemistry:
         m.model.add(team_chem >= min_chemistry)
+    price_of = [(prices or {}).get(card.card_id, 0) for card in pool]
+    if budget is not None:  # tope al coste de lo que hay que comprar
+        m.model.add(sum(p * m.used[c] for c, p in enumerate(price_of) if p) <= budget)
     if max_out_of_position is not None:
         m.model.add(sum(m.used[c] - m.inpos[c] for c in range(len(pool))) <= max_out_of_position)
 
@@ -102,6 +110,7 @@ def build_squad(
         out_of_position=[
             a.card_id for a in assignments if a.position not in by_id[a.card_id].positions
         ],
+        spent=sum(price_of[pool.index(by_id[a.card_id])] for a in assignments),
         total_meta=round(sum(_meta_at(meta, a.card_id, a.position) for a in assignments), 1),
         team_rating=team_rating([c.rating for c in chosen]),
         team_chemistry=sum(player_chem.values()),
