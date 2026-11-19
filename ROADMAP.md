@@ -101,8 +101,16 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   lista, ranking por rol y comparación de cartas.
 - **Squad Recommendations** del club (se cubre con Squad Builder Fase A).
 - **Gallery**: modo soluciones de sets de galería sobre el solver de SBC.
-- **Evolutions**: capturar datos de evoluciones de EA + planificación.
-- **Objectives**: seguimiento de objetivos/hitos.
+- **Evolutions** (EN CURSO, reconocimiento hecho 2026-11-19): la web app pide
+  `GET /ut/game/fc27/academy/hub/v2` al abrir Evoluciones; la respuesta trae las ~70 evoluciones
+  con nombre, estado, requisitos, niveles, objetivos, mejoras y recompensas, y el cliente de EA
+  expone las tablas de ids (stats, roles+/++, PlayStyles, requisitos). Todo documentado en
+  `docs/superpowers/specs/2026-11-19-evoluciones-objetivos-recon.md`. **Siguiente**: extensión
+  (capturar y reducir la respuesta) → tabla + `POST /import/evolutions` + `GET /evolutions` →
+  página web → cruce con tu club.
+- **Objectives**: seguimiento de objetivos/hitos. Reconocido a medias: `services.Objectives` tiene
+  `activeCampaign`, `categories` y `metaGroups`; falta abrir la sección y capturar la respuesta
+  (ver el documento de reconocimiento). Nada de reclamar ni comprar: solo lectura.
 - **Vistas de valor: HECHAS (parte 1)** (rama `feat/value-views`): `GET /value/bargains`
   ("hidden profit": percentil de meta − percentil de precio dentro del rol, entre cartas 75+;
   filtros por rol/posición/media/precio) y `GET /value/fodder` (las N cartas más baratas por
