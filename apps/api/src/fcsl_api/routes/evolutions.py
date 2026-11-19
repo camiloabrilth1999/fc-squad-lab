@@ -1,15 +1,17 @@
 """Evoluciones: importación desde la extensión (solo lectura de EA) y consulta."""
 
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from ..evolutions.enums import stat_name
-from ..models_db import Evolution, EvolutionCategory
+from ..evolutions.projection import project_meta
+from ..evolutions.requirements import Requirement, check, decode, describe, facts_for
+from ..models_db import Card, CardAttributes, Catalog, ClubItem, Evolution, EvolutionCategory
 from .imports import DbSession, require_token
 
 import_router = APIRouter(prefix="/import", tags=["import"], dependencies=[Depends(require_token)])
@@ -144,7 +146,7 @@ class EvolutionOut(BaseModel):
     top_rewards: list[Reward]
     upgrades: list[Upgrade]  # mejora acumulada del último nivel sobre un jugador de ejemplo
     levels: list[LevelOut]
-    requirements: list[dict[str, Any]]
+    requirements: list[str]  # texto como lo muestra el juego
     seen_at: datetime | None
 
 
@@ -166,7 +168,9 @@ def _reward(r: dict[str, Any]) -> Reward:
     )
 
 
-def _out(e: Evolution, categories: dict[int, str]) -> EvolutionOut:
+def _out(
+    e: Evolution, categories: dict[int, str], names: dict[tuple[str, int], str] | None = None
+) -> EvolutionOut:
     data = e.data or {}
     bonuses: dict[str, list[dict[str, Any]]] = data.get("bonuses") or {}
     last = bonuses[max(bonuses, key=int)] if bonuses else []
@@ -203,7 +207,7 @@ def _out(e: Evolution, categories: dict[int, str]) -> EvolutionOut:
             )
             for lv in data.get("levels") or []
         ],
-        requirements=data.get("requirements") or [],
+        requirements=[describe(r, names) for r in decode(data.get("requirements") or [])],
         seen_at=e.seen_at,
     )
 
@@ -238,7 +242,8 @@ def list_evolutions(
         .limit(limit)
     ).all()
     cats = {c.id: c.name for c in session.scalars(select(EvolutionCategory))}
-    return EvolutionsPage(items=[_out(e, cats) for e in rows], total=total)
+    names = _catalog_names(session)
+    return EvolutionsPage(items=[_out(e, cats, names) for e in rows], total=total)
 
 
 @router.get("/categories", response_model=list[CategoryOut])
@@ -253,3 +258,101 @@ def list_categories(session: DbSession) -> list[CategoryOut]:
         CategoryOut(id=c.id, name=c.name, total=len(c.slot_ids or []), imported=seen.get(c.id, 0))
         for c in cats
     ]
+
+
+def _catalog_names(session: DbSession) -> dict[tuple[str, int], str]:
+    return {(c.kind, c.ea_id): c.name for c in session.scalars(select(Catalog))}
+
+
+class Candidate(BaseModel):
+    item_id: int
+    resource_id: int
+    name: str | None
+    rating: int | None
+    positions: list[str]
+    eligible: bool | None  # True cumple; None = faltan datos para saberlo
+    unknown: list[str] = Field(default_factory=list)  # requisitos que no se pudieron comprobar
+    meta_before: float | None = None
+    meta_after: float | None = None
+    meta_gain: float | None = None
+
+
+class CandidatesOut(BaseModel):
+    id: int
+    name: str | None
+    requirements: list[str]
+    items: list[Candidate]
+    eligible_count: int
+    unknown_count: int
+    total_checked: int
+
+
+@router.get("/{slot_id}/candidates", response_model=CandidatesOut)
+def candidates(
+    slot_id: int,
+    session: DbSession,
+    include_unknown: bool = True,
+    sort: Literal["after", "gain"] = "after",
+    limit: Annotated[int, Query(ge=1, le=300)] = 100,
+) -> CandidatesOut:
+    """Cartas de tu club que cumplen los requisitos de la evolución y cuánto sube su meta.
+
+    Orden: por defecto, mayor meta final (`after`); con `gain`, mayor mejora."""
+    evo = session.get(Evolution, slot_id)
+    if evo is None:
+        raise HTTPException(status_code=404, detail="Evolución no encontrada")
+    data = evo.data or {}
+    reqs: list[Requirement] = decode(data.get("requirements") or [])
+    texts = [describe(r, _catalog_names(session)) for r in reqs]
+    levels = data.get("levels") or []
+    rows = session.execute(
+        select(ClubItem, Card)
+        .join(Card, Card.resource_id == ClubItem.resource_id)
+        .where(ClubItem.location.is_distinct_from("watchlist"))
+    ).all()
+    stats = dict(session.execute(select(CardAttributes.resource_id, CardAttributes.stats)).all())
+    out: list[Candidate] = []
+    unknown_count = 0
+    for item, card in rows:
+        card_stats = stats.get(card.resource_id)
+        facts = facts_for(card, card_stats, untradeable=item.untradeable)
+        verdicts = [check(r, facts) for r in reqs]
+        if any(v is False for v in verdicts):
+            continue
+        missing = [t for t, v in zip(texts, verdicts, strict=True) if v is None]
+        if missing:
+            unknown_count += 1
+            if not include_unknown:
+                continue
+        before, after = project_meta(card, card_stats, levels)
+        out.append(
+            Candidate(
+                item_id=item.item_id,
+                resource_id=card.resource_id,
+                name=card.name,
+                rating=card.rating,
+                positions=card.positions or [],
+                eligible=None if missing else True,
+                unknown=missing,
+                meta_before=round(before, 1) if before is not None else None,
+                meta_after=round(after, 1) if after is not None else None,
+                meta_gain=round(after - before, 1)
+                if before is not None and after is not None
+                else None,
+            )
+        )
+
+    def _rank(c: Candidate) -> float:
+        value = c.meta_after if sort == "after" else c.meta_gain
+        return -(value if value is not None else -999.0)
+
+    out.sort(key=lambda c: (c.eligible is not True, _rank(c), -(c.rating or 0)))
+    return CandidatesOut(
+        id=evo.slot_id,
+        name=evo.name,
+        requirements=texts,
+        items=out[:limit],
+        eligible_count=sum(1 for c in out if c.eligible),
+        unknown_count=unknown_count,
+        total_checked=len(rows),
+    )

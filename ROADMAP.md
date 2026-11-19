@@ -159,6 +159,20 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   **Confirmado de punta a punta (2026-11-19)**: con las tablas vacías, al recorrer Evoluciones y
   FC Hub → Objetivos la extensión envió sola 9 evoluciones y 53 grupos / 209 objetivos. La causa de
   los fallos previos era que Chrome cargaba una copia vieja de la extensión (ver `CLAUDE.md`).
+  **Evoluciones con tu club: HECHO (2026-11-19, rama `feat/evolutions-club`)**: los requisitos de
+  elegibilidad se decodifican (`evolutions/requirements.py`: filas `PLAYER_ATTRIBUTE`/`SCOPE`/
+  `ACADEMY_PLAYER_SLOTTING`/`ADDITIONAL_TARGET_VALUE` agrupadas por `eligibilitySlot`, verificados
+  contra los textos del juego: «GRL máximo: 80», «Posición: MCO O MC», «No debe ser: DFC»; los
+  ids de posición son los estándar de EA y «Posición» es la preferida de la carta). Cada
+  evolución muestra sus requisitos en español y `GET /evolutions/{id}/candidates` devuelve tus
+  cartas aptas (o «sin poder comprobar» si falta un dato) con el **meta antes y después**:
+  las mejoras por nivel se aplican con su tope a los stats detallados
+  (`evolutions/projection.py`) y se recalcula con el modelo calibrado. Orden por mayor meta final
+  (`sort=gain` para mayor mejora). En la web, botón «Mis cartas aptas» por tarjeta.
+  **Límites**: la proyección solo cubre cartas con stats detallados (las demás salen «sin stats»;
+  `make sync-club-attributes` los baja); las evoluciones de «ruta» (el jugador elige PlayStyles) no
+  suben stats y salen con +0,0; los roles+/++ y los PlayStyle+ no se proyectan; el meta es del rol
+  de la posición preferida. Siguiente idea: recomendar la mejor evolución para cada carta.
   **Falta**: nombres de sobres (hoy `Sobre #id`), campaña/pase de temporada (`activeCampaign`, otra
   llamada), fichas con nombre, y avisos de objetivos por caducar.
 - **Vistas de valor: HECHAS (parte 1)** (rama `feat/value-views`): `GET /value/bargains`

@@ -32,7 +32,7 @@ const evo = (id: number, name: string, extra: Record<string, unknown> = {}) => (
       awards: [{ stat: 22, name: "Velocidad", count: 10, max_value: 86 }],
     },
   ],
-  requirements: [],
+  requirements: ["GRL máximo: 80", "Posición: MCO O MC"],
   ...extra,
 });
 const cats = [
@@ -129,5 +129,68 @@ describe("EvolutionsBrowser", () => {
     );
     render(<EvolutionsBrowser apiUrl={URL_} />);
     expect(await screen.findByText("No se pudieron cargar las evoluciones.")).toBeInTheDocument();
+  });
+});
+
+
+describe("EvolutionsBrowser: requisitos y mis cartas", () => {
+  const candidates = {
+    items: [
+      {
+        item_id: 1,
+        resource_id: 1,
+        name: "Paulina Bartz",
+        rating: 68,
+        positions: ["CM", "CDM"],
+        eligible: true,
+        unknown: [],
+        meta_before: 64.0,
+        meta_after: 74.2,
+        meta_gain: 10.2,
+      },
+      {
+        item_id: 2,
+        resource_id: 2,
+        name: "Sin cara",
+        rating: 70,
+        positions: ["CAM"],
+        eligible: null,
+        unknown: ["Ritmo máximo: 86"],
+        meta_before: null,
+        meta_after: null,
+        meta_gain: null,
+      },
+    ],
+    eligible_count: 1,
+    unknown_count: 1,
+    total_checked: 193,
+  };
+  const withCandidates = () =>
+    vi.fn().mockImplementation(async (url: string) => {
+      if (String(url).includes("/candidates")) return json(candidates);
+      if (String(url).includes("/evolutions/categories")) return json(cats);
+      return json({ items: [evo(2850, "Bajo los focos")], total: 1 });
+    });
+
+  it("muestra los requisitos de cada evolución", async () => {
+    vi.stubGlobal("fetch", withCandidates());
+    render(<EvolutionsBrowser apiUrl={URL_} />);
+    expect(await screen.findByText(/GRL máximo: 80 · Posición: MCO O MC/)).toBeInTheDocument();
+  });
+
+  it("lista tus cartas aptas con el meta antes y después", async () => {
+    const fetchMock = withCandidates();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<EvolutionsBrowser apiUrl={URL_} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Mis cartas aptas" }));
+    expect(await screen.findByText("Paulina Bartz")).toBeInTheDocument();
+    expect(screen.getByText(/64\.0 → 74\.2/)).toBeInTheDocument();
+    expect(screen.getByText("(+10.2)")).toBeInTheDocument();
+    expect(screen.getByText(/1 aptas · 1 sin poder comprobar de 193 cartas/)).toBeInTheDocument();
+    expect(screen.getByText("sin stats")).toBeInTheDocument();
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).includes("/candidates"))!;
+    expect(String(call[0])).toContain("/evolutions/2850/candidates");
+    fireEvent.click(screen.getByRole("button", { name: "Ocultar mis cartas" }));
+    expect(screen.queryByText("Paulina Bartz")).toBeNull();
   });
 });
