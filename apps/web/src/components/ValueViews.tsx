@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatNumber } from "../lib/format";
+import CardImage from "./CardImage";
 
 type Bargain = {
   resource_id: number;
@@ -15,6 +16,7 @@ type Bargain = {
   tier: string;
   price: number;
   score: number;
+  image_path?: string | null;
 };
 type FodderCard = { resource_id: number; name: string | null; positions: string[]; price: number };
 type FodderGroup = { rating: number; cheapest: number; cards: FodderCard[] };
@@ -161,10 +163,22 @@ function Bargains({ apiUrl }: { apiUrl: string }) {
                 {items.map((b) => (
                   <tr key={b.resource_id} className="border-b border-line/60 last:border-0">
                     <td className="px-4 py-2 font-medium">
-                      {b.name ?? "Carta"}
-                      {b.rarity_name ? (
-                        <span className="ml-2 text-xs font-normal text-muted">{b.rarity_name}</span>
-                      ) : null}
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 shrink-0">
+                          <CardImage
+                            path={b.image_path}
+                            position={b.positions[0]}
+                            alt={`Carta de ${b.name ?? "jugador"}`}
+                            width={100}
+                          />
+                        </div>
+                        <span>
+                          {b.name ?? "Carta"}
+                          {b.rarity_name ? (
+                            <span className="ml-2 text-xs font-normal text-muted">{b.rarity_name}</span>
+                          ) : null}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-2 py-2 text-muted">{b.positions.slice(0, 3).join(" · ")}</td>
                     <td className="px-2 py-2 text-right font-mono tabular-nums">{b.rating ?? "–"}</td>

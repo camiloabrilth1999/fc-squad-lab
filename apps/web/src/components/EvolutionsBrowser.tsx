@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatNumber, formatRemaining } from "../lib/format";
+import CardImage from "./CardImage";
 import EvolutionPlan from "./EvolutionPlan";
 
 export { formatRemaining };
@@ -45,6 +46,7 @@ type Candidate = {
   meta_before: number | null;
   meta_after: number | null;
   meta_gain: number | null;
+  image_path?: string | null;
 };
 type Candidates = {
   items: Candidate[];
@@ -332,8 +334,11 @@ function MyCards({ apiUrl, id }: { apiUrl: string; id: number }) {
       </p>
       <ul className="space-y-1">
         {data.items.map((c) => (
-          <li key={c.item_id} className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0 truncate">
+          <li key={c.item_id} className="flex items-center justify-between gap-3">
+            <div className="w-9 shrink-0">
+              <CardImage path={c.image_path} position={c.positions[0]} alt={`Carta de ${c.name ?? "jugador"}`} width={90} />
+            </div>
+            <span className="min-w-0 flex-1 truncate">
               {c.name ?? "Carta"}{" "}
               <span className="text-xs text-muted">
                 {c.rating} · {c.positions.slice(0, 2).join("/")}
