@@ -30,6 +30,8 @@ type BuildResult = {
   message: string | null;
 };
 
+type Marked = { id: string; name: string };
+
 export type Pool = "club" | "both";
 
 export type OopMode = "none" | "family" | "any";
@@ -73,8 +75,12 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [result, setResult] = useState<BuildResult | null>(null);
+  const [pinned, setPinned] = useState<Marked[]>([]);
+  const [excluded, setExcluded] = useState<Marked[]>([]);
 
-  const build = async () => {
+  const build = async (lists?: { pinned?: Marked[]; excluded?: Marked[] }) => {
+    const pins = lists?.pinned ?? pinned;
+    const outs = lists?.excluded ?? excluded;
     setLoading(true);
     setError(false);
     setResult(null);
@@ -87,6 +93,8 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           min_chemistry: minChem,
           out_of_position: oop,
           ...(pool === "both" ? { pool, budget } : {}),
+          ...(pins.length ? { include_card_ids: pins.map((m) => m.id) } : {}),
+          ...(outs.length ? { exclude_card_ids: outs.map((m) => m.id) } : {}),
         }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -96,6 +104,26 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const togglePin = (slot: Slot) => {
+    const next = pinned.some((m) => m.id === slot.card_id)
+      ? pinned.filter((m) => m.id !== slot.card_id)
+      : [...pinned, { id: slot.card_id, name: slot.name }];
+    setPinned(next);
+    void build({ pinned: next });
+  };
+  const exclude = (slot: Slot) => {
+    const nextPins = pinned.filter((m) => m.id !== slot.card_id);
+    const next = [...excluded, { id: slot.card_id, name: slot.name }];
+    setPinned(nextPins);
+    setExcluded(next);
+    void build({ pinned: nextPins, excluded: next });
+  };
+  const unexclude = (id: string) => {
+    const next = excluded.filter((m) => m.id !== id);
+    setExcluded(next);
+    void build({ excluded: next });
   };
 
   const solved = result && (result.status === "optimal" || result.status === "feasible");
@@ -111,6 +139,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
             onChange={(e) => setFormation(e.target.value)}
             className="rounded-lg border border-line bg-surface-2 px-3 py-2"
           >
+            <option value="best">Mejor formación</option>
             {FORMATIONS.map((f) => (
               <option key={f} value={f}>
                 {f}
@@ -169,7 +198,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
         </label>
         <button
           type="button"
-          onClick={build}
+          onClick={() => void build()}
           disabled={loading}
           className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-strong disabled:opacity-60"
         >
@@ -187,6 +216,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
             </span>
             {solved ? (
               <>
+                {formation === "best" ? <Stat label="Formación" value={result.formation} /> : null}
                 <Stat label="Media" value={String(result.team_rating)} />
                 <Stat label="Química" value={`${result.team_chemistry}/33`} />
                 <Stat label="Meta total" value={result.total_meta.toFixed(1)} />
@@ -205,14 +235,47 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
               <code>make squad-scan</code> para bajarlos.
             </p>
           ) : null}
-          {solved ? <Pitch slots={result.slots} /> : null}
+          {excluded.length > 0 ? (
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
+              Excluidos:
+              {excluded.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => unexclude(m.id)}
+                  aria-label={`Quitar exclusión de ${m.name}`}
+                  className="rounded bg-surface-2 px-2 py-0.5 text-xs hover:text-fg"
+                >
+                  {m.name} ×
+                </button>
+              ))}
+            </p>
+          ) : null}
+          {solved ? (
+            <Pitch
+              slots={result.slots}
+              pinned={pinned.map((m) => m.id)}
+              onPin={togglePin}
+              onExclude={exclude}
+            />
+          ) : null}
         </div>
       ) : null}
     </div>
   );
 }
 
-function Pitch({ slots }: { slots: Slot[] }) {
+function Pitch({
+  slots,
+  pinned,
+  onPin,
+  onExclude,
+}: {
+  slots: Slot[];
+  pinned: string[];
+  onPin: (s: Slot) => void;
+  onExclude: (s: Slot) => void;
+}) {
   return (
     <div className="mt-4 space-y-3 rounded-card bg-surface-2 p-4">
       {LINES.map((line) => {
@@ -223,7 +286,13 @@ function Pitch({ slots }: { slots: Slot[] }) {
         return (
           <div key={line.label} aria-label={line.label} className="flex flex-wrap justify-center gap-3">
             {row.map((s) => (
-              <PlayerSlot key={s.slot_index} slot={s} />
+              <PlayerSlot
+                key={s.slot_index}
+                slot={s}
+                pinned={pinned.includes(s.card_id)}
+                onPin={() => onPin(s)}
+                onExclude={() => onExclude(s)}
+              />
             ))}
           </div>
         );
@@ -232,7 +301,17 @@ function Pitch({ slots }: { slots: Slot[] }) {
   );
 }
 
-function PlayerSlot({ slot }: { slot: Slot }) {
+function PlayerSlot({
+  slot,
+  pinned,
+  onPin,
+  onExclude,
+}: {
+  slot: Slot;
+  pinned: boolean;
+  onPin: () => void;
+  onExclude: () => void;
+}) {
   return (
     <div
       className={`w-32 rounded-lg border bg-surface p-2 text-center ${
@@ -255,6 +334,25 @@ function PlayerSlot({ slot }: { slot: Slot }) {
       {slot.in_position ? null : (
         <p className="text-[11px] text-warn">fuera de posición</p>
       )}
+      <div className="mt-1 flex justify-center gap-1 text-xs">
+        <button
+          type="button"
+          onClick={onPin}
+          aria-pressed={pinned}
+          aria-label={`${pinned ? "Soltar" : "Fijar"} a ${slot.name}`}
+          className={`rounded px-1.5 py-0.5 ${pinned ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted hover:text-fg"}`}
+        >
+          📌
+        </button>
+        <button
+          type="button"
+          onClick={onExclude}
+          aria-label={`Excluir a ${slot.name}`}
+          className="rounded bg-surface-2 px-1.5 py-0.5 text-muted hover:text-fg"
+        >
+          🚫
+        </button>
+      </div>
       <p className="font-mono text-xs tabular-nums text-muted">
         {slot.rating} ·{" "}
         <span className="text-fg" title={slot.meta_source === "stats" ? "Meta rating" : "Sin stats: rating"}>

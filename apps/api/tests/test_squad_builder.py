@@ -134,3 +134,16 @@ def test_no_budget_means_prices_are_ignored():
     r = build_squad(cards, meta, SLOTS, chem_weight=0, prices={"club:3": 999999})
     assert [a.card_id for a in r.assignments if a.slot_index == 1] == ["club:3"]
     assert r.spent == 999999
+
+
+def test_included_card_is_forced_even_if_worse():
+    cards = [_c(1, "GK"), _c(2, "CB"), _c(3, "CB"), _c(4, "ST")]
+    meta = {"club:1": 80.0, "club:2": 70.0, "club:3": 95.0, "club:4": 85.0}
+    r = build_squad(cards, meta, SLOTS, chem_weight=0, include_card_ids=["club:2"])
+    assert [a.card_id for a in r.assignments if a.slot_index == 1] == ["club:2"]
+
+
+def test_included_card_missing_from_pool_is_reported():
+    cards = [_c(1, "GK"), _c(2, "CB"), _c(4, "ST")]
+    r = build_squad(cards, {c.card_id: 80.0 for c in cards}, SLOTS, include_card_ids=["club:99"])
+    assert r.status == "infeasible" and "club:99" in (r.message or "")

@@ -76,8 +76,13 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   (≤ 1 req/s; los candidatos sin stats se excluyen y se avisa con `pending_stats`); la web
   tiene selector de cartas y presupuesto. Con tu club y 150.000 monedas: meta 926,6 → 945,4,
   rating 84 → 86, gasto 109.050 (resultado *feasible* al límite de 10 s).
-  **Falta**: filtros (país/liga/club, must-include), "best formation", jugadores fijados,
-  fuente icono/héroe, escaneo desde la web (hoy es por CLI), y afinar el rendimiento del
+  **Filtros y control HECHO** (rama `feat/squad-filters`): `formation: "best"` (prueba las
+  16 y elige la de mayor meta + química), `include_card_ids` (fijar), `exclude_card_ids`,
+  `league_ids` / `nation_ids` / `club_ids` (también para candidatos del mercado; una carta de
+  mercado fijada entra aunque no sea candidata). La web tiene "Mejor formación" y botones
+  📌 fijar / 🚫 excluir por jugador (recalcula al instante).
+  **Falta**: selector de ligas/naciones/clubes en la web (no tenemos tabla de nombres, solo
+  ids), fuente icono/héroe, escaneo desde la web (hoy por CLI) y afinar el rendimiento del
   modelo con mercado (no llega a probar optimalidad en 10 s).
 - **Players DB** (~21k cartas con meta rating por rol + stats + precio).
 - **Squad Recommendations** del club (se cubre con Squad Builder Fase A).

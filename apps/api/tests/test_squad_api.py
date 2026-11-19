@@ -147,3 +147,48 @@ def test_market_candidates_without_stats_are_reported_not_used(
 def test_pool_both_requires_budget(client: TestClient) -> None:
     r = client.post("/squad/build", json={"formation": "442", "pool": "both"})
     assert r.status_code == 422
+
+
+def test_include_and_exclude_cards(client: TestClient, clean_db: Session) -> None:
+    _seed(clean_db, POSITIONS_442)
+    base = client.post("/squad/build", json={"formation": "442"}).json()
+    assert len(base["slots"]) == 11
+    # excluir al portero (única carta GK) vuelve el once imposible
+    gk = next(s for s in base["slots"] if s["position"] == "GK")
+    r = client.post("/squad/build", json={"formation": "442", "exclude_card_ids": [gk["card_id"]]})
+    assert r.json()["status"] == "infeasible"
+    # fijar una carta la mantiene en el once
+    st = next(s for s in base["slots"] if s["position"] == "ST")
+    r = client.post("/squad/build", json={"formation": "442", "include_card_ids": [st["card_id"]]})
+    assert st["card_id"] in [s["card_id"] for s in r.json()["slots"]]
+
+
+def test_league_filter_restricts_the_pool(client: TestClient, clean_db: Session) -> None:
+    _seed(clean_db, POSITIONS_442)
+    ok = client.post("/squad/build", json={"formation": "442", "league_ids": [1]}).json()
+    assert len(ok["slots"]) == 11  # todas son de la liga 1
+    none = client.post("/squad/build", json={"formation": "442", "league_ids": [999]}).json()
+    assert none["status"] == "infeasible"
+
+
+def test_best_formation_picks_one_that_works(client: TestClient, clean_db: Session) -> None:
+    _seed(clean_db, POSITIONS_442)  # solo hay cartas para el 442
+    body = client.post("/squad/build", json={"formation": "best"}).json()
+    assert body["status"] in ("optimal", "feasible")
+    assert body["formation"] == "442" and len(body["slots"]) == 11
+
+
+def test_pinned_market_card_is_included(client: TestClient, clean_db: Session) -> None:
+    _seed(clean_db, POSITIONS_442)
+    _seed_market(clean_db)
+    r = client.post(
+        "/squad/build",
+        json={
+            "formation": "442",
+            "pool": "both",
+            "budget": 10000,
+            "include_card_ids": ["market:100"],
+        },
+    ).json()
+    assert "market:100" in [s["card_id"] for s in r["slots"]]
+    assert r["spent"] == 5000
