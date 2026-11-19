@@ -30,7 +30,26 @@ type Evolution = {
   top_rewards: Reward[];
   upgrades: Upgrade[];
   levels: Level[];
-  requirements: unknown[];
+  requirements: string[];
+};
+
+type Candidate = {
+  item_id: number;
+  resource_id: number;
+  name: string | null;
+  rating: number | null;
+  positions: string[];
+  eligible: boolean | null;
+  unknown: string[];
+  meta_before: number | null;
+  meta_after: number | null;
+  meta_gain: number | null;
+};
+type Candidates = {
+  items: Candidate[];
+  eligible_count: number;
+  unknown_count: number;
+  total_checked: number;
 };
 type Category = { id: number; name: string; total: number; imported: number };
 
@@ -64,6 +83,7 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
   const [items, setItems] = useState<Evolution[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
+  const [mine, setMine] = useState<number | null>(null);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -186,6 +206,13 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
                 <p className="mt-2 line-clamp-3 text-sm text-muted">{e.description}</p>
               ) : null}
 
+              {e.requirements.length > 0 ? (
+                <p className="mt-3 text-xs text-muted">
+                  <span className="font-medium text-fg">Requisitos: </span>
+                  {e.requirements.join(" · ")}
+                </p>
+              ) : null}
+
               {e.top_rewards.length > 0 ? (
                 <ul className="mt-3 space-y-0.5 text-sm">
                   {e.top_rewards.map((r) => (
@@ -204,6 +231,14 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
               <footer className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
                 {e.cost.length > 0 ? <span>Coste: {e.cost.map(costLabel).join(" + ")}</span> : <span>Gratis</span>}
                 {remaining ? <span>Expira en {remaining}</span> : null}
+                <button
+                  type="button"
+                  onClick={() => setMine(mine === e.id ? null : e.id)}
+                  aria-expanded={mine === e.id}
+                  className="text-accent hover:underline"
+                >
+                  {mine === e.id ? "Ocultar mis cartas" : "Mis cartas aptas"}
+                </button>
                 {e.levels.length > 1 ? (
                   <button
                     type="button"
@@ -215,6 +250,8 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
                   </button>
                 ) : null}
               </footer>
+
+              {mine === e.id ? <MyCards apiUrl={apiUrl} id={e.id} /> : null}
 
               {isOpen ? (
                 <ol className="mt-3 space-y-2 border-t border-line pt-3 text-sm">
@@ -241,6 +278,75 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+
+function MyCards({ apiUrl, id }: { apiUrl: string; id: number }) {
+  const [data, setData] = useState<Candidates | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(`${apiUrl}/evolutions/${id}/candidates?limit=12`, { signal: ctrl.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((body: Candidates) => setData(body))
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setFailed(true);
+      });
+    return () => ctrl.abort();
+  }, [apiUrl, id]);
+
+  if (failed) return <p className="mt-3 text-sm text-danger">No se pudieron cargar tus cartas.</p>;
+  if (!data) return <p className="mt-3 text-sm text-muted">Buscando en tu club…</p>;
+  if (data.items.length === 0)
+    return (
+      <p className="mt-3 text-sm text-muted">
+        Ninguna de tus {data.total_checked} cartas cumple los requisitos.
+      </p>
+    );
+  return (
+    <div className="mt-3 border-t border-line pt-3 text-sm">
+      <p className="mb-2 text-xs text-muted">
+        {data.eligible_count} aptas
+        {data.unknown_count > 0 ? ` · ${data.unknown_count} sin poder comprobar` : ""} de{" "}
+        {data.total_checked} cartas, por mayor meta final
+      </p>
+      <ul className="space-y-1">
+        {data.items.map((c) => (
+          <li key={c.item_id} className="flex items-baseline justify-between gap-3">
+            <span className="min-w-0 truncate">
+              {c.name ?? "Carta"}{" "}
+              <span className="text-xs text-muted">
+                {c.rating} · {c.positions.slice(0, 2).join("/")}
+              </span>
+              {c.eligible === null ? (
+                <span className="ml-1 text-xs text-warn" title={c.unknown.join(", ")}>
+                  ?
+                </span>
+              ) : null}
+            </span>
+            <span className="shrink-0 font-mono text-xs tabular-nums">
+              {c.meta_before !== null && c.meta_after !== null ? (
+                <>
+                  {c.meta_before.toFixed(1)} → {c.meta_after.toFixed(1)}{" "}
+                  <span className="text-accent">
+                    ({(c.meta_gain ?? 0) >= 0 ? "+" : ""}
+                    {(c.meta_gain ?? 0).toFixed(1)})
+                  </span>
+                </>
+              ) : (
+                <span className="text-muted">sin stats</span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
