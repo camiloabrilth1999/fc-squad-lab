@@ -103,6 +103,40 @@ class Evolution(Base):
     seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ObjectiveCategory(Base):
+    """Categoría de objetivos (Fundamentos, Hitos, De temporada…) según EA."""
+
+    __tablename__ = "objective_categories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    type: Mapped[int | None] = mapped_column(Integer)
+    priority: Mapped[int | None] = mapped_column(Integer)
+
+
+class ObjectiveGroup(Base):
+    """Un grupo de objetivos con su progreso, tal como lo vio la extensión (ya reducido)."""
+
+    __tablename__ = "objective_groups"
+    __table_args__ = (Index("ix_objective_groups_category", "category_id"),)
+
+    group_type: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    group_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    category_id: Mapped[int | None] = mapped_column(Integer)
+    content_id: Mapped[int | None] = mapped_column(Integer)
+    title: Mapped[str | None] = mapped_column(Text)
+    subtitle: Mapped[str | None] = mapped_column(Text)
+    state: Mapped[int | None] = mapped_column(Integer)  # 0 sin empezar, 1 en curso, 4 completado
+    repeatability: Mapped[str | None] = mapped_column(Text)
+    times_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    start_time: Mapped[int | None] = mapped_column(BigInteger)  # epoch en segundos
+    end_time: Mapped[int | None] = mapped_column(BigInteger)
+    visibility_time: Mapped[int | None] = mapped_column(BigInteger)
+    priority: Mapped[int | None] = mapped_column(Integer)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)  # awards + objectives
+    seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class CardMeta(Base):
     """Meta rating precalculado por carta (rol de su posición preferida), para la Players DB."""
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatNumber } from "../lib/format";
+import { formatNumber, formatRemaining } from "../lib/format";
+
+export { formatRemaining };
 
 type Reward = { stat: number; name: string; count: number; max_value: number | null };
 type Upgrade = { stat: number; name: string; total: number; initial: number | null };
@@ -41,18 +43,6 @@ const STATUS_LABEL: Record<string, string> = {
   EXPIRED: "Caducada",
   LOCKED: "Bloqueada",
 };
-
-/** "1 día", "5 horas"… hasta la fecha; "caducada" si ya pasó. */
-export function formatRemaining(iso: string | null, now: number = Date.now()): string | null {
-  if (!iso) return null;
-  const ms = new Date(iso).getTime() - now;
-  if (Number.isNaN(ms)) return null;
-  if (ms <= 0) return "caducada";
-  const hours = Math.floor(ms / 3_600_000);
-  if (hours < 1) return `${Math.max(1, Math.floor(ms / 60_000))} min`;
-  if (hours < 48) return `${hours} h`;
-  return `${Math.floor(hours / 24)} días`;
-}
 
 function costLabel(c: Record<string, unknown>): string {
   const amount = c.amount ?? c.value ?? c.price;

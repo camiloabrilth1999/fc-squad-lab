@@ -115,9 +115,17 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   Evoluciones en la web app. **Falta**: decodificar los requisitos de elegibilidad (`elgReqs`
   crudos), validar el formato de `currencies` con datos reales, y cruzar con tu club (qué
   cartas cumplen y cuánto sube su meta rating).
-- **Objectives**: seguimiento de objetivos/hitos. Reconocido a medias: `services.Objectives` tiene
-  `activeCampaign`, `categories` y `metaGroups`; falta abrir la sección y capturar la respuesta
-  (ver el documento de reconocimiento). Nada de reclamar ni comprar: solo lectura.
+- **Objectives: MVP HECHO** (rama `feat/objectives`): la web app pide `GET /ut/game/fc27/scmp/
+  objective/categories/all` al abrir FC Hub → Objetivos (6 categorías, ~53 grupos, ~209 objetivos con
+  progreso `currentProgress`/`multiplier`, estado `IN_PROGRESS`/`REDEEMED`, fechas y recompensas).
+  La extensión la reduce y la envía a `POST /import/objectives` (instantánea por categoría: lo que EA
+  ya no lista se borra); tablas `objective_categories` y `objective_groups` (migración 0010);
+  `GET /objectives` (categoría, pendientes/completados, texto, caducados) y `/objectives/categories`;
+  recompensas legibles (monedas, XP, jugadores con su nombre, sobres como `Sobre #id`, fichas);
+  página `/objetivos` con progreso. Solo lectura: nada de reclamar ni comprar.
+  **Para ver datos reales**: recargar la extensión (dist reconstruido) y abrir FC Hub → Objetivos.
+  **Falta**: nombres de sobres (hoy `Sobre #id`), campaña/pase de temporada (`activeCampaign`, otra
+  llamada), fichas con nombre, y avisos de objetivos por caducar.
 - **Vistas de valor: HECHAS (parte 1)** (rama `feat/value-views`): `GET /value/bargains`
   ("hidden profit": percentil de meta − percentil de precio dentro del rol, entre cartas 75+;
   filtros por rol/posición/media/precio) y `GET /value/fodder` (las N cartas más baratas por

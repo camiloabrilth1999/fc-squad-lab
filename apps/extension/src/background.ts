@@ -1,4 +1,4 @@
-import { classifyUrl, isFutUrl, sanitizeUrl, toClubImport, toEvolutionsImport, toMarketObservations } from "./parse";
+import { classifyUrl, isFutUrl, sanitizeUrl, toClubImport, toEvolutionsImport, toMarketObservations, toObjectivesImport } from "./parse";
 import {
   DEFAULT_CONFIG,
   EMPTY_STATS,
@@ -7,6 +7,7 @@ import {
   type EvolutionsImport,
   type Location,
   type MarketObservation,
+  type ObjectivesImport,
   type PageMessage,
   type Stats,
   type StatusMessage,
@@ -27,6 +28,8 @@ let club = new Map<Location, ClubQueue>();
 let market: MarketObservation[] = [];
 // Evoluciones: cada lectura trae todo, así que solo importa la última.
 let evolutions: EvolutionsImport | null = null;
+// Objetivos: la respuesta trae todas las categorías; solo importa la última.
+let objectives: ObjectivesImport | null = null;
 let raw: { url: string; body: unknown }[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 let flushing: Promise<void> = Promise.resolve();
@@ -35,6 +38,7 @@ export function _reset(): void {
   club = new Map();
   market = [];
   evolutions = null;
+  objectives = null;
   raw = [];
   if (timer) clearTimeout(timer);
   timer = null;
@@ -67,6 +71,8 @@ export function handleMessage(msg: PageMessage): void {
       market.push(...toMarketObservations(msg.body, new Date()));
     } else if (kind === "academy") {
       evolutions = toEvolutionsImport(msg.body) ?? evolutions;
+    } else if (kind === "objectives") {
+      objectives = toObjectivesImport(msg.body) ?? objectives;
     } else if (kind) {
       const parsed = toClubImport(msg.url, msg.body);
       if (parsed) {
@@ -102,12 +108,21 @@ async function doFlush(): Promise<void> {
   const pendingClub = club;
   const pendingMarket = market;
   const pendingEvolutions = evolutions;
+  const pendingObjectives = objectives;
   const pendingRaw = raw;
   club = new Map();
   market = [];
   evolutions = null;
+  objectives = null;
   raw = [];
-  if (!pendingClub.size && !pendingMarket.length && !pendingEvolutions && !pendingRaw.length) return;
+  if (
+    !pendingClub.size &&
+    !pendingMarket.length &&
+    !pendingEvolutions &&
+    !pendingObjectives &&
+    !pendingRaw.length
+  )
+    return;
   const config = await getConfig();
   const jobs: { path: string; body: unknown; items: number; obs: number; raw: number }[] = [];
   for (const [location, q] of pendingClub) {
@@ -139,6 +154,15 @@ async function doFlush(): Promise<void> {
       path: "/import/evolutions",
       body: pendingEvolutions,
       items: pendingEvolutions.slots.length,
+      obs: 0,
+      raw: 0,
+    });
+  }
+  if (pendingObjectives) {
+    jobs.push({
+      path: "/import/objectives",
+      body: pendingObjectives,
+      items: pendingObjectives.categories.reduce((n, c) => n + c.groups.length, 0),
       obs: 0,
       raw: 0,
     });

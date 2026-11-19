@@ -27,3 +27,15 @@ export function formatSeenAgo(iso: string | null, now: number = Date.now()): str
   if (hours < 24) return `Visto ${rtf.format(-hours, "hour")}`;
   return `Visto ${rtf.format(-Math.floor(hours / 24), "day")}`;
 }
+
+/** "1 día", "5 horas"… hasta la fecha; "caducada" si ya pasó. */
+export function formatRemaining(iso: string | null, now: number = Date.now()): string | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - now;
+  if (Number.isNaN(ms)) return null;
+  if (ms <= 0) return "caducada";
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 1) return `${Math.max(1, Math.floor(ms / 60_000))} min`;
+  if (hours < 48) return `${hours} h`;
+  return `${Math.floor(hours / 24)} días`;
+}

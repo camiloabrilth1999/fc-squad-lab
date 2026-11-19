@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { classifyUrl, isFutUrl, sanitizeUrl, toClubImport, toEvolutionsImport, toMarketObservations } from "../parse";
+import { classifyUrl, isFutUrl, sanitizeUrl, toClubImport, toEvolutionsImport, toMarketObservations, toObjectivesImport } from "../parse";
 
 const load = (name: string) =>
   JSON.parse(readFileSync(new URL(`../../../api/tests/data/${name}`, import.meta.url), "utf8"));
@@ -16,6 +16,7 @@ describe("classifyUrl", () => {
     expect(classifyUrl(`${BASE}/watchlist`)).toBe("watchlist");
     expect(classifyUrl(`${BASE}/transfermarket?num=21&type=player`)).toBe("market");
     expect(classifyUrl(`${BASE}/academy/hub/v2?offset=0&count=20`)).toBe("academy");
+    expect(classifyUrl(`${BASE}/scmp/objective/categories/all`)).toBe("objectives");
   });
   it("ignora otros endpoints y URLs fuera de /ut/game/", () => {
     expect(classifyUrl(`${BASE}/club/stats/staff`)).toBeNull();
@@ -207,5 +208,92 @@ describe("toEvolutionsImport", () => {
   it("ignora slots sin id", () => {
     const out = toEvolutionsImport({ categories: [], slots: [{ slotName: "x" }, ...HUB.slots] });
     expect(out!.slots.map((s) => s.id)).toEqual([2695]);
+  });
+});
+
+
+const OBJ = {
+  "0": {
+    categoryId: 0,
+    name: "Fundamentos",
+    priority: 0,
+    type: 8,
+    groupsList: [
+      {
+        groupId: 30,
+        groupType: 8,
+        contentId: 22286,
+        title: "Fútbol total",
+        subTitle: "Demuestra tu valía",
+        groupState: 4,
+        repeatabilityMode: "NON_REPEATABLE",
+        timesCompleted: 1,
+        startTime: 1786986000,
+        endTime: 1948640399,
+        visibilityTime: 1786985999,
+        priority: 4,
+        awardsList: [
+          { awardType: "coin", value: 5000, count: 1, untradeable: false, itemData: null },
+          {
+            awardType: "item",
+            value: 50574680,
+            count: 1,
+            untradeable: true,
+            itemDataReduced: { resourceId: 50574680, rating: 82, attributeArray: [1, 2, 3] },
+          },
+        ],
+        objectives: [
+          {
+            objectiveId: 160,
+            name: "Completa «Subiendo puestos»",
+            description: "Completa el grupo",
+            currentProgress: 1,
+            multiplier: 1,
+            state: "REDEEMED",
+            awards: [{ awardType: "pack", value: 1050, count: 1, untradeable: true }],
+          },
+          { objectiveId: 161, name: "Juega 3", description: "d", multiplier: 3, awards: [] },
+        ],
+      },
+    ],
+  },
+};
+
+describe("toObjectivesImport", () => {
+  it("reduce categorías, grupos, objetivos y recompensas", () => {
+    const out = toObjectivesImport(OBJ);
+    expect(out).not.toBeNull();
+    expect(out!.categories).toHaveLength(1);
+    const cat = out!.categories[0];
+    expect(cat).toMatchObject({ id: 0, name: "Fundamentos", type: 8, priority: 0 });
+    const g = cat.groups[0];
+    expect(g).toMatchObject({
+      id: 30,
+      type: 8,
+      title: "Fútbol total",
+      subtitle: "Demuestra tu valía",
+      state: 4,
+      repeatability: "NON_REPEATABLE",
+      times_completed: 1,
+      start_time: 1786986000,
+      end_time: 1948640399,
+    });
+    expect(g.awards).toEqual([
+      { type: "coin", value: 5000, count: 1, untradeable: false, item: null },
+      { type: "item", value: 50574680, count: 1, untradeable: true, item: { resource_id: 50574680, rating: 82 } },
+    ]);
+    expect(g.objectives[0]).toMatchObject({ id: 160, progress: 1, target: 1, state: "REDEEMED" });
+    expect(g.objectives[0].awards[0]).toMatchObject({ type: "pack", value: 1050 });
+    expect(g.objectives[1]).toMatchObject({ id: 161, progress: null, target: 3, state: null });
+    expect(JSON.stringify(out)).not.toContain("attributeArray");
+  });
+  it("devuelve null si no es la respuesta de objetivos", () => {
+    expect(toObjectivesImport(null)).toBeNull();
+    expect(toObjectivesImport({ slots: [] })).toBeNull();
+    expect(toObjectivesImport([])).toBeNull();
+  });
+  it("ignora categorías o grupos mal formados", () => {
+    const out = toObjectivesImport({ "0": { categoryId: 0, name: "A", groupsList: [{ title: "sin id" }] }, "1": 5 });
+    expect(out!.categories.map((c) => c.groups.length)).toEqual([0]);
   });
 });
