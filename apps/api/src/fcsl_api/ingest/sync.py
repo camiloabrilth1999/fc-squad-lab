@@ -3,14 +3,21 @@
 import logging
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from fcsl_api.ingest.easysbc import PriceRow, iter_easysbc_prices
 from fcsl_api.ingest.futgg import CardRow, iter_futgg_cards
+from fcsl_api.ingest.futgg_detail import fetch_card_attributes
 from fcsl_api.ingest.http import PoliteClient
-from fcsl_api.ingest.store import record_sync_run, upsert_cards, upsert_prices
-from fcsl_api.models_db import SyncRun
+from fcsl_api.ingest.store import (
+    record_sync_run,
+    upsert_card_attributes,
+    upsert_cards,
+    upsert_prices,
+)
+from fcsl_api.models_db import Card, CardAttributes, ClubItem, SyncRun
 
 logger = logging.getLogger(__name__)
 
@@ -81,4 +88,36 @@ def sync_prices(session: Session, client: PoliteClient, max_pages: int | None = 
         error = "cobertura parcial: " + "; ".join(coverage)
     status = "ok" if error is None else ("partial" if saved else "failed")
     run_id = record_sync_run(session, "prices", status, saved, error, started_at=started)
+    return session.get_one(SyncRun, run_id)
+
+
+def sync_club_attributes(
+    session: Session, client: PoliteClient, limit: int | None = None
+) -> SyncRun:
+    """Baja los stats detallados de las cartas del club que aún no los tienen."""
+    started = datetime.now(UTC)
+    rows = session.execute(
+        select(Card.resource_id, Card.asset_id)
+        .join(ClubItem, ClubItem.resource_id == Card.resource_id)
+        .outerjoin(CardAttributes, CardAttributes.resource_id == Card.resource_id)
+        .where(CardAttributes.resource_id.is_(None))
+        .distinct()
+        .order_by(Card.resource_id)
+    ).all()
+    saved = 0
+    error: str | None = None
+    try:
+        for resource_id, asset_id in rows[:limit] if limit else rows:
+            attrs = fetch_card_attributes(client, str(asset_id), resource_id)
+            if attrs:
+                upsert_card_attributes(session, resource_id, attrs)
+                saved += 1
+    except SQLAlchemyError as exc:
+        session.rollback()
+        error = f"{type(exc).__name__}: {exc}"
+    except Exception as exc:  # noqa: BLE001 - SourceBlocked, red
+        error = f"{type(exc).__name__}: {exc}"
+        logger.warning("sync de atributos interrumpida: %s", error)
+    status = "ok" if error is None else ("partial" if saved else "failed")
+    run_id = record_sync_run(session, "club_attributes", status, saved, error, started_at=started)
     return session.get_one(SyncRun, run_id)

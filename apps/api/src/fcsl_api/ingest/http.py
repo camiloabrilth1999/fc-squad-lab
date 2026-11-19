@@ -43,6 +43,7 @@ class PoliteClient:
             headers={"User-Agent": user_agent, **(headers or {})},
             transport=transport,
             timeout=20.0,
+            follow_redirects=True,
         )
 
     def close(self) -> None:
