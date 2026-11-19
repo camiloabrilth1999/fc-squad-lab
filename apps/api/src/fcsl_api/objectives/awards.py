@@ -2,6 +2,10 @@
 
 from typing import Any
 
+_KNOWN = {
+    "graduated_access_transfer_market_entry": "Acceso al mercado de transferencias",
+}
+
 
 def _n(n: int) -> str:
     return f"{n:,}".replace(",", ".")
@@ -29,6 +33,8 @@ def describe_award(award: dict[str, Any], names: dict[int, str]) -> dict[str, An
             label = f"{count}× {label}"
     elif kind.startswith("event_token"):
         label = f"Ficha de evento ×{amount}"
+    elif kind in _KNOWN:
+        label = _KNOWN[kind]
     else:
         label = f"{kind} ×{amount}"
     return {"type": kind, "label": label, "count": count}

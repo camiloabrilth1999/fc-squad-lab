@@ -70,6 +70,16 @@ describe("EvolutionsBrowser", () => {
     expect(screen.getByText(/solo jugadores de campo/)).toBeInTheDocument();
   });
 
+  it("muestra el coste en monedas y FC Points con el formato real de EA", async () => {
+    const cost = [
+      { funds: 10000, finalFunds: 0, name: "COINS" },
+      { funds: 100, finalFunds: 0, name: "POINTS" },
+    ];
+    vi.stubGlobal("fetch", router({ items: [evo(1, "Bajo los focos", { cost })], total: 1 }));
+    render(<EvolutionsBrowser apiUrl={URL_} />);
+    expect(await screen.findByText("Coste: 10.000 monedas + 100 FC Points")).toBeInTheDocument();
+  });
+
   it("muestra las categorías con lo importado y filtra al elegir una", async () => {
     const fetchMock = router({ items: [evo(1, "A")], total: 1 });
     vi.stubGlobal("fetch", fetchMock);

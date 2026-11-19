@@ -45,8 +45,9 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function costLabel(c: Record<string, unknown>): string {
-  const amount = c.amount ?? c.value ?? c.price;
-  const kind = String(c.currency ?? c.type ?? "").toUpperCase();
+  // EA: {funds, finalFunds, name: "COINS" | "POINTS"}
+  const amount = c.funds ?? c.amount ?? c.value ?? c.price;
+  const kind = String(c.name ?? c.currency ?? c.type ?? "").toUpperCase();
   if (typeof amount === "number") {
     if (kind.includes("COIN")) return `${formatNumber(amount)} monedas`;
     if (kind.includes("POINT") || kind.includes("FC")) return `${formatNumber(amount)} FC Points`;
