@@ -100,7 +100,21 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   **Falta**: selector de clubes (692; hace falta un buscador), meta por rol alternativo en la
   lista, ranking por rol y comparación de cartas.
 - **Squad Recommendations** del club (se cubre con Squad Builder Fase A).
-- **Gallery**: modo soluciones de sets de galería sobre el solver de SBC.
+- **Gallery** (reconocida 2026-11-19, SIN construir; decisión pendiente de Camilo). Qué es: un modo
+  de EA (se completa "en la consola") donde coleccionas jugadores en **sets por club/liga/nación**
+  (15, 20 o 30 jugadores) en grados **D, C, B, A, S**; cada jugador aporta puntos (p. ej. 20 un
+  59–61, 35 un 65–73, 90 un 75, 830 un 84 especial) y cada grado da fichas (13/28…). "Coleccionar"
+  = comprar la carta y venderla al instante (EA la marca como coleccionada); hay bonus de
+  *First Owner*. EasySBC resuelve cada set al menor coste y propone un plan: fichas objetivo,
+  monedas, **pérdida por impuestos (5 %)**, nº de traspasos y de sets (`gallery/progress`,
+  `user-players/collected/sync`). **Hueco de datos**: la web app de EA no tiene servicio de
+  Galería (`services`: solo `EventToken`), así que no hay de dónde leer las definiciones de los
+  sets (jugadores válidos, puntos por jugador, umbrales por grado, fichas por grado) ni el estado
+  de coleccionado. Pista por comprobar: los jugadores de EA traen `isCollected` (visto en recompensas
+  de objetivos); si el club importado lo trae, el estado coleccionado sale gratis de nuestra
+  extensión. Opciones: (a) sembrar las reglas (estáticas) desde las páginas públicas de EasySBC como
+  guía de desarrollo, como hicimos con el meta; (b) esperar a otra fuente. El solver sería
+  un CP-SAT de cobertura de sets con coste, impuesto y first-owner (reusa `squad/market.py`).
 - **Evolutions** (EN CURSO, reconocimiento hecho 2026-11-19): la web app pide
   `GET /ut/game/fc27/academy/hub/v2` al abrir Evoluciones; la respuesta trae las ~70 evoluciones
   con nombre, estado, requisitos, niveles, objetivos, mejoras y recompensas, y el cliente de EA
