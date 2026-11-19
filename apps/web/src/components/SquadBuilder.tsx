@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatNumber } from "../lib/format";
+import { useCatalog } from "../lib/useCatalog";
 
 type Slot = {
   slot_index: number;
@@ -72,6 +73,10 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
   const [oop, setOop] = useState<OopMode>("family");
   const [pool, setPool] = useState<Pool>("club");
   const [budget, setBudget] = useState(100000);
+  const [league, setLeague] = useState("");
+  const [nation, setNation] = useState("");
+  const leagues = useCatalog(apiUrl, "league");
+  const nations = useCatalog(apiUrl, "nation");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [result, setResult] = useState<BuildResult | null>(null);
@@ -93,6 +98,8 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           min_chemistry: minChem,
           out_of_position: oop,
           ...(pool === "both" ? { pool, budget } : {}),
+          ...(league ? { league_ids: [Number(league)] } : {}),
+          ...(nation ? { nation_ids: [Number(nation)] } : {}),
           ...(pins.length ? { include_card_ids: pins.map((m) => m.id) } : {}),
           ...(outs.length ? { exclude_card_ids: outs.map((m) => m.id) } : {}),
         }),
@@ -182,6 +189,36 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
             />
           </label>
         ) : null}
+        <label className="text-sm">
+          <span className="mb-1 block text-muted">Liga</span>
+          <select
+            value={league}
+            onChange={(e) => setLeague(e.target.value)}
+            className="w-44 rounded-lg border border-line bg-surface-2 px-3 py-2"
+          >
+            <option value="">Todas</option>
+            {leagues.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-muted">Nación</span>
+          <select
+            value={nation}
+            onChange={(e) => setNation(e.target.value)}
+            className="w-40 rounded-lg border border-line bg-surface-2 px-3 py-2"
+          >
+            <option value="">Todas</option>
+            {nations.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="text-sm">
           <span className="mb-1 block text-muted">Fuera de posición</span>
           <select

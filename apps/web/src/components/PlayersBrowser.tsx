@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { formatNumber } from "../lib/format";
+import PlayerDetail from "./PlayerDetail";
+import { useCatalog } from "../lib/useCatalog";
 
 type Player = {
   resource_id: number;
   name: string | null;
   rating: number | null;
   positions: string[];
+  league_name: string | null;
+  nation_name: string | null;
+  club_name: string | null;
   rarity_name: string | null;
   meta: number;
   role: string;
@@ -41,6 +46,8 @@ type Filters = {
   q: string;
   position: string;
   tier: string;
+  league: string;
+  nation: string;
   minRating: string;
   maxPrice: string;
   sort: string;
@@ -50,6 +57,8 @@ const EMPTY: Filters = {
   q: "",
   position: "",
   tier: "",
+  league: "",
+  nation: "",
   minRating: "",
   maxPrice: "",
   sort: "meta",
@@ -61,6 +70,8 @@ function query(f: Filters, page: number): string {
   if (f.q.trim()) p.set("q", f.q.trim());
   if (f.position) p.set("position", f.position);
   if (f.tier) p.set("tier", f.tier);
+  if (f.league) p.set("league_id", f.league);
+  if (f.nation) p.set("nation_id", f.nation);
   if (f.minRating) p.set("min_rating", f.minRating);
   if (f.maxPrice) p.set("max_price", f.maxPrice);
   return p.toString();
@@ -72,6 +83,9 @@ export default function PlayersBrowser({ apiUrl }: { apiUrl: string }) {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Page | null>(null);
   const [failed, setFailed] = useState(false);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const leagues = useCatalog(apiUrl, "league");
+  const nations = useCatalog(apiUrl, "nation");
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -143,6 +157,36 @@ export default function PlayersBrowser({ apiUrl }: { apiUrl: string }) {
             {TIERS.map((t) => (
               <option key={t} value={t}>
                 {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-muted">Liga</span>
+          <select
+            value={draft.league}
+            onChange={(e) => set("league", e.target.value)}
+            className="w-44 rounded-lg border border-line bg-surface-2 px-3 py-2"
+          >
+            <option value="">Todas</option>
+            {leagues.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-muted">Nación</span>
+          <select
+            value={draft.nation}
+            onChange={(e) => set("nation", e.target.value)}
+            className="w-40 rounded-lg border border-line bg-surface-2 px-3 py-2"
+          >
+            <option value="">Todas</option>
+            {nations.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.name}
               </option>
             ))}
           </select>
@@ -227,12 +271,23 @@ export default function PlayersBrowser({ apiUrl }: { apiUrl: string }) {
               </thead>
               <tbody>
                 {data.items.map((p) => (
-                  <tr key={p.resource_id} className="border-b border-line/60 last:border-0">
+                  <Fragment key={p.resource_id}>
+                  <tr className="border-b border-line/60 last:border-0">
                     <td className="px-4 py-2">
-                      <span className="font-medium">{p.name ?? "Carta"}</span>
+                      <button
+                        type="button"
+                        aria-expanded={openId === p.resource_id}
+                        onClick={() => setOpenId(openId === p.resource_id ? null : p.resource_id)}
+                        className="font-medium hover:underline"
+                      >
+                        {p.name ?? "Carta"}
+                      </button>
                       {p.rarity_name ? (
                         <span className="ml-2 text-xs text-muted">{p.rarity_name}</span>
                       ) : null}
+                      <span className="block text-xs text-muted">
+                        {[p.club_name, p.league_name, p.nation_name].filter(Boolean).join(" · ")}
+                      </span>
                     </td>
                     <td className="px-2 py-2 text-muted">{p.positions.slice(0, 3).join(" · ")}</td>
                     <td className="px-2 py-2 text-right font-mono tabular-nums">{p.rating ?? "–"}</td>
@@ -252,6 +307,14 @@ export default function PlayersBrowser({ apiUrl }: { apiUrl: string }) {
                       {p.price != null ? formatNumber(p.price) : "—"}
                     </td>
                   </tr>
+                  {openId === p.resource_id ? (
+                    <tr className="border-b border-line/60 bg-surface-2/40">
+                      <td colSpan={6} className="px-4 py-4">
+                        <PlayerDetail apiUrl={apiUrl} id={p.resource_id} />
+                      </td>
+                    </tr>
+                  ) : null}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

@@ -47,6 +47,10 @@ class CardRow:
     weak_foot: int | None = None
     height: int | None = None
     face_stats: dict[str, int] = field(default_factory=dict)
+    # nombres para el catálogo (no son columnas de `cards`)
+    league_name: str | None = None
+    nation_name: str | None = None
+    club_name: str | None = None
 
 
 def _ea_id(p: dict, key: str) -> int | None:
@@ -112,6 +116,9 @@ def parse_futgg_player(p: dict) -> CardRow | None:
         weak_foot=p.get("weakFoot"),
         height=p.get("height"),
         face_stats=_face_stats(p),
+        league_name=(p.get("league") or {}).get("name"),
+        nation_name=(p.get("nation") or {}).get("name"),
+        club_name=(p.get("club") or {}).get("name"),
     )
 
 
