@@ -119,3 +119,22 @@ def test_player_detail_has_roles_and_404(client: TestClient, clean_db: Session) 
     assert d["name"] == "Alfa Delantero" and d["price"] == 50000
     assert [r["role"] for r in d["roles"]] == ["adv_forward"]  # ST y CF comparten rol
     assert client.get("/players/999").status_code == 404
+
+
+def test_player_detail_has_playstyle_names_and_catalog(
+    client: TestClient, clean_db: Session
+) -> None:
+    from fcsl_api.ingest.store import upsert_catalog
+
+    _seed(clean_db)
+    upsert_catalog(
+        clean_db, [("league", 1, "Liga X"), ("nation", 10, "País Y"), ("club", 100, "Club Z")]
+    )
+    card = clean_db.get(Card, 1)
+    card.play_styles = [16]
+    card.play_styles_plus = [22, 34]
+    clean_db.commit()
+    d = client.get("/players/1").json()
+    assert d["play_style_names"] == ["Technical"]
+    assert d["play_style_plus_names"] == ["Quick Step", "Low Driven Shot"]
+    assert (d["league_name"], d["nation_name"], d["club_name"]) == ("Liga X", "País Y", "Club Z")

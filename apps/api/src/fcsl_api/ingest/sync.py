@@ -12,9 +12,11 @@ from fcsl_api.ingest.futgg import CardRow, iter_futgg_cards
 from fcsl_api.ingest.futgg_detail import fetch_card_attributes
 from fcsl_api.ingest.http import PoliteClient
 from fcsl_api.ingest.store import (
+    catalog_entries,
     record_sync_run,
     upsert_card_attributes,
     upsert_cards,
+    upsert_catalog,
     upsert_prices,
 )
 from fcsl_api.models_db import Card, CardAttributes, ClubItem, SyncRun
@@ -32,11 +34,13 @@ def sync_cards(session: Session, client: PoliteClient, max_pages: int | None = N
     error: str | None = None
     coverage: list[str] = []
     batch: list[CardRow] = []
+    names: dict[tuple[str, int], str] = {}
     try:
         try:
             for row in iter_futgg_cards(client, max_pages=max_pages, coverage=coverage):
                 batch.append(row)
                 if len(batch) >= BATCH_SIZE:
+                    names.update(catalog_entries(batch))
                     saved += upsert_cards(session, batch, SOURCE)
                     batch = []
         except SQLAlchemyError:
@@ -44,7 +48,9 @@ def sync_cards(session: Session, client: PoliteClient, max_pages: int | None = N
         except Exception as exc:  # noqa: BLE001 - SourceBlocked, red, JSON inválido
             error = f"{type(exc).__name__}: {exc}"
             logger.warning("sync de cartas interrumpida: %s", error)
+        names.update(catalog_entries(batch))
         saved += upsert_cards(session, batch, SOURCE)  # lo ya descargado se conserva
+        upsert_catalog(session, [(k, i, n) for (k, i), n in names.items()])
     except SQLAlchemyError as exc:
         session.rollback()
         error = f"{type(exc).__name__}: {exc}"

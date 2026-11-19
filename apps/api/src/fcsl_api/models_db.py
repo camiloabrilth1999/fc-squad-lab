@@ -59,6 +59,16 @@ class CardAttributes(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class Catalog(Base):
+    """Nombres de ligas, naciones y clubes (del listado de FUT.GG), para filtros y vistas."""
+
+    __tablename__ = "catalog"
+
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)  # league | nation | club
+    ea_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class CardMeta(Base):
     """Meta rating precalculado por carta (rol de su posición preferida), para la Players DB."""
 

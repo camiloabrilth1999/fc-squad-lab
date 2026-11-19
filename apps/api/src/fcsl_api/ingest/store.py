@@ -10,7 +10,44 @@ from sqlalchemy.orm import Session
 
 from fcsl_api.ingest.easysbc import PriceRow
 from fcsl_api.ingest.futgg import CardRow
-from fcsl_api.models_db import Card, CardAttributes, Price, SyncRun
+from fcsl_api.models_db import Card, CardAttributes, Catalog, Price, SyncRun
+
+_NAME_FIELDS = ("league_name", "nation_name", "club_name")
+
+
+def _card_columns(r: CardRow) -> dict:
+    """Campos de CardRow que son columnas de `cards` (sin los nombres del catálogo)."""
+    return {k: v for k, v in asdict(r).items() if k not in _NAME_FIELDS}
+
+
+def catalog_entries(rows: Iterable[CardRow]) -> dict[tuple[str, int], str]:
+    """(tipo, ea_id) → nombre de las ligas, naciones y clubes de las cartas dadas."""
+    out: dict[tuple[str, int], str] = {}
+    for r in rows:
+        for kind, ea_id, name in (
+            ("league", r.league_id, r.league_name),
+            ("nation", r.nation_id, r.nation_name),
+            ("club", r.club_id, r.club_name),
+        ):
+            if ea_id is not None and name:
+                out[kind, ea_id] = name
+    return out
+
+
+def upsert_catalog(session: Session, entries: Iterable[tuple[str, int, str]]) -> int:
+    """Inserta o actualiza nombres del catálogo; devuelve cuántas entradas distintas."""
+    unique = {(k, i): n for k, i, n in entries}
+    if not unique:
+        return 0
+    values = [{"kind": k, "ea_id": i, "name": n} for (k, i), n in unique.items()]
+    stmt = insert(Catalog).values(values)
+    session.execute(
+        stmt.on_conflict_do_update(
+            index_elements=[Catalog.kind, Catalog.ea_id], set_={"name": stmt.excluded.name}
+        )
+    )
+    session.commit()
+    return len(unique)
 
 
 def upsert_cards(session: Session, rows: Iterable[CardRow], source: str) -> int:
@@ -19,7 +56,7 @@ def upsert_cards(session: Session, rows: Iterable[CardRow], source: str) -> int:
     if not unique:
         return 0
     stamp = func.clock_timestamp()
-    values = [{**asdict(r), "source": source, "updated_at": stamp} for r in unique.values()]
+    values = [{**_card_columns(r), "source": source, "updated_at": stamp} for r in unique.values()]
     stmt = insert(Card).values(values)
     update = {c: stmt.excluded[c] for c in values[0] if c != "resource_id"}
     session.execute(stmt.on_conflict_do_update(index_elements=[Card.resource_id], set_=update))

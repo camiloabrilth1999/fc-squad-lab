@@ -6,10 +6,12 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import any_, func, literal, or_, select
+from sqlalchemy.orm import aliased
 
 from ..meta.compute import compute_meta
+from ..meta.playstyles import playstyle_names
 from ..meta.roles import ROLES, role_for
-from ..models_db import Card, CardAttributes, CardMeta, Price
+from ..models_db import Card, CardAttributes, CardMeta, Catalog, Price
 from ..prices import effective_prices
 from .imports import DbSession
 
@@ -27,6 +29,9 @@ class PlayerRow(BaseModel):
     league_id: int | None
     nation_id: int | None
     club_id: int | None
+    league_name: str | None = None
+    nation_name: str | None = None
+    club_name: str | None = None
     rarity_name: str | None
     meta: float
     role: str
@@ -66,6 +71,11 @@ class PlayerDetail(BaseModel):
     weak_foot: int | None
     play_styles: list[int] = Field(default_factory=list)
     play_styles_plus: list[int] = Field(default_factory=list)
+    play_style_names: list[str] = Field(default_factory=list)
+    play_style_plus_names: list[str] = Field(default_factory=list)
+    league_name: str | None = None
+    nation_name: str | None = None
+    club_name: str | None = None
     face_stats: dict[str, int] = Field(default_factory=dict)
     stats: dict[str, int] = Field(default_factory=dict)  # detallados, si los tenemos
     roles: list[RoleMeta]
@@ -103,10 +113,14 @@ def list_players(
         .where(Price.platform == "PC", Price.source == MARKET_SOURCE, Price.price > 0)
         .subquery()
     )
+    league_c, nation_c, club_c = (aliased(Catalog) for _ in range(3))
     base = (
-        select(Card, CardMeta, market.c.price)
+        select(Card, CardMeta, market.c.price, league_c.name, nation_c.name, club_c.name)
         .join(CardMeta, CardMeta.resource_id == Card.resource_id)
         .outerjoin(market, market.c.rid == Card.resource_id)
+        .outerjoin(league_c, (league_c.kind == "league") & (league_c.ea_id == Card.league_id))
+        .outerjoin(nation_c, (nation_c.kind == "nation") & (nation_c.ea_id == Card.nation_id))
+        .outerjoin(club_c, (club_c.kind == "club") & (club_c.ea_id == Card.club_id))
     )
     conds = []
     if q:
@@ -154,7 +168,7 @@ def list_players(
     stmt = stmt.order_by(ordered.nulls_last(), Card.resource_id).limit(page_size)
     stmt = stmt.offset((page - 1) * page_size)
     found = session.execute(stmt).all()
-    prices = effective_prices(session, [c.resource_id for c, _, _ in found], datetime.now(UTC))
+    prices = effective_prices(session, [r[0].resource_id for r in found], datetime.now(UTC))
     items = [
         PlayerRow(
             resource_id=c.resource_id,
@@ -164,6 +178,9 @@ def list_players(
             league_id=c.league_id,
             nation_id=c.nation_id,
             club_id=c.club_id,
+            league_name=league_name,
+            nation_name=nation_name,
+            club_name=club_name,
             rarity_name=c.rarity_name,
             meta=m.meta,
             role=m.role,
@@ -172,9 +189,14 @@ def list_players(
             price=prices[c.resource_id][0] if c.resource_id in prices else None,
             price_source=prices[c.resource_id][1] if c.resource_id in prices else None,
         )
-        for c, m, _ in found
+        for c, m, _, league_name, nation_name, club_name in found
     ]
     return PlayersPage(items=items, total=total or 0, page=page, page_size=page_size)
+
+
+def _catalog_name(session: DbSession, kind: str, ea_id: int | None) -> str | None:
+    row = session.get(Catalog, (kind, ea_id)) if ea_id is not None else None
+    return row.name if row else None
 
 
 @router.get("/{resource_id}", response_model=PlayerDetail)
@@ -217,6 +239,11 @@ def get_player(resource_id: int, session: DbSession) -> PlayerDetail:
         weak_foot=card.weak_foot,
         play_styles=card.play_styles or [],
         play_styles_plus=card.play_styles_plus or [],
+        play_style_names=playstyle_names(card.play_styles),
+        play_style_plus_names=playstyle_names(card.play_styles_plus),
+        league_name=_catalog_name(session, "league", card.league_id),
+        nation_name=_catalog_name(session, "nation", card.nation_id),
+        club_name=_catalog_name(session, "club", card.club_id),
         face_stats=card.face_stats or {},
         stats=stats or {},
         roles=roles,

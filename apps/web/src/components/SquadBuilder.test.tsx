@@ -39,6 +39,10 @@ const built = {
   message: null,
 };
 
+type Call = [string, { body: string }];
+const buildCalls = (m: { mock: { calls: unknown[][] } }): Call[] =>
+  (m.mock.calls as unknown as Call[]).filter((c) => String(c[0]).includes("/squad/build"));
+
 const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -55,7 +59,7 @@ describe("SquadBuilder", () => {
     fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
 
     expect(await screen.findByText("Óptimo")).toBeInTheDocument();
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = buildCalls(fetchMock)[0];
     expect(url).toBe(`${URL_}/squad/build`);
     expect(JSON.parse(init.body)).toEqual({
       formation: "433",
@@ -75,7 +79,7 @@ describe("SquadBuilder", () => {
     render(<SquadBuilder apiUrl={URL_} />);
     fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
     await screen.findByText("Óptimo");
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).out_of_position).toBe("family");
+    expect(JSON.parse(buildCalls(fetchMock)[0][1].body).out_of_position).toBe("family");
     expect(screen.getAllByText("fuera de posición")).toHaveLength(1); // solo el delantero
   });
 
@@ -124,7 +128,7 @@ describe("SquadBuilder con mercado", () => {
     fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
 
     expect(await screen.findByText("Fichaje Caro")).toBeInTheDocument();
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const body = JSON.parse(buildCalls(fetchMock)[0][1].body);
     expect(body).toMatchObject({ pool: "both", budget: 50000 });
     expect(screen.getByText(/5\.000 monedas/)).toBeInTheDocument();
     expect(screen.getByText(/comprar 5\.000/)).toBeInTheDocument();
@@ -138,7 +142,7 @@ describe("SquadBuilder con mercado", () => {
     expect(screen.queryByLabelText("Presupuesto (monedas)")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
     await screen.findByText("Óptimo");
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const body = JSON.parse(buildCalls(fetchMock)[0][1].body);
     expect(body.pool).toBeUndefined();
     expect(body.budget).toBeUndefined();
   });
@@ -152,7 +156,7 @@ describe("SquadBuilder: mejor formación, fijar y excluir", () => {
     fireEvent.change(screen.getByLabelText("Formación"), { target: { value: "best" } });
     fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
     expect(await screen.findByText("4231")).toBeInTheDocument();
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).formation).toBe("best");
+    expect(JSON.parse(buildCalls(fetchMock)[0][1].body).formation).toBe("best");
   });
 
   it("fijar un jugador vuelve a calcular con include_card_ids", async () => {
@@ -162,8 +166,8 @@ describe("SquadBuilder: mejor formación, fijar y excluir", () => {
     fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
     await screen.findByText("Central Uno");
     fireEvent.click(screen.getByRole("button", { name: "Fijar a Central Uno" }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body).include_card_ids).toEqual(["club:1"]);
+    await waitFor(() => expect(buildCalls(fetchMock)).toHaveLength(2));
+    expect(JSON.parse(buildCalls(fetchMock)[1][1].body).include_card_ids).toEqual(["club:1"]);
   });
 
   it("excluir un jugador manda exclude_card_ids y permite quitarlo", async () => {
@@ -173,10 +177,31 @@ describe("SquadBuilder: mejor formación, fijar y excluir", () => {
     fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
     await screen.findByText("Delantero Uno");
     fireEvent.click(screen.getByRole("button", { name: "Excluir a Delantero Uno" }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body).exclude_card_ids).toEqual(["club:2"]);
+    await waitFor(() => expect(buildCalls(fetchMock)).toHaveLength(2));
+    expect(JSON.parse(buildCalls(fetchMock)[1][1].body).exclude_card_ids).toEqual(["club:2"]);
     fireEvent.click(await screen.findByRole("button", { name: "Quitar exclusión de Delantero Uno" }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    expect(JSON.parse(fetchMock.mock.calls[2][1].body).exclude_card_ids).toBeUndefined();
+    await waitFor(() => expect(buildCalls(fetchMock)).toHaveLength(3));
+    expect(JSON.parse(buildCalls(fetchMock)[2][1].body).exclude_card_ids).toBeUndefined();
+  });
+});
+
+
+describe("SquadBuilder: filtros por liga y nación", () => {
+  it("manda league_ids y nation_ids con los nombres elegidos", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (String(url).includes("/catalog?kind=league")) return json([{ id: 13, name: "Premier League" }]);
+      if (String(url).includes("/catalog?kind=nation")) return json([{ id: 18, name: "France" }]);
+      return json(built);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SquadBuilder apiUrl={URL_} />);
+    await screen.findByRole("option", { name: "Premier League" });
+    fireEvent.change(screen.getByLabelText("Liga"), { target: { value: "13" } });
+    fireEvent.change(screen.getByLabelText("Nación"), { target: { value: "18" } });
+    fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
+    await screen.findByText("Óptimo");
+    const body = JSON.parse(buildCalls(fetchMock)[0][1].body);
+    expect(body.league_ids).toEqual([13]);
+    expect(body.nation_ids).toEqual([18]);
   });
 });
