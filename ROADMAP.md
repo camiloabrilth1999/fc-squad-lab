@@ -182,8 +182,14 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   club, 7 de 9 evoluciones y +58,8 de meta. **Falta**: vista por carta en la web (el endpoint ya
   existe), evoluciones repetibles (hoy cada una se usa una vez) y tener en cuenta el coste en
   monedas/FC Points.
-  **Falta**: nombres de sobres (hoy `Sobre #id`), campaña/pase de temporada (`activeCampaign`, otra
-  llamada), fichas con nombre, y avisos de objetivos por caducar.
+  **Nombres de sobres: HECHO (rama `feat/pack-names`)**: la web app trae en su tabla de traducciones
+  (`services.Localization`) las claves `FUT_STORE_PACK_<id>_NAME` (~1.140 sobres, en español). La
+  extensión las lee de memoria local —sin peticiones a EA— al iniciar la importación automática y las
+  envía a `POST /import/packs`; se guardan en `catalog` (`kind='pack'`) y las recompensas de
+  `/objetivos` muestran el nombre real («Sobre de oro raro») en vez de `Sobre #id`. Hay que
+  copiar el `dist` a la copia de Chrome y recargar la extensión (ver `CLAUDE.md`).
+  **Falta**: campaña/pase de temporada (`activeCampaign`, otra llamada), fichas con nombre y avisos
+  de objetivos por caducar.
 - **Vistas de valor: HECHAS (parte 1)** (rama `feat/value-views`): `GET /value/bargains`
   ("hidden profit": percentil de meta − percentil de precio dentro del rol, entre cartas 75+;
   filtros por rol/posición/media/precio) y `GET /value/fodder` (las N cartas más baratas por

@@ -41,6 +41,26 @@ export const PAGE_SIZE = 90;
 export const MAX_PAGES = 50;
 export const DELAY_MS = 1000;
 
+/**
+ * Nombres de los sobres (id → nombre) que la propia web app ya trae en su tabla de traducciones
+ * (`FUT_STORE_PACK_<id>_NAME`). Solo lee memoria local: no hace ninguna petición a EA.
+ */
+export function readPackNames(services: unknown): Record<string, string> {
+  try {
+    const dict = (services as { Localization?: { repository?: { _collection?: unknown } } } | null)
+      ?.Localization?.repository?._collection;
+    if (!dict || typeof dict !== "object") return {};
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(dict as Record<string, unknown>)) {
+      const m = /^FUT_STORE_PACK_(\d+)_NAME$/.exec(key);
+      if (m && typeof value === "string" && value.trim()) out[m[1]] = value.trim();
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 /** Busca en `window` la clase de criterio de búsqueda de la web app (la reconoce por sus métodos). */
 export function findCriteriaClass(win: Window): CriteriaClass | null {
   for (const name of Object.getOwnPropertyNames(win)) {

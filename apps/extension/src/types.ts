@@ -107,6 +107,12 @@ export interface ObjectivesImport {
   categories: ObjectiveCategory[];
 }
 
+/** Nombres de sobres leídos de la tabla de traducciones de la web app (id → nombre). */
+export interface PacksMessage {
+  source: "fcsl-packs";
+  names: Record<string, string>;
+}
+
 export interface PageMessage {
   source: "fcsl";
   url: string;

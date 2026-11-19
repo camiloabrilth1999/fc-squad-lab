@@ -8,6 +8,7 @@ import {
   type Location,
   type MarketObservation,
   type ObjectivesImport,
+  type PacksMessage,
   type PageMessage,
   type Stats,
   type StatusMessage,
@@ -30,6 +31,8 @@ let market: MarketObservation[] = [];
 let evolutions: EvolutionsImport | null = null;
 // Objetivos: la respuesta trae todas las categorías; solo importa la última.
 let objectives: ObjectivesImport | null = null;
+// Nombres de sobres (id → nombre): cada lectura trae todos, solo importa la última.
+let packs: Record<string, string> | null = null;
 let raw: { url: string; body: unknown }[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 let flushing: Promise<void> = Promise.resolve();
@@ -39,6 +42,7 @@ export function _reset(): void {
   market = [];
   evolutions = null;
   objectives = null;
+  packs = null;
   raw = [];
   if (timer) clearTimeout(timer);
   timer = null;
@@ -61,6 +65,21 @@ async function updateStats(fn: (s: Stats) => void): Promise<void> {
   const s: Stats = { ...EMPTY_STATS, ...(stats as Partial<Stats> | undefined) };
   fn(s);
   await chrome.storage.local.set({ stats: s });
+}
+
+/** Nombres de sobres leídos por la página; se envían a `/import/packs` en el siguiente lote. */
+export function handlePacks(msg: PacksMessage): void {
+  try {
+    if (!msg || msg.source !== "fcsl-packs" || !msg.names || typeof msg.names !== "object") return;
+    const names = Object.fromEntries(
+      Object.entries(msg.names).filter(([id, name]) => /^\d+$/.test(id) && typeof name === "string"),
+    );
+    if (Object.keys(names).length === 0) return;
+    packs = names;
+    schedule();
+  } catch {
+    // nunca romper por un mensaje raro
+  }
 }
 
 export function handleMessage(msg: PageMessage): void {
@@ -109,17 +128,20 @@ async function doFlush(): Promise<void> {
   const pendingMarket = market;
   const pendingEvolutions = evolutions;
   const pendingObjectives = objectives;
+  const pendingPacks = packs;
   const pendingRaw = raw;
   club = new Map();
   market = [];
   evolutions = null;
   objectives = null;
+  packs = null;
   raw = [];
   if (
     !pendingClub.size &&
     !pendingMarket.length &&
     !pendingEvolutions &&
     !pendingObjectives &&
+    !pendingPacks &&
     !pendingRaw.length
   )
     return;
@@ -163,6 +185,15 @@ async function doFlush(): Promise<void> {
       path: "/import/objectives",
       body: pendingObjectives,
       items: pendingObjectives.categories.reduce((n, c) => n + c.groups.length, 0),
+      obs: 0,
+      raw: 0,
+    });
+  }
+  if (pendingPacks) {
+    jobs.push({
+      path: "/import/packs",
+      body: { names: pendingPacks },
+      items: Object.keys(pendingPacks).length,
       obs: 0,
       raw: 0,
     });
@@ -235,8 +266,9 @@ export async function handleStatus(msg: StatusMessage): Promise<void> {
 }
 
 if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
-  chrome.runtime.onMessage.addListener((msg: PageMessage | StatusMessage) => {
+  chrome.runtime.onMessage.addListener((msg: PageMessage | StatusMessage | PacksMessage) => {
     if (msg?.source === "fcsl-status") void handleStatus(msg);
+    else if (msg?.source === "fcsl-packs") handlePacks(msg);
     else handleMessage(msg as PageMessage);
   });
 }

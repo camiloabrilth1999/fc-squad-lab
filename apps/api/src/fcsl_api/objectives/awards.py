@@ -11,8 +11,13 @@ def _n(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
-def describe_award(award: dict[str, Any], names: dict[int, str]) -> dict[str, Any]:
-    """{type, label, count} de una recompensa; `names` mapea resource_id → nombre de jugador."""
+def describe_award(
+    award: dict[str, Any], names: dict[int, str], pack_names: dict[int, str] | None = None
+) -> dict[str, Any]:
+    """{type, label, count} de una recompensa.
+
+    `names` mapea resource_id → nombre de jugador y `pack_names` id de sobre → nombre.
+    """
     kind = str(award.get("type", ""))
     value = int(award.get("value") or 0)
     count = int(award.get("count") or 1)
@@ -22,7 +27,8 @@ def describe_award(award: dict[str, Any], names: dict[int, str]) -> dict[str, An
     elif kind == "xp":
         label = f"+{_n(amount)} XP"
     elif kind == "pack":
-        label = f"{count}× Sobre #{value}" if count > 1 else f"Sobre #{value}"
+        pack = (pack_names or {}).get(value) or f"Sobre #{value}"
+        label = f"{count}× {pack}" if count > 1 else pack
     elif kind == "item":
         item = award.get("item") or {}
         rid = item.get("resource_id", value)

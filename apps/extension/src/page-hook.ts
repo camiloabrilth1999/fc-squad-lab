@@ -1,4 +1,10 @@
-import { findCriteriaClass, runAutoImport, type AutoImportResult, type FutServices } from "./auto-import";
+import {
+  findCriteriaClass,
+  readPackNames,
+  runAutoImport,
+  type AutoImportResult,
+  type FutServices,
+} from "./auto-import";
 import { installHook } from "./hook";
 
 /** Tras iniciar sesión, espera a que la web app se asiente antes de leer el club. */
@@ -25,6 +31,16 @@ function report(result: AutoImportResult): void {
   }
 }
 
+/** Manda los nombres de sobres (lectura de memoria local, sin peticiones a EA). */
+function sendPackNames(services: unknown): void {
+  try {
+    const names = readPackNames(services);
+    if (Object.keys(names).length > 0) window.postMessage({ source: "fcsl-packs", names }, "*");
+  } catch {
+    /* ignorar */
+  }
+}
+
 function inCooldown(): boolean {
   try {
     const last = Number(sessionStorage.getItem(COOLDOWN_KEY));
@@ -46,6 +62,7 @@ async function start(): Promise<void> {
     const services = (window as unknown as { services?: FutServices }).services;
     const Criteria = findCriteriaClass(window);
     if (services?.Club?.search && Criteria) {
+      sendPackNames(services);
       report(await runAutoImport({ services, Criteria, sleep }));
       return;
     }
