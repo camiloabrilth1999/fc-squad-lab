@@ -99,6 +99,26 @@ def test_cache_expired_refetches(tmp_path):
     assert client.get_json("/x", cache_ttl_s=60) == {"n": 2}
 
 
+def test_get_text_returns_body_and_caches(tmp_path):
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, text=f"<html>{len(calls)}</html>")
+
+    client, _ = make_client(handler, tmp_path)
+    assert client.get_text("/p", cache_ttl_s=60) == "<html>1</html>"
+    assert client.get_text("/p", cache_ttl_s=60) == "<html>1</html>"  # caché
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("status", [403, 429])
+def test_get_text_blocked_raises(status):
+    client, _ = make_client(lambda r: httpx.Response(status))
+    with pytest.raises(SourceBlocked):
+        client.get_text("/p")
+
+
 def test_make_client_uses_configured_user_agent(monkeypatch):
     from fcsl_api.ingest.http import make_client
 

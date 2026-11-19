@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import any_, delete, func, literal, or_, select
 from sqlalchemy.orm import Session
 
-from ..models_db import Card, ClubItem, Price, SyncRun
+from ..meta.compute import compute_meta
+from ..models_db import Card, CardAttributes, ClubItem, Price, SyncRun
 from ..prices import effective_prices
 from ..solver import models as solver_models
 from ..solver.valuation import card_cost
@@ -41,6 +42,8 @@ class ClubRow(BaseModel):
     price_source: str | None
     value: int
     seen_at: datetime | None
+    meta: float | None = None
+    meta_role: str | None = None
 
 
 class ClubSummary(BaseModel):
@@ -115,6 +118,14 @@ def _value(item: ClubItem, card: Card | None, price: int | None) -> int:
     return round(used * TRADEABLE_FACTOR)
 
 
+def _meta(stats: dict | None, card: Card | None) -> tuple[float | None, str | None]:
+    """Meta rating de la carta en el rol de su primera posición (None sin stats)."""
+    if not stats or card is None or not card.positions:
+        return None, None
+    m = compute_meta(stats, card)
+    return (round(m.value, 1) if m.value is not None else None), m.role
+
+
 @router.get("/club", response_model=ClubPage)
 def get_club(
     session: DbSession,
@@ -156,9 +167,18 @@ def get_club(
     pairs = [(i, c) for i, c in session.execute(stmt)]
     resource_ids = {i.resource_id for i, _ in pairs if i.resource_id is not None}
     effective = effective_prices(session, resource_ids, now)
+    stats_by_rid = {
+        rid: stats
+        for rid, stats in session.execute(
+            select(CardAttributes.resource_id, CardAttributes.stats).where(
+                CardAttributes.resource_id.in_(resource_ids)
+            )
+        )
+    }
 
     rows: list[ClubRow] = []
     for item, card in pairs:
+        meta, meta_role = _meta(stats_by_rid.get(item.resource_id or -1), card)
         price, source = _price_used(item, effective.get(item.resource_id or -1))
         rows.append(
             ClubRow(
@@ -179,6 +199,8 @@ def get_club(
                 price_source=source,
                 value=_value(item, card, price),
                 seen_at=item.seen_at,
+                meta=meta,
+                meta_role=meta_role,
             )
         )
     summary = ClubSummary(

@@ -2,6 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     ARRAY,
+    JSON,
     BigInteger,
     Boolean,
     DateTime,
@@ -38,6 +39,22 @@ class Card(Base):
     rarity_ea_id: Mapped[int | None] = mapped_column(Integer)
     rarity_name: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str | None] = mapped_column(Text)
+    accelerate_type: Mapped[str | None] = mapped_column(Text)
+    play_styles: Mapped[list[int] | None] = mapped_column(ARRAY(Integer))
+    play_styles_plus: Mapped[list[int] | None] = mapped_column(ARRAY(Integer))
+    skill_moves: Mapped[int | None] = mapped_column(SmallInteger)
+    weak_foot: Mapped[int | None] = mapped_column(SmallInteger)
+    height: Mapped[int | None] = mapped_column(SmallInteger)
+
+
+class CardAttributes(Base):
+    """Stats in-game detallados por carta (de la ficha de FUT.GG), para el meta rating."""
+
+    __tablename__ = "card_attributes"
+
+    resource_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    stats: Mapped[dict] = mapped_column(JSON, nullable=False)  # nombre de stat -> valor
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Price(Base):

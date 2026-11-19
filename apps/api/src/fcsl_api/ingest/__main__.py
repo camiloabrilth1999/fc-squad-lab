@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from fcsl_api.db import get_session
 from fcsl_api.ingest import easysbc, futgg
 from fcsl_api.ingest.http import make_client
-from fcsl_api.ingest.sync import sync_cards, sync_prices
+from fcsl_api.ingest.sync import sync_cards, sync_club_attributes, sync_prices
 from fcsl_api.models_db import Card, Price, SyncRun
 
 API_DIR = Path(__file__).resolve().parents[3]  # apps/api, sin depender del CWD
@@ -59,6 +59,9 @@ def main(argv: list[str] | None = None) -> int:
         cmd = sub.add_parser(name)
         cmd.add_argument("--max-pages", type=int, default=None)
         cmd.add_argument("--no-cache", action="store_true", help="ignora la caché de disco")
+    attrs = sub.add_parser("sync-club-attributes")
+    attrs.add_argument("--limit", type=int, default=None, help="máximo de cartas a descargar")
+    attrs.add_argument("--no-cache", action="store_true", help="ignora la caché de disco")
     sub.add_parser("status")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -66,6 +69,12 @@ def main(argv: list[str] | None = None) -> int:
     with get_session() as session:
         if args.command == "status":
             return _status(session)
+        if args.command == "sync-club-attributes":
+            client = make_client(futgg.BASE_URL, cache_dir=cache_dir("futgg", args.no_cache))
+            try:
+                return _print_run(sync_club_attributes(session, client, limit=args.limit))
+            finally:
+                client.close()
         if args.command == "sync-cards":
             client = make_client(futgg.BASE_URL, cache_dir=cache_dir("futgg", args.no_cache))
             sync = sync_cards

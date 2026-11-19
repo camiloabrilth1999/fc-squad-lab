@@ -1,0 +1,58 @@
+from fcsl_api.ingest.futgg_detail import parse_card_attributes
+
+# Formato real de FUT.GG: bloque contiguo de `attribute<Nombre>:<n>` (cada stat una
+# vez), y más adelante `attributeStrength` sueltos de cartas relacionadas.
+FIXTURE = (
+    'foo.webp",eaId:84117827,x:1,'
+    "attributeAcceleration:98,attributeSprintSpeed:97,attributeStrength:79,"
+    "attributeFinishing:96,attributeBallControl:94,attributeDefensiveAwareness:17,"
+    "attributeShortPassing:88,attributeGkDiving:13,"
+    'next:"card",attributeStrength:88,attributeStrength:85'  # sueltos de otras cartas
+)
+
+
+def test_parse_extracts_main_block_and_maps_names():
+    a = parse_card_attributes(FIXTURE, 84117827)
+    assert a["acceleration"] == 98
+    assert a["sprint_speed"] == 97
+    assert a["finishing"] == 96
+    assert a["ball_control"] == 94
+    assert a["def_awareness"] == 17
+    assert a["short_passing"] == 88
+
+
+def test_parse_ignores_stray_later_attributes():
+    a = parse_card_attributes(FIXTURE, 84117827)
+    assert a["strength"] == 79  # el del bloque principal, no los 88/85 sueltos
+
+
+def test_parse_includes_gk_stats():
+    a = parse_card_attributes(FIXTURE, 84117827)
+    assert a["gk_diving"] == 13  # los de portero también se guardan
+
+
+def test_parse_wrong_card_returns_none():
+    assert parse_card_attributes(FIXTURE, 99999999) is None  # el HTML no es de esa carta
+
+
+def test_parse_no_attributes_returns_none():
+    assert parse_card_attributes("eaId:84117827,sin:stats", 84117827) is None
+
+
+class _FakeClient:
+    def __init__(self, html: str) -> None:
+        self.html = html
+        self.calls: list[str] = []
+
+    def get_text(self, path: str, params=None, cache_ttl_s: int = 0) -> str:
+        self.calls.append(path)
+        return self.html
+
+
+def test_fetch_builds_detail_url_and_parses():
+    from fcsl_api.ingest.futgg_detail import fetch_card_attributes
+
+    client = _FakeClient(FIXTURE)
+    attrs = fetch_card_attributes(client, "231747-kylian-mbappe", 84117827)
+    assert attrs["finishing"] == 96
+    assert client.calls == ["/players/231747-kylian-mbappe/27-84117827/"]
