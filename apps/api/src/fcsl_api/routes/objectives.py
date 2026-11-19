@@ -8,7 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import and_, delete, func, or_, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 
-from ..models_db import Card, ObjectiveCategory, ObjectiveGroup
+from ..ingest.store import upsert_catalog
+from ..models_db import Card, Catalog, ObjectiveCategory, ObjectiveGroup
 from ..objectives.awards import describe_award
 from .imports import DbSession, require_token
 
@@ -114,6 +115,21 @@ def import_objectives(body: ImportObjectivesBody, session: DbSession) -> dict[st
     return {"categories": len(body.categories), "groups": n_groups}
 
 
+class ImportPacksBody(BaseModel):
+    names: dict[str, str]
+
+
+@import_router.post("/packs")
+def import_pack_names(body: ImportPacksBody, session: DbSession) -> dict[str, int]:
+    """Nombres de sobres (id → nombre) leídos de la tabla de traducciones de la web app."""
+    entries = [
+        ("pack", int(pack_id), name.strip())
+        for pack_id, name in body.names.items()
+        if pack_id.isdigit() and name.strip()
+    ]
+    return {"packs": upsert_catalog(session, entries)}
+
+
 # ----------------------------- consulta -------------------------------------------------
 class AwardOut(BaseModel):
     type: str
@@ -190,11 +206,15 @@ def _item_ids(groups: list[ObjectiveGroup]) -> set[int]:
     return ids
 
 
-def _awards(raw: list[dict[str, Any]] | None, names: dict[int, str]) -> list[AwardOut]:
-    return [AwardOut(**describe_award(a, names)) for a in raw or []]
+def _awards(
+    raw: list[dict[str, Any]] | None, names: dict[int, str], packs: dict[int, str]
+) -> list[AwardOut]:
+    return [AwardOut(**describe_award(a, names, packs)) for a in raw or []]
 
 
-def _out(g: ObjectiveGroup, cats: dict[int, str], names: dict[int, str]) -> GroupOut:
+def _out(
+    g: ObjectiveGroup, cats: dict[int, str], names: dict[int, str], packs: dict[int, str]
+) -> GroupOut:
     data = g.data or {}
     tasks = data.get("objectives") or []
     return GroupOut(
@@ -212,7 +232,7 @@ def _out(g: ObjectiveGroup, cats: dict[int, str], names: dict[int, str]) -> Grou
         progress=Progress(
             done=sum(1 for t in tasks if t.get("state") == "REDEEMED"), total=len(tasks)
         ),
-        awards=_awards(data.get("awards"), names),
+        awards=_awards(data.get("awards"), names, packs),
         objectives=[
             TaskOut(
                 id=t["id"],
@@ -221,7 +241,7 @@ def _out(g: ObjectiveGroup, cats: dict[int, str], names: dict[int, str]) -> Grou
                 progress=t.get("progress"),
                 target=t.get("target"),
                 state=t.get("state"),
-                awards=_awards(t.get("awards"), names),
+                awards=_awards(t.get("awards"), names, packs),
             )
             for t in tasks
         ],
@@ -275,7 +295,10 @@ def list_objectives(
         else {}
     )
     cats = {c.id: c.name for c in session.scalars(select(ObjectiveCategory))}
-    return ObjectivesPage(items=[_out(g, cats, names) for g in groups], total=total)
+    packs = {
+        c.ea_id: c.name for c in session.scalars(select(Catalog).where(Catalog.kind == "pack"))
+    }
+    return ObjectivesPage(items=[_out(g, cats, names, packs) for g in groups], total=total)
 
 
 @router.get("/categories", response_model=list[CategoryOut])

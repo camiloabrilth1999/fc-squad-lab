@@ -30,7 +30,13 @@ MAX_BODY_BYTES = 2 * 1024 * 1024
 PRICE_SOURCE = "ea-session"
 PRICE_PLATFORM = "PC"
 CAPPED_PATHS = frozenset(
-    {"/import/club", "/import/market", "/import/evolutions", "/import/objectives"}
+    {
+        "/import/club",
+        "/import/market",
+        "/import/evolutions",
+        "/import/objectives",
+        "/import/packs",
+    }
 )
 TOO_LARGE = "Cuerpo demasiado grande"
 

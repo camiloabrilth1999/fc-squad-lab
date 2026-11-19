@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { findCriteriaClass, runAutoImport, type FutServices, type ServiceResult } from "../auto-import";
+import { findCriteriaClass, runAutoImport, type FutServices, type ServiceResult, readPackNames } from "../auto-import";
 
 class FakeCriteria {
   type = "";
@@ -100,5 +100,27 @@ describe("runAutoImport", () => {
     const all = { ...services, TransferMarket: { search: forbidden, bid: forbidden }, Item: { ...services.Item, move: forbidden, list: forbidden } };
     await runAutoImport({ services: all, Criteria: FakeCriteria, sleep: noSleep });
     expect(forbidden).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("readPackNames", () => {
+  const dict = {
+    FUT_STORE_PACK_304_NAME: "Sobre de oro raro",
+    FUT_STORE_PACK_304_NAME_MOBILE: "Sobre oro raro (móvil)",
+    FUT_STORE_PACK_304_DESC: "Contiene 12 futbolistas",
+    FUT_STORE_PACK_1050_NAME: "Sobre de jugador 85+",
+    FUT_STORE_PACK_X_NAME: "no es un id",
+    OTRA_CLAVE: "ignorada",
+  };
+  const services = { Localization: { repository: { _collection: dict } } };
+
+  it("devuelve id → nombre, sin las variantes móvil ni las descripciones", () => {
+    expect(readPackNames(services)).toEqual({ "304": "Sobre de oro raro", "1050": "Sobre de jugador 85+" });
+  });
+  it("devuelve {} si la web app no expone la localización", () => {
+    expect(readPackNames({})).toEqual({});
+    expect(readPackNames(null)).toEqual({});
+    expect(readPackNames({ Localization: { repository: {} } })).toEqual({});
   });
 });

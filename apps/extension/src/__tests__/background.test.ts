@@ -210,3 +210,23 @@ describe("objetivos", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+
+describe("nombres de sobres", () => {
+  it("envía los nombres a /import/packs", async () => {
+    bg.handlePacks({ source: "fcsl-packs", names: { "304": "Sobre de oro raro", "1050": "Sobre 85+" } });
+    await bg.flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8787/import/packs");
+    expect(JSON.parse(init.body)).toEqual({ names: { "304": "Sobre de oro raro", "1050": "Sobre 85+" } });
+    expect(init.headers["X-FCSL-Token"]).toBe("tok");
+  });
+  it("ignora mensajes vacíos o raros", async () => {
+    bg.handlePacks({ source: "fcsl-packs", names: {} });
+    bg.handlePacks({ source: "otro" } as never);
+    bg.handlePacks({ source: "fcsl-packs", names: "no" } as never);
+    await bg.flush();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

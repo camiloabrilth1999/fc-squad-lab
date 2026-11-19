@@ -16,7 +16,8 @@ try {
     try {
       if (event.source !== window) return;
       const data = event.data as { source?: unknown } | null;
-      if (!data || (data.source !== "fcsl" && data.source !== "fcsl-status")) return;
+      if (!data || (data.source !== "fcsl" && data.source !== "fcsl-status" && data.source !== "fcsl-packs"))
+        return;
       void chrome.runtime.sendMessage(data).catch(() => {});
     } catch {
       /* ignorar */
