@@ -16,6 +16,12 @@ Proyecto personal de Camilo: web local para EA FC 27 Ultimate Team (solver de SB
 - Cada máquina tiene **su propia** base de datos, `apps/api/.env` (token `FCSL_IMPORT_TOKEN` propio, nunca mostrarlo en el chat), caché (`apps/api/var/`) y `apps/extension/dist/`. Nada de eso va al repo.
 - Cartas y precios se rellenan en cada máquina con `make sync-cards` y `make sync-prices` (~30 min en total).
 - La extensión de cada máquina apunta a su propio API (`http://localhost:8787`).
+- **Ojo con la copia de la extensión**: en esta máquina Chrome carga la extensión desde una copia en
+  Windows (`C:\Users\Camilo\fc-squad-lab-extension`), no desde `apps/extension/dist/` de WSL. Tras
+  `npm run build` hay que copiar el `dist` a esa carpeta (`/mnt/c/Users/Camilo/fc-squad-lab-extension`)
+  y recargar la extensión en `chrome://extensions`; si no, Chrome sigue con el código viejo y los
+  imports nuevos (Evoluciones, Objetivos) no llegan. Se comprueba mirando desde qué ruta la carga
+  Chrome (`Secure Preferences`) o comparando hashes de `background.js`.
 - Mac: Postgres.app 16 en `/Applications/Postgres.app/Contents/Versions/16/bin`, cluster en `~/Library/Application Support/Postgres/var-16-fcsl`, sin Docker ni Homebrew en este usuario.
 - Windows: trabajar **dentro de WSL2 (Ubuntu)**, en `~/code/fc-squad-lab`, no en `/mnt/c`. Postgres 16 de apt; ajustar `PG_BIN`/`PG_DATA` del Makefile por variable (`make db-start PG_BIN=... PG_DATA=...`) en vez de cambiar los valores del Mac.
 
