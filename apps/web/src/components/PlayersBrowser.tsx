@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 import { formatNumber } from "../lib/format";
+import CardImage, { Badge } from "./CardImage";
 import PlayerDetail from "./PlayerDetail";
 import { useCatalog } from "../lib/useCatalog";
 
@@ -19,6 +20,9 @@ type Player = {
   meta_source: "stats" | "face";
   tier: string;
   price: number | null;
+  image_path?: string | null;
+  nation_image?: string | null;
+  club_image?: string | null;
 };
 type Page = { items: Player[]; total: number; page: number; page_size: number };
 
@@ -274,20 +278,35 @@ export default function PlayersBrowser({ apiUrl }: { apiUrl: string }) {
                   <Fragment key={p.resource_id}>
                   <tr className="border-b border-line/60 last:border-0">
                     <td className="px-4 py-2">
-                      <button
-                        type="button"
-                        aria-expanded={openId === p.resource_id}
-                        onClick={() => setOpenId(openId === p.resource_id ? null : p.resource_id)}
-                        className="font-medium hover:underline"
-                      >
-                        {p.name ?? "Carta"}
-                      </button>
-                      {p.rarity_name ? (
-                        <span className="ml-2 text-xs text-muted">{p.rarity_name}</span>
-                      ) : null}
-                      <span className="block text-xs text-muted">
-                        {[p.club_name, p.league_name, p.nation_name].filter(Boolean).join(" · ")}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 shrink-0">
+                          <CardImage
+                            path={p.image_path}
+                            rating={p.rating}
+                            position={p.positions[0]}
+                            alt={`Carta de ${p.name ?? "jugador"}`}
+                            width={100}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            aria-expanded={openId === p.resource_id}
+                            onClick={() => setOpenId(openId === p.resource_id ? null : p.resource_id)}
+                            className="font-medium hover:underline"
+                          >
+                            {p.name ?? "Carta"}
+                          </button>
+                          {p.rarity_name ? (
+                            <span className="ml-2 text-xs text-muted">{p.rarity_name}</span>
+                          ) : null}
+                          <span className="flex items-center gap-1 text-xs text-muted">
+                            <Badge path={p.nation_image} alt={p.nation_name ?? "Nación"} size={14} />
+                            <Badge path={p.club_image} alt={p.club_name ?? "Club"} size={14} />
+                            {[p.club_name, p.league_name, p.nation_name].filter(Boolean).join(" · ")}
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-2 py-2 text-muted">{p.positions.slice(0, 3).join(" · ")}</td>
                     <td className="px-2 py-2 text-right font-mono tabular-nums">{p.rating ?? "–"}</td>

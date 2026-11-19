@@ -3,6 +3,7 @@
 from collections.abc import Iterable
 from dataclasses import asdict
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import delete, func
 from sqlalchemy.dialects.postgresql import insert
@@ -12,7 +13,14 @@ from fcsl_api.ingest.easysbc import PriceRow
 from fcsl_api.ingest.futgg import CardRow
 from fcsl_api.models_db import Card, CardAttributes, Catalog, Price, SyncRun
 
-_NAME_FIELDS = ("league_name", "nation_name", "club_name")
+_NAME_FIELDS = (
+    "league_name",
+    "nation_name",
+    "club_name",
+    "league_image",
+    "nation_image",
+    "club_image",
+)
 
 
 def _card_columns(r: CardRow) -> dict:
@@ -20,30 +28,41 @@ def _card_columns(r: CardRow) -> dict:
     return {k: v for k, v in asdict(r).items() if k not in _NAME_FIELDS}
 
 
-def catalog_entries(rows: Iterable[CardRow]) -> dict[tuple[str, int], str]:
-    """(tipo, ea_id) → nombre de las ligas, naciones y clubes de las cartas dadas."""
-    out: dict[tuple[str, int], str] = {}
+def catalog_entries(rows: Iterable[CardRow]) -> dict[tuple[str, int], tuple[str, str | None]]:
+    """(tipo, ea_id) → (nombre, imagen) de las ligas, naciones y clubes de las cartas dadas."""
+    out: dict[tuple[str, int], tuple[str, str | None]] = {}
     for r in rows:
-        for kind, ea_id, name in (
-            ("league", r.league_id, r.league_name),
-            ("nation", r.nation_id, r.nation_name),
-            ("club", r.club_id, r.club_name),
+        for kind, ea_id, name, image in (
+            ("league", r.league_id, r.league_name, r.league_image),
+            ("nation", r.nation_id, r.nation_name, r.nation_image),
+            ("club", r.club_id, r.club_name, r.club_image),
         ):
             if ea_id is not None and name:
-                out[kind, ea_id] = name
+                out[kind, ea_id] = (name, image)
     return out
 
 
-def upsert_catalog(session: Session, entries: Iterable[tuple[str, int, str]]) -> int:
-    """Inserta o actualiza nombres del catálogo; devuelve cuántas entradas distintas."""
-    unique = {(k, i): n for k, i, n in entries}
+def upsert_catalog(session: Session, entries: Iterable[tuple[Any, ...]]) -> int:
+    """Inserta o actualiza el catálogo: (tipo, id, nombre) o (tipo, id, nombre, imagen).
+
+    Una actualización sin imagen no borra la que ya había.
+    """
+    unique: dict[tuple[str, int], tuple[str, str | None]] = {}
+    for e in entries:
+        unique[e[0], e[1]] = (e[2], e[3] if len(e) > 3 else None)
     if not unique:
         return 0
-    values = [{"kind": k, "ea_id": i, "name": n} for (k, i), n in unique.items()]
+    values = [
+        {"kind": k, "ea_id": i, "name": n, "image_path": img} for (k, i), (n, img) in unique.items()
+    ]
     stmt = insert(Catalog).values(values)
     session.execute(
         stmt.on_conflict_do_update(
-            index_elements=[Catalog.kind, Catalog.ea_id], set_={"name": stmt.excluded.name}
+            index_elements=[Catalog.kind, Catalog.ea_id],
+            set_={
+                "name": stmt.excluded.name,
+                "image_path": func.coalesce(stmt.excluded.image_path, Catalog.image_path),
+            },
         )
     )
     session.commit()

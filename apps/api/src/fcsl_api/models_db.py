@@ -47,6 +47,8 @@ class Card(Base):
     weak_foot: Mapped[int | None] = mapped_column(SmallInteger)
     height: Mapped[int | None] = mapped_column(SmallInteger)
     face_stats: Mapped[dict | None] = mapped_column(JSON)  # stats de la cara + fuerza (listado)
+    image_path: Mapped[str | None] = mapped_column(Text)  # carta completa (CDN de FUT.GG)
+    portrait_path: Mapped[str | None] = mapped_column(Text)  # retrato del jugador
 
 
 class CardAttributes(Base):
@@ -67,6 +69,7 @@ class Catalog(Base):
     kind: Mapped[str] = mapped_column(Text, primary_key=True)  # league | nation | club
     ea_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    image_path: Mapped[str | None] = mapped_column(Text)  # escudo / bandera / liga (CDN de FUT.GG)
 
 
 class EvolutionCategory(Base):

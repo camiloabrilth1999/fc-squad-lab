@@ -27,6 +27,7 @@ class Match:
     unknown: list[str] = field(default_factory=list)
     meta_before: float | None = None
     meta_after: float | None = None
+    image_path: str | None = None
 
     @property
     def meta_gain(self) -> float | None:
@@ -92,6 +93,7 @@ class ClubEvaluator:
             unknown=missing,
             meta_before=round(before, 1) if before is not None else None,
             meta_after=round(after, 1) if after is not None else None,
+            image_path=card.image_path,
         )
 
     def matches(self, evo: Evolution) -> list[Match]:

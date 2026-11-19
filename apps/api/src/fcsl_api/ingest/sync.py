@@ -34,7 +34,7 @@ def sync_cards(session: Session, client: PoliteClient, max_pages: int | None = N
     error: str | None = None
     coverage: list[str] = []
     batch: list[CardRow] = []
-    names: dict[tuple[str, int], str] = {}
+    names: dict[tuple[str, int], tuple[str, str | None]] = {}
     try:
         try:
             for row in iter_futgg_cards(client, max_pages=max_pages, coverage=coverage):
@@ -50,7 +50,7 @@ def sync_cards(session: Session, client: PoliteClient, max_pages: int | None = N
             logger.warning("sync de cartas interrumpida: %s", error)
         names.update(catalog_entries(batch))
         saved += upsert_cards(session, batch, SOURCE)  # lo ya descargado se conserva
-        upsert_catalog(session, [(k, i, n) for (k, i), n in names.items()])
+        upsert_catalog(session, [(k, i, n, img) for (k, i), (n, img) in names.items()])
     except SQLAlchemyError as exc:
         session.rollback()
         error = f"{type(exc).__name__}: {exc}"

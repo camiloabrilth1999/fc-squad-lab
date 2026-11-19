@@ -27,6 +27,7 @@ class BargainRow(BaseModel):
     tier: str
     price: int
     score: float  # percentil de meta − percentil de precio, dentro del rol (−1..1)
+    image_path: str | None = None
 
 
 class BargainsPage(BaseModel):
@@ -39,6 +40,7 @@ class FodderCard(BaseModel):
     positions: list[str]
     rarity_name: str | None
     price: int
+    image_path: str | None = None
 
 
 class FodderGroup(BaseModel):
@@ -110,6 +112,7 @@ def bargains(
                 tier=m.tier,
                 price=price,
                 score=round(float(s), 3),
+                image_path=c.image_path,
             )
             for c, m, price, s in rows
         ]
@@ -151,6 +154,7 @@ def fodder(
                 positions=c.positions or [],
                 rarity_name=c.rarity_name,
                 price=price,
+                image_path=c.image_path,
             )
         )
     return [

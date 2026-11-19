@@ -22,6 +22,14 @@ que ninguna decisión ni tarea se pierda. Diseño general en
 - **Web**: "Mi club" y página de SBC conectada al backend.
 - 337 tests + ruff en verde; benchmark de rendimiento (lento) pasa.
 - PR #1 mezclado en `main` (Fases 0–1).
+- **Cesiones (Hazard, Lukaku…)**: la extensión lee `loansInfo` (MATCH_LOAN = partidos
+  que quedan, USER_TIME_LIMIT_LOAN = fecha de fin). Quedan fuera de SBC, evoluciones,
+  plan y valor del club; el Squad Builder las excluye salvo "Incluir cesiones". Las
+  temporales caducadas no se muestran.
+- **Rediseño visual**: imágenes de cartas, banderas y escudos (rutas del CDN de FUT.GG
+  guardadas en `cards`/`catalog`); Mi club en cuadrícula de cartas (vista Tabla
+  alternativa) con insignia de cesión, Plantillas con cartas en el campo, miniaturas
+  en Jugadores y resumen del club en la portada.
 
 ## En curso
 

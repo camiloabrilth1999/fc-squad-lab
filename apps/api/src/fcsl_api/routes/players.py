@@ -39,6 +39,9 @@ class PlayerRow(BaseModel):
     tier: str
     price: int | None
     price_source: str | None
+    image_path: str | None = None
+    nation_image: str | None = None
+    club_image: str | None = None
 
 
 class PlayersPage(BaseModel):
@@ -71,6 +74,8 @@ class PlayerDetail(BaseModel):
     weak_foot: int | None
     play_styles: list[int] = Field(default_factory=list)
     play_styles_plus: list[int] = Field(default_factory=list)
+    image_path: str | None = None
+    portrait_path: str | None = None
     play_style_names: list[str] = Field(default_factory=list)
     play_style_plus_names: list[str] = Field(default_factory=list)
     league_name: str | None = None
@@ -115,7 +120,16 @@ def list_players(
     )
     league_c, nation_c, club_c = (aliased(Catalog) for _ in range(3))
     base = (
-        select(Card, CardMeta, market.c.price, league_c.name, nation_c.name, club_c.name)
+        select(
+            Card,
+            CardMeta,
+            market.c.price,
+            league_c.name,
+            nation_c.name,
+            club_c.name,
+            nation_c.image_path,
+            club_c.image_path,
+        )
         .join(CardMeta, CardMeta.resource_id == Card.resource_id)
         .outerjoin(market, market.c.rid == Card.resource_id)
         .outerjoin(league_c, (league_c.kind == "league") & (league_c.ea_id == Card.league_id))
@@ -188,8 +202,11 @@ def list_players(
             tier=m.tier,
             price=prices[c.resource_id][0] if c.resource_id in prices else None,
             price_source=prices[c.resource_id][1] if c.resource_id in prices else None,
+            image_path=c.image_path,
+            nation_image=nation_image,
+            club_image=club_image,
         )
-        for c, m, _, league_name, nation_name, club_name in found
+        for c, m, _, league_name, nation_name, club_name, nation_image, club_image in found
     ]
     return PlayersPage(items=items, total=total or 0, page=page, page_size=page_size)
 
@@ -239,6 +256,8 @@ def get_player(resource_id: int, session: DbSession) -> PlayerDetail:
         weak_foot=card.weak_foot,
         play_styles=card.play_styles or [],
         play_styles_plus=card.play_styles_plus or [],
+        image_path=card.image_path,
+        portrait_path=card.portrait_path,
         play_style_names=playstyle_names(card.play_styles),
         play_style_plus_names=playstyle_names(card.play_styles_plus),
         league_name=_catalog_name(session, "league", card.league_id),
