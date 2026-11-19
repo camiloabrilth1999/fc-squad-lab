@@ -52,7 +52,7 @@ class SquadSlot(BaseModel):
     name: str
     rating: int
     meta: float
-    meta_source: Literal["stats", "rating"]  # "rating" = sin stats (o portero): se usa el rating
+    meta_source: Literal["stats", "face", "rating"]  # face = estimado; rating = sin datos
     chemistry: int
     in_position: bool = True
     source: Literal["club", "market"] = "club"
@@ -164,7 +164,7 @@ def _build(session: Session, req: SquadBuildRequest, formation: str) -> SquadBui
     slot_positions = set(slots)
     allowed: dict[str, set[str]] = {}
     meta: dict[str, dict[str, float]] = {}
-    source: dict[str, Literal["stats", "rating"]] = {}
+    source: dict[str, Literal["stats", "face", "rating"]] = {}
     for card in cards:
         row = rows.get(card.resource_id) or card
         card_stats = stats.get(card.resource_id)

@@ -140,9 +140,15 @@ def _corr(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def fit_family(
-    ds: Dataset, family: str | None = None, *, ridge: float = 50.0, folds: int = 5, seed: int = 0
+    ds: Dataset,
+    family: str | None = None,
+    names: list[str] | None = None,
+    *,
+    ridge: float = 50.0,
+    folds: int = 5,
+    seed: int = 0,
 ) -> FitResult:
-    names = feature_names(family or "")
+    names = names or feature_names(family or "")
     keep = [j for j in range(ds.X.shape[1]) if ds.X[:, j].std() > 0]
     X, y = ds.X[:, keep], ds.y
     intercept, beta = _fit_nnls(X, y, ridge)
@@ -169,6 +175,47 @@ def fit_all(session: Session, ref: dict[int, dict], min_cards: int = 40) -> dict
         if len(ds.y) < min_cards:
             continue
         r = fit_family(ds, fam)
+        out[fam] = {
+            "intercept": round(r.intercept, 4),
+            "coef": {k: round(v, 4) for k, v in sorted(r.coef.items())},
+            "n": r.n,
+            "r2": round(r.r2, 3),
+            "cv_corr": round(r.cv_corr, 3),
+        }
+    return out
+
+
+def build_face_dataset(
+    session: Session, ref: dict[int, dict], family: str, min_rating: int = 60
+) -> Dataset:
+    """Cartas con stats de cara y referencia, de una familia: características por cara."""
+    from .face import face_feature_vector
+
+    ids, rows, ys = [], [], []
+    for card in session.scalars(
+        select(Card).where(Card.rating >= min_rating, Card.face_stats.is_not(None))
+    ):
+        if not card.positions or family_of(card.positions[0]) != family or not card.face_stats:
+            continue
+        r = ref.get(card.resource_id)
+        if r is None:
+            continue
+        ids.append(card.resource_id)
+        rows.append(face_feature_vector(card, family))
+        ys.append(float(r["metaRatingZeroChem"]))
+    return Dataset(ids, np.array(rows).reshape(len(rows), -1), np.array(ys))
+
+
+def fit_face_all(session: Session, ref: dict[int, dict], min_cards: int = 100) -> dict[str, dict]:
+    """Ajusta el modelo por cara de cada rol con muestra suficiente."""
+    from .face import face_feature_names
+
+    out: dict[str, dict] = {}
+    for fam in FAMILIES:
+        ds = build_face_dataset(session, ref, fam)
+        if len(ds.y) < min_cards:
+            continue
+        r = fit_family(ds, fam, names=face_feature_names(fam), ridge=5.0)
         out[fam] = {
             "intercept": round(r.intercept, 4),
             "coef": {k: round(v, 4) for k, v in sorted(r.coef.items())},

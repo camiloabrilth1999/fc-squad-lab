@@ -16,6 +16,7 @@ from fcsl_api.meta.calibration import (
     FAMILIES,
     build_dataset,
     fit_all,
+    fit_face_all,
     fit_family,
     load_reference,
     sample_resource_ids,
@@ -87,6 +88,27 @@ def fit() -> int:
     return 0
 
 
+def fit_face() -> int:
+    import json
+    from datetime import date
+
+    from fcsl_api.meta.face import FACE_WEIGHTS_FILE
+
+    ref = load_reference(CACHE / "easysbc")
+    with get_session() as session:
+        roles = fit_face_all(session, ref)
+    doc = {
+        "generated": date.today().isoformat(),
+        "note": "modelo por stats de la cara (ridge, coef >= 0); ver meta/face.py",
+        "roles": roles,
+    }
+    FACE_WEIGHTS_FILE.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    for name, r in roles.items():
+        print(f"{name}: n={r['n']} R2={r['r2']} corrCV={r['cv_corr']}")
+    print("escrito", FACE_WEIGHTS_FILE)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="fcsl_api.meta")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -95,12 +117,22 @@ def main(argv: list[str] | None = None) -> int:
     f.add_argument("--limit", type=int, default=None)
     sub.add_parser("report")
     sub.add_parser("fit")
+    sub.add_parser("fit-face")
+    sub.add_parser("materialize")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.WARNING)
     if args.command == "fetch-sample":
         return fetch_sample(args.per_family, args.limit)
     if args.command == "fit":
         return fit()
+    if args.command == "fit-face":
+        return fit_face()
+    if args.command == "materialize":
+        from fcsl_api.meta.materialize import materialize_meta
+
+        with get_session() as session:
+            print("card_meta:", materialize_meta(session), "filas")
+        return 0
     return report()
 
 
