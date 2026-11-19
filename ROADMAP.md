@@ -58,8 +58,12 @@ que ninguna decisión ni tarea se pierda. Diseño general en
     AcceleRATE y estrellas leídos del listado (migración 0004, `meta/compute.py`); (c) ~~calibrar pesos~~ HECHO (ver arriba); (d) ~~stats de portero propios~~ HECHO; (e) ~~PlayStyles no-plus~~ HECHO (0.5 c/u).
 - **Squad Builder — Fase A (solo club): API HECHA** (`POST /squad/build`, `squad/builder.py`,
   en posición, Σ meta + química; óptimo al instante con tu club real) + **página web
-  `/plantillas` HECHA** (formación, química mínima, once sobre la cancha). Falta jugar
-  fuera de posición y meta por (carta, hueco). Descripción original: "mejor XI de tu club" maximizando
+  `/plantillas` HECHA** (formación, química mínima, once sobre la cancha). **Fuera de posición: HECHO**
+  (modos none / family / any, tope `max_out_of_position`, meta por (carta, posición) con el rol
+  del hueco; el jugador fuera de posición pierde su química, como en el juego). Con el peso de
+  química por defecto (1,5 de meta por punto) el once de tu club no cambia: jugar fuera de
+  posición no compensa perder 3 de química; con `chem_weight` 0 sí aparecen. Falta decidir
+  si ese peso es el correcto (calibrar contra `metaRating` con química de EasySBC). Descripción original: "mejor XI de tu club" maximizando
   meta + química (la función "best possible squad" de EasySBC). Reusa el solver;
   objetivo = maximizar Σ meta en vez de minimizar coste.
 

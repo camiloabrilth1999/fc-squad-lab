@@ -12,6 +12,7 @@ type Slot = {
   meta: number;
   meta_source: "stats" | "rating";
   chemistry: number;
+  in_position: boolean;
 };
 type BuildResult = {
   status: string;
@@ -22,6 +23,13 @@ type BuildResult = {
   team_chemistry: number;
   solve_time_s: number;
   message: string | null;
+};
+
+export type OopMode = "none" | "family" | "any";
+export const OOP_LABELS: Record<OopMode, string> = {
+  none: "Solo en posición",
+  family: "Posiciones afines",
+  any: "Cualquier posición",
 };
 
 export const FORMATIONS = [
@@ -52,6 +60,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
   const [formation, setFormation] = useState("442");
   const [minChem, setMinChem] = useState(0);
+  const [oop, setOop] = useState<OopMode>("family");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [result, setResult] = useState<BuildResult | null>(null);
@@ -64,7 +73,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
       const r = await fetch(`${apiUrl}/squad/build`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formation, min_chemistry: minChem }),
+        body: JSON.stringify({ formation, min_chemistry: minChem, out_of_position: oop }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setResult((await r.json()) as BuildResult);
@@ -105,6 +114,20 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
             onChange={(e) => setMinChem(Math.min(33, Math.max(0, Number(e.target.value) || 0)))}
             className="w-24 rounded-lg border border-line bg-surface-2 px-3 py-2"
           />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-muted">Fuera de posición</span>
+          <select
+            value={oop}
+            onChange={(e) => setOop(e.target.value as OopMode)}
+            className="rounded-lg border border-line bg-surface-2 px-3 py-2"
+          >
+            {(Object.keys(OOP_LABELS) as OopMode[]).map((m) => (
+              <option key={m} value={m}>
+                {OOP_LABELS[m]}
+              </option>
+            ))}
+          </select>
         </label>
         <button
           type="button"
@@ -164,7 +187,11 @@ function Pitch({ slots }: { slots: Slot[] }) {
 
 function PlayerSlot({ slot }: { slot: Slot }) {
   return (
-    <div className="w-32 rounded-lg border border-line bg-surface p-2 text-center">
+    <div
+      className={`w-32 rounded-lg border bg-surface p-2 text-center ${
+        slot.in_position ? "border-line" : "border-warn/60"
+      }`}
+    >
       <div className="flex items-center justify-between text-xs text-muted">
         <span>{slot.position}</span>
         <span title="Química" aria-label={`química ${slot.chemistry}`}>
@@ -175,6 +202,9 @@ function PlayerSlot({ slot }: { slot: Slot }) {
       <p className="mt-1 truncate text-sm font-medium" title={slot.name}>
         {slot.name}
       </p>
+      {slot.in_position ? null : (
+        <p className="text-[11px] text-warn">fuera de posición</p>
+      )}
       <p className="font-mono text-xs tabular-nums text-muted">
         {slot.rating} ·{" "}
         <span className="text-fg" title={slot.meta_source === "stats" ? "Meta rating" : "Sin stats: rating"}>

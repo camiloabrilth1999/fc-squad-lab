@@ -63,3 +63,54 @@ def test_excluded_cards_are_not_used():
     meta = {"club:1": 80.0, "club:2": 70.0, "club:3": 90.0, "club:4": 85.0}
     r = build_squad(cards, meta, SLOTS, chem_weight=0, exclude_card_ids=["club:3"])
     assert [a.card_id for a in r.assignments if a.slot_index == 1] == ["club:2"]
+
+
+def test_out_of_position_allowed_picks_better_card_there():
+    # el único ST natural es flojo; el CB-2 (meta alto) puede jugar de ST fuera de posición
+    cards = [_c(1, "GK"), _c(2, "CB"), _c(3, "CB"), _c(4, "ST")]
+    meta = {"club:1": 80.0, "club:2": 70.0, "club:3": 95.0, "club:4": 60.0}
+    allowed = {"club:1": {"GK"}, "club:2": {"CB"}, "club:3": {"CB", "ST"}, "club:4": {"ST"}}
+    r = build_squad(cards, meta, SLOTS, chem_weight=0, allowed=allowed)
+    assert {a.slot_index: a.card_id for a in r.assignments} == {
+        0: "club:1",
+        1: "club:2",
+        2: "club:3",
+    }
+    assert r.out_of_position == ["club:3"]
+
+
+def test_max_out_of_position_zero_forbids_it():
+    cards = [_c(1, "GK"), _c(2, "CB"), _c(3, "CB"), _c(4, "ST")]
+    meta = {"club:1": 80.0, "club:2": 70.0, "club:3": 95.0, "club:4": 60.0}
+    allowed = {"club:1": {"GK"}, "club:2": {"CB"}, "club:3": {"CB", "ST"}, "club:4": {"ST"}}
+    r = build_squad(cards, meta, SLOTS, chem_weight=0, allowed=allowed, max_out_of_position=0)
+    assert [a.card_id for a in r.assignments if a.slot_index == 2] == ["club:4"]
+    assert r.out_of_position == []
+
+
+def test_out_of_position_card_has_zero_chemistry():
+    shared = {"league_id": 5, "nation_id": 5, "club_id": 5}
+    cards = [
+        _c(1, "GK", **shared),
+        _c(2, "CB", **shared),
+        _c(3, "CB", **shared),
+        _c(4, "ST", **shared),
+    ]
+    meta = {"club:1": 80.0, "club:2": 70.0, "club:3": 95.0, "club:4": 60.0}
+    allowed = {"club:1": {"GK"}, "club:2": {"CB"}, "club:3": {"CB", "ST"}, "club:4": {"ST"}}
+    r = build_squad(cards, meta, SLOTS, chem_weight=0, allowed=allowed)
+    assert r.player_chemistry["club:3"] == 0  # fuera de posición: sin química
+
+
+def test_meta_can_depend_on_position():
+    cards = [_c(1, "GK"), _c(2, "CB"), _c(3, "CB"), _c(4, "ST")]
+    meta = {
+        "club:1": 80.0,
+        "club:2": 70.0,
+        "club:3": {"CB": 60.0, "ST": 90.0},  # vale más de delantero que de central
+        "club:4": 60.0,
+    }
+    allowed = {"club:1": {"GK"}, "club:2": {"CB"}, "club:3": {"CB", "ST"}, "club:4": {"ST"}}
+    r = build_squad(cards, meta, SLOTS, chem_weight=0, allowed=allowed)
+    assert [a.card_id for a in r.assignments if a.slot_index == 2] == ["club:3"]
+    assert r.total_meta == 80.0 + 70.0 + 90.0

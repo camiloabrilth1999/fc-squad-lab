@@ -76,6 +76,7 @@ def build_base_model(
     costs: list[int],
     *,
     in_position_only: bool = False,
+    allowed: dict[int, set[str]] | None = None,
 ) -> SbcModel:
     """Modelo base. Cualquier carta puede ocupar cualquier hueco (fuera de posición
     permitido): los huecos se agrupan por posición con un cupo (`x[c, p]`, clave por
@@ -90,6 +91,9 @@ def build_base_model(
     hueco), más denso pero con mejor convergencia al óptimo; en pools grandes usa
     los mismos cupos que el completo, que escala mejor. `_assignments` distingue las
     dos claves (int = hueco, str = posición).
+
+    Con `allowed` (índice de carta → posiciones donde puede jugar, propias o no) se usa
+    siempre el modelo por cupos y cada carta solo entra en sus posiciones permitidas.
     """
     # `costs` se acepta por contrato; el objetivo llega vía `objective_terms` en solve_model.
     if len(costs) != len(cards):
@@ -99,7 +103,7 @@ def build_base_model(
     used: list[cp_model.IntVar] = []
     inpos: list[cp_model.IntVar] = []
 
-    if in_position_only and len(cards) <= PERSLOT_MAX_CARDS:
+    if allowed is None and in_position_only and len(cards) <= PERSLOT_MAX_CARDS:
         # Formulación densa hueco a hueco: una var por (carta, hueco jugable).
         for c, card in enumerate(cards):
             for s, pos in enumerate(slots):
@@ -118,12 +122,14 @@ def build_base_model(
         pos_caps = Counter(slots)  # posición -> nº de huecos de esa posición
         positions = list(pos_caps)
 
-        def eligible(card: Card, p: str) -> bool:
+        def eligible(c: int, card: Card, p: str) -> bool:
+            if allowed is not None:  # posiciones permitidas por carta (fuera de posición acotado)
+                return p in allowed[c]
             return not in_position_only or p in card.positions
 
         for c, card in enumerate(cards):
             for p in positions:
-                if eligible(card, p):
+                if eligible(c, card, p):
                     x[c, p] = model.new_bool_var(f"x_{c}_{p}")
         for p in positions:  # cada posición se llena con exactamente su cupo
             model.add(sum(x[c, p] for c in range(len(cards)) if (c, p) in x) == pos_caps[p])

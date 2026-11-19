@@ -29,10 +29,15 @@ def attributes_for(stats: dict[str, int], card: Any) -> PlayerAttributes:
 
 
 def compute_meta(
-    stats: dict[str, int] | None, card: Any, *, fallback_rating: int | None = None
+    stats: dict[str, int] | None,
+    card: Any,
+    *,
+    role: str | None = None,
+    fallback_rating: int | None = None,
 ) -> MetaValue:
     """Meta en el rol de la posición preferida de `card` (objeto con `positions`).
 
+    Con `role` se calcula el meta en ese rol (p. ej. el del hueco donde jugaría).
     Sin stats (o un portero sin sus stats de portero) se usa el rating como respaldo
     con `source="rating"`.
     """
@@ -40,8 +45,9 @@ def compute_meta(
     if not positions:
         return MetaValue(None, None, "rating")
     pos = positions[0]
-    if not stats or (pos == "GK" and "gk_diving" not in stats):
+    role = role or role_for(pos)  # por defecto, el rol de su posición preferida
+    needs_gk = pos == "GK" or role == "goalkeeper"
+    if not stats or (needs_gk and "gk_diving" not in stats):
         rating = fallback_rating if fallback_rating is not None else getattr(card, "rating", None)
-        return MetaValue(float(rating) if rating is not None else None, role_for(pos), "rating")
-    role = role_for(pos)
+        return MetaValue(float(rating) if rating is not None else None, role, "rating")
     return MetaValue(meta_rating(attributes_for(stats, card), role), role, "stats")
