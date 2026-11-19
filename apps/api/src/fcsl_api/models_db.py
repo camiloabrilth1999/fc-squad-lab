@@ -44,6 +44,7 @@ class Card(Base):
     play_styles_plus: Mapped[list[int] | None] = mapped_column(ARRAY(Integer))
     skill_moves: Mapped[int | None] = mapped_column(SmallInteger)
     weak_foot: Mapped[int | None] = mapped_column(SmallInteger)
+    height: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class CardAttributes(Base):

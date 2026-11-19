@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from .attributes import STATS, PlayerAttributes
+from .attributes import ALL_STATS, PlayerAttributes
 from .rating import meta_rating
 from .roles import role_for
 
@@ -18,10 +18,11 @@ class MetaValue:
 def attributes_for(stats: dict[str, int], card: Any) -> PlayerAttributes:
     """Stats + AcceleRATE, PlayStyles(+), filigranas y pie malo de la carta."""
     return PlayerAttributes(
-        **{k: v for k, v in stats.items() if k in STATS},
+        **{k: v for k, v in stats.items() if k in ALL_STATS},
         accelerate=getattr(card, "accelerate_type", None),
         play_styles=list(getattr(card, "play_styles", None) or []),
         play_styles_plus=list(getattr(card, "play_styles_plus", None) or []),
+        height=getattr(card, "height", None) or 0,
         skill_moves=getattr(card, "skill_moves", None) or 0,
         weak_foot=getattr(card, "weak_foot", None) or 0,
     )
@@ -32,14 +33,14 @@ def compute_meta(
 ) -> MetaValue:
     """Meta en el rol de la posición preferida de `card` (objeto con `positions`).
 
-    Sin stats, o portero (el rol GK aún no tiene stats propios), se usa el rating
-    como respaldo con `source="rating"`.
+    Sin stats (o un portero sin sus stats de portero) se usa el rating como respaldo
+    con `source="rating"`.
     """
     positions = getattr(card, "positions", None) or []
     if not positions:
         return MetaValue(None, None, "rating")
     pos = positions[0]
-    if not stats or pos == "GK":
+    if not stats or (pos == "GK" and "gk_diving" not in stats):
         rating = fallback_rating if fallback_rating is not None else getattr(card, "rating", None)
         return MetaValue(float(rating) if rating is not None else None, role_for(pos), "rating")
     role = role_for(pos)

@@ -46,12 +46,16 @@ que ninguna decisión ni tarea se pierda. Diseño general en
     (`python -m fcsl_api.meta fit` → `meta/fitted_weights.json`, versionado). Sobre 630 cartas:
     Pearson 0,81 → **0,974**, MAE 5,5 → **1,25**, sesgo +4,4 → 0,0; corr. en validación
     cruzada 0,93–0,98 por rol. El producto solo lee el JSON, no consulta EasySBC.
-    Límites: porteros sin ajuste (usan rating); PlayStyles como conteo por rol (mejorable con
-    un coeficiente por PlayStyle); la referencia mezcla roles de EasySBC dentro de una posición.
+    **Portero propio: HECHO**: stats `gk_*` + altura (el listado de FUT.GG trae `height`;
+    migración 0005); la altura explica casi todo el desajuste de las porteras (corr. CV del
+    portero 0,66 → 0,94; también mejora los roles de campo). Con 8 roles y 757 cartas:
+    Pearson **0,981**, MAE **1,09**.
+    Límites: PlayStyles como conteo por rol (mejorable con un coeficiente por PlayStyle); la
+    referencia mezcla roles de EasySBC dentro de una posición; el meta usa el rol de la
+    posición preferida (no el del hueco).
   - Pendiente: (b) ~~mapear ids de PlayStyle+~~ **HECHO**: ids reales
     (tabla de `fut.gg/playstyles`, listas por rol de `best-by-role`), bonus de PlayStyle+/PlayStyle,
-    AcceleRATE y estrellas leídos del listado (migración 0004, `meta/compute.py`); (c) ~~calibrar pesos~~ HECHO (ver arriba); (d) stats de portero propios (el rol GK es
-    placeholder); (e) ~~PlayStyles no-plus~~ HECHO (0.5 c/u).
+    AcceleRATE y estrellas leídos del listado (migración 0004, `meta/compute.py`); (c) ~~calibrar pesos~~ HECHO (ver arriba); (d) ~~stats de portero propios~~ HECHO; (e) ~~PlayStyles no-plus~~ HECHO (0.5 c/u).
 - **Squad Builder — Fase A (solo club): API HECHA** (`POST /squad/build`, `squad/builder.py`,
   en posición, Σ meta + química; óptimo al instante con tu club real) + **página web
   `/plantillas` HECHA** (formación, química mínima, once sobre la cancha). Falta jugar

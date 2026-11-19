@@ -45,6 +45,11 @@ STATS: frozenset[str] = frozenset(
     }
 )
 
+GK_STATS: frozenset[str] = frozenset(
+    {"gk_diving", "gk_handling", "gk_kicking", "gk_reflexes", "gk_positioning"}
+)
+ALL_STATS: frozenset[str] = STATS | GK_STATS
+
 
 class PlayerAttributes(BaseModel):
     acceleration: int = 0
@@ -76,6 +81,12 @@ class PlayerAttributes(BaseModel):
     stamina: int = 0
     strength: int = 0
     aggression: int = 0
+    gk_diving: int = 0
+    gk_handling: int = 0
+    gk_kicking: int = 0
+    gk_reflexes: int = 0
+    gk_positioning: int = 0
+    height: int = 0  # cm; 0 = desconocida
     skill_moves: int = 0
     weak_foot: int = 0
     accelerate: AccelerateType | None = None
@@ -84,4 +95,4 @@ class PlayerAttributes(BaseModel):
 
     def get(self, stat: str) -> int:
         """Valor del stat (0 si no se dio o no es un stat conocido)."""
-        return getattr(self, stat, 0) if stat in STATS else 0
+        return getattr(self, stat, 0) if stat in ALL_STATS else 0

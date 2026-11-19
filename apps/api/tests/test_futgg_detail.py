@@ -26,9 +26,9 @@ def test_parse_ignores_stray_later_attributes():
     assert a["strength"] == 79  # el del bloque principal, no los 88/85 sueltos
 
 
-def test_parse_skips_gk_stats():
+def test_parse_includes_gk_stats():
     a = parse_card_attributes(FIXTURE, 84117827)
-    assert "gk_diving" not in a and "diving" not in a  # los de portero no entran
+    assert a["gk_diving"] == 13  # los de portero también se guardan
 
 
 def test_parse_wrong_card_returns_none():

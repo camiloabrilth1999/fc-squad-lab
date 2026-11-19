@@ -45,6 +45,7 @@ class CardRow:
     play_styles_plus: list[int] = field(default_factory=list)
     skill_moves: int | None = None
     weak_foot: int | None = None
+    height: int | None = None
 
 
 def _ea_id(p: dict, key: str) -> int | None:
@@ -83,6 +84,7 @@ def parse_futgg_player(p: dict) -> CardRow | None:
         play_styles_plus=list(p.get("playStylePlusEaIds") or []),
         skill_moves=p.get("skillMoves"),
         weak_foot=p.get("weakFoot"),
+        height=p.get("height"),
     )
 
 

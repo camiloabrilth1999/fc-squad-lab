@@ -110,7 +110,13 @@ ROLES: dict[str, RoleWeights] = {
         playstyles_plus=[10, 13, 22, 12, 15],
     ),
     "goalkeeper": RoleWeights(  # GK — placeholder: sin stats de portero propios aún
-        key_stats={"reactions": 0.5, "composure": 0.3, "jumping": 0.2},
+        key_stats={
+            "gk_reflexes": 0.30,
+            "gk_diving": 0.25,
+            "gk_positioning": 0.20,
+            "gk_handling": 0.15,
+            "gk_kicking": 0.10,
+        },
         playstyles_plus=[31, 32, 29, 30, 33],
     ),
 }

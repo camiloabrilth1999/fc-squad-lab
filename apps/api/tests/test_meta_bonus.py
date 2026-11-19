@@ -65,7 +65,8 @@ def _card(**kw):
     return SimpleNamespace(**base)
 
 
-def test_compute_meta_uses_card_bonus_fields():
+def test_compute_meta_uses_card_bonus_fields(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(fitted, "load_fitted", dict)  # fórmula semilla, sin ajuste
     with_bonus = compute_meta(STATS, _card())
     without = compute_meta(
         STATS, _card(accelerate_type=None, play_styles_plus=[], skill_moves=3, weak_foot=3)

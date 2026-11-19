@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from ..models_db import Card, CardAttributes
 from .compute import attributes_for
-from .fitted import FEATURE_NAMES, feature_vector
+from .fitted import feature_names, feature_vector
 
 # Familia de posición → posiciones; una familia comparte pesos (rol de `meta.roles`).
 FAMILIES: dict[str, tuple[str, ...]] = {
@@ -29,6 +29,7 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "box_crasher": ("CDM",),
     "falseback": ("LB", "RB", "LWB", "RWB"),
     "defender": ("CB",),
+    "goalkeeper": ("GK",),
 }
 
 
@@ -138,8 +139,10 @@ def _corr(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.corrcoef(a, b)[0, 1])
 
 
-def fit_family(ds: Dataset, *, ridge: float = 50.0, folds: int = 5, seed: int = 0) -> FitResult:
-    names = FEATURE_NAMES
+def fit_family(
+    ds: Dataset, family: str | None = None, *, ridge: float = 50.0, folds: int = 5, seed: int = 0
+) -> FitResult:
+    names = feature_names(family or "")
     keep = [j for j in range(ds.X.shape[1]) if ds.X[:, j].std() > 0]
     X, y = ds.X[:, keep], ds.y
     intercept, beta = _fit_nnls(X, y, ridge)
@@ -165,7 +168,7 @@ def fit_all(session: Session, ref: dict[int, dict], min_cards: int = 40) -> dict
         ds = build_dataset(session, ref, fam)
         if len(ds.y) < min_cards:
             continue
-        r = fit_family(ds)
+        r = fit_family(ds, fam)
         out[fam] = {
             "intercept": round(r.intercept, 4),
             "coef": {k: round(v, 4) for k, v in sorted(r.coef.items())},

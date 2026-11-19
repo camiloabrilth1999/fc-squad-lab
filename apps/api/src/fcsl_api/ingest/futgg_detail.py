@@ -3,8 +3,7 @@
 Los 34 `attribute<Nombre>:<n>` de la carta principal vienen en un bloque contiguo
 embebido en el HTML (SSR); más adelante aparecen `attributeStrength` sueltos de las
 cartas relacionadas del listado. Se toma el primer bloque (hasta el primer stat que
-se repite) y se mapean los stats de campo a nuestros nombres (los de portero se
-ignoran: el meta rating de portero es aparte). `accelerateType`, PlayStyles, SM y WF
+se repite) y se mapean a nuestros nombres: los 29 de campo y los 5 de portero (`gk_*`). `accelerateType`, PlayStyles, SM y WF
 se obtienen del listado (sync-cards), inequívocos por carta, no de esta página.
 """
 
@@ -51,13 +50,18 @@ _STAT_MAP: dict[str, str] = {
     "Stamina": "stamina",
     "Strength": "strength",
     "Aggression": "aggression",
+    "GkDiving": "gk_diving",
+    "GkHandling": "gk_handling",
+    "GkKicking": "gk_kicking",
+    "GkReflexes": "gk_reflexes",
+    "GkPositioning": "gk_positioning",
 }
 
 _PAIR_RE = re.compile(r"attribute([A-Z][a-zA-Z]+):(\d+)")
 
 
 def parse_card_attributes(html: str, ea_id: int) -> dict[str, int] | None:
-    """Stats de campo de la carta `ea_id` desde el HTML de su ficha; None si el HTML
+    """Stats de la carta `ea_id` desde el HTML de su ficha; None si el HTML
     no es de esa carta o no trae el bloque de atributos."""
     if f"eaId:{ea_id}" not in html:
         return None

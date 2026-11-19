@@ -57,7 +57,7 @@ def report() -> int:
             if len(ds.y) < 15:
                 print(f"{fam}: {len(ds.y)} cartas (insuficiente)")
                 continue
-            r = fit_family(ds)
+            r = fit_family(ds, fam)
             top = sorted(r.coef.items(), key=lambda kv: -kv[1])[:8]
             print(
                 f"{fam}: n={r.n} R²={r.r2:.2f} corr CV={r.cv_corr:.2f} intercepto={r.intercept:.1f}"
