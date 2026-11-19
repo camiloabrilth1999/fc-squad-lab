@@ -121,6 +121,7 @@ class EaItem(BaseModel):
     marketDataMaxPrice: int | None = None
     owners: int | None = None
     loans: int | None = None
+    loansInfo: dict[str, Any] | None = None
     itemType: str | None = None
 
 
@@ -153,6 +154,16 @@ class ImportRawBody(BaseModel):
     body: Any = None
 
 
+def _is_loan(it: EaItem) -> bool:
+    """Cedida por partidos (`loans`) o por tiempo/partidos según `loansInfo`: no es tuya."""
+    return it.loans not in (None, 0) or bool(it.loansInfo and it.loansInfo.get("loanType"))
+
+
+def _loan_field(it: EaItem, key: str, kind: type) -> Any:
+    value = (it.loansInfo or {}).get(key)
+    return value if isinstance(value, kind) and not isinstance(value, bool) else None
+
+
 @router.post("/club")
 def import_club(body: ImportClubBody, session: DbSession) -> dict[str, int]:
     now = datetime.now(UTC)
@@ -169,7 +180,9 @@ def import_club(body: ImportClubBody, session: DbSession) -> dict[str, int]:
             "untradeable": it.untradeable,
             "location": body.location,
             "duplicate": it.id in dups,
-            "loan": it.loans not in (None, 0),
+            "loan": _is_loan(it),
+            "loan_type": _loan_field(it, "loanType", str),
+            "loan_value": _loan_field(it, "loanValue", int),
             "last_sale_price": it.lastSalePrice,
             "market_min": it.marketDataMinPrice,
             "market_max": it.marketDataMaxPrice,

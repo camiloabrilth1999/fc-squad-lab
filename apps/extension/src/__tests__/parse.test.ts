@@ -301,3 +301,25 @@ describe("toObjectivesImport", () => {
     expect(out!.categories.map((c) => c.groups.length)).toEqual([0]);
   });
 });
+
+
+describe("cesiones del club", () => {
+  const base = { id: 1, resourceId: 10, assetId: 10, rating: 85, itemType: "player" };
+  it("lee loansInfo de las cesiones por partidos y por tiempo", () => {
+    const body = {
+      itemData: [
+        { ...base, id: 1, loans: 5, loansInfo: { loanType: "MATCH_LOAN", loanValue: 5 } },
+        { ...base, id: 2, loansInfo: { loanType: "USER_TIME_LIMIT_LOAN", loanValue: 1794960572 } },
+        { ...base, id: 3, loansInfo: null },
+        { ...base, id: 4, loansInfo: { loanType: 7, loanValue: "x" } },
+      ],
+    };
+    const out = toClubImport(`${BASE}/club`, body)!;
+    expect(out.items.map((i) => i.loansInfo)).toEqual([
+      { loanType: "MATCH_LOAN", loanValue: 5 },
+      { loanType: "USER_TIME_LIMIT_LOAN", loanValue: 1794960572 },
+      null,
+      null,
+    ]);
+  });
+});

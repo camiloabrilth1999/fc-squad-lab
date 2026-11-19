@@ -59,6 +59,11 @@ export function sanitizeUrl(url: string): string {
 
 const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
+function pickLoan(v: unknown): { loanType: string; loanValue: number } | null {
+  if (!isRecord(v) || typeof v.loanType !== "string" || !num(v.loanValue)) return null;
+  return { loanType: v.loanType, loanValue: v.loanValue };
+}
+
 function pickItem(raw: unknown): EaItem | null {
   if (!isRecord(raw)) return null;
   if (typeof raw.itemType === "string" && raw.itemType.toLowerCase() !== "player") return null;
@@ -78,6 +83,7 @@ function pickItem(raw: unknown): EaItem | null {
     marketDataMaxPrice: opt("marketDataMaxPrice"),
     owners: opt("owners"),
     loans: opt("loans"),
+    loansInfo: pickLoan(raw.loansInfo),
     itemType: typeof raw.itemType === "string" ? raw.itemType : undefined,
   };
 }
