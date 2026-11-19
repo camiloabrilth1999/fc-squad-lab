@@ -84,7 +84,16 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   **Falta**: selector de ligas/naciones/clubes en la web (no tenemos tabla de nombres, solo
   ids), fuente icono/héroe, escaneo desde la web (hoy por CLI) y afinar el rendimiento del
   modelo con mercado (no llega a probar optimalidad en 10 s).
-- **Players DB** (~21k cartas con meta rating por rol + stats + precio).
+- **Players DB: HECHA (parte 1)** (rama `feat/players-db`): `GET /players` (filtros por nombre,
+  posición, rol, media, meta, liga/nación/club, tier, fuente, precio; orden y paginación) y
+  `GET /players/{id}` (stats, cara y meta por rol); página web `/jugadores`. El meta de **todas**
+  las cartas sale de un modelo por stats de la cara (`meta/face.py`, `fitted_face_weights.json`,
+  `python -m fcsl_api.meta fit-face`) calibrado contra EasySBC: corr. en validación 0,92–0,99,
+  MAE 1,5 sobre 6.353 cartas (1,2 con stats detallados). Se precalcula en `card_meta`
+  (`make meta-materialize`, migraciones 0006 y 0007; hay que re-correrlo tras sync-cards).
+  Fuentes: stats detallados si existen, si no cara (`~` en la web). **Falta**: detalle de carta
+  en la web, meta por rol alternativo en la lista, filtros por liga/nación/club con nombres,
+  y tiers/ranking por rol en la vista.
 - **Squad Recommendations** del club (se cubre con Squad Builder Fase A).
 - **Gallery**: modo soluciones de sets de galería sobre el solver de SBC.
 - **Evolutions**: capturar datos de evoluciones de EA + planificación.

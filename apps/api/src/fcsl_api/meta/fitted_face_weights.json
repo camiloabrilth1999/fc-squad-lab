@@ -1,0 +1,162 @@
+{
+ "generated": "2026-11-19",
+ "note": "modelo por stats de la cara (ridge, coef >= 0); ver meta/face.py",
+ "roles": {
+  "adv_forward": {
+   "coef": {
+    "defending": 0.0428,
+    "dribbling": 0.1803,
+    "explosive": 1.8235,
+    "height": 0.2475,
+    "pace": 0.3464,
+    "passing": 0.0897,
+    "physicality": 0.1392,
+    "ps": 0.6792,
+    "ps_plus": 1.1123,
+    "shooting": 0.3302,
+    "skill_moves": 1.632,
+    "strength": 0.0066,
+    "weak_foot": 1.1188
+   },
+   "cv_corr": 0.958,
+   "intercept": -60.3896,
+   "n": 2517,
+   "r2": 0.919
+  },
+  "box_crasher": {
+   "coef": {
+    "controlled": 0.461,
+    "defending": 0.2079,
+    "dribbling": 0.1955,
+    "explosive": 0.5126,
+    "pace": 0.4266,
+    "passing": 0.155,
+    "physicality": 0.0707,
+    "ps": 1.0346,
+    "ps_plus": 2.3319,
+    "shooting": 0.054,
+    "skill_moves": 0.2014,
+    "weak_foot": 0.6585
+   },
+   "cv_corr": 0.976,
+   "intercept": -8.0243,
+   "n": 1459,
+   "r2": 0.954
+  },
+  "central_mid": {
+   "coef": {
+    "controlled": 0.587,
+    "defending": 0.1803,
+    "dribbling": 0.2447,
+    "explosive": 0.828,
+    "pace": 0.392,
+    "passing": 0.1331,
+    "physicality": 0.0381,
+    "ps": 0.9543,
+    "ps_plus": 3.2763,
+    "shooting": 0.0538,
+    "skill_moves": 0.448,
+    "weak_foot": 0.7767
+   },
+   "cv_corr": 0.97,
+   "intercept": -3.7626,
+   "n": 2096,
+   "r2": 0.943
+  },
+  "defender": {
+   "coef": {
+    "controlled": 0.9722,
+    "defending": 0.2555,
+    "dribbling": 0.1176,
+    "height": 0.0512,
+    "pace": 0.5573,
+    "passing": 0.1366,
+    "physicality": 0.1146,
+    "ps": 0.9191,
+    "ps_plus": 3.8849,
+    "skill_moves": 0.3214,
+    "weak_foot": 0.4783
+   },
+   "cv_corr": 0.921,
+   "intercept": -22.8934,
+   "n": 3257,
+   "r2": 0.849
+  },
+  "falseback": {
+   "coef": {
+    "controlled": 0.1444,
+    "defending": 0.2165,
+    "dribbling": 0.1154,
+    "explosive": 0.2797,
+    "height": 0.011,
+    "pace": 0.2338,
+    "passing": 0.1353,
+    "physicality": 0.1287,
+    "ps": 0.6081,
+    "ps_plus": 2.397,
+    "skill_moves": 0.6036,
+    "strength": 0.0058,
+    "weak_foot": 0.8098
+   },
+   "cv_corr": 0.992,
+   "intercept": 12.7784,
+   "n": 2664,
+   "r2": 0.983
+  },
+  "goalkeeper": {
+   "coef": {
+    "gk_diving": 0.1397,
+    "gk_handling": 0.1303,
+    "gk_kicking": 0.027,
+    "gk_positioning": 0.1201,
+    "gk_reflexes": 0.125,
+    "gk_speed": 0.0715,
+    "height": 0.3874,
+    "ps": 0.6911,
+    "ps_plus": 2.7229
+   },
+   "cv_corr": 0.977,
+   "intercept": -40.1611,
+   "n": 1677,
+   "r2": 0.956
+  },
+  "playmaker": {
+   "coef": {
+    "controlled": 0.3125,
+    "defending": 0.0843,
+    "dribbling": 0.4421,
+    "explosive": 0.6268,
+    "pace": 0.3503,
+    "passing": 0.1583,
+    "physicality": 0.0276,
+    "ps": 0.674,
+    "ps_plus": 1.6498,
+    "shooting": 0.0642,
+    "skill_moves": 0.7317,
+    "weak_foot": 0.7316
+   },
+   "cv_corr": 0.986,
+   "intercept": -11.7899,
+   "n": 1098,
+   "r2": 0.973
+  },
+  "winger": {
+   "coef": {
+    "defending": 0.168,
+    "dribbling": 0.3779,
+    "explosive": 0.4982,
+    "pace": 0.3048,
+    "passing": 0.1925,
+    "physicality": 0.049,
+    "ps": 0.6885,
+    "ps_plus": 2.4758,
+    "skill_moves": 0.7823,
+    "weak_foot": 0.6619
+   },
+   "cv_corr": 0.934,
+   "intercept": -8.0357,
+   "n": 2953,
+   "r2": 0.873
+  }
+ }
+}

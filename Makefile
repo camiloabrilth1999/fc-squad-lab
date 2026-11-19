@@ -41,7 +41,10 @@ sync-club-attributes:
 squad-scan:
 	cd apps/api && uv run python -m fcsl_api.squad scan $(ARGS)
 
+meta-materialize:
+	cd apps/api && uv run python -m fcsl_api.meta materialize
+
 data-status:
 	cd apps/api && uv run python -m fcsl_api.ingest status
 
-.PHONY: squad-scan sync-club-attributes check ext-build ext-test api-test api-dev db-start db-stop db-migrate sync-cards sync-prices data-status
+.PHONY: meta-materialize squad-scan sync-club-attributes check ext-build ext-test api-test api-dev db-start db-stop db-migrate sync-cards sync-prices data-status

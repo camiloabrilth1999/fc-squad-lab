@@ -44,6 +44,7 @@ class ClubRow(BaseModel):
     seen_at: datetime | None
     meta: float | None = None
     meta_role: str | None = None
+    meta_source: str | None = None  # stats | face
 
 
 class ClubSummary(BaseModel):
@@ -118,12 +119,17 @@ def _value(item: ClubItem, card: Card | None, price: int | None) -> int:
     return round(used * TRADEABLE_FACTOR)
 
 
-def _meta(stats: dict | None, card: Card | None) -> tuple[float | None, str | None]:
-    """Meta rating de la carta en el rol de su primera posición (None sin stats)."""
-    if not stats or card is None or not card.positions:
-        return None, None
+def _meta(stats: dict | None, card: Card | None) -> tuple[float | None, str | None, str | None]:
+    """Meta rating de la carta (rol de su primera posición): (valor, rol, fuente).
+
+    Fuente "stats" (detallados) o "face" (estimado con la cara); sin datos, todo None.
+    """
+    if card is None or not card.positions:
+        return None, None, None
     m = compute_meta(stats, card)
-    return (round(m.value, 1) if m.value is not None else None), m.role
+    if m.source == "rating" or m.value is None:
+        return None, None, None
+    return round(m.value, 1), m.role, m.source
 
 
 @router.get("/club", response_model=ClubPage)
@@ -178,7 +184,7 @@ def get_club(
 
     rows: list[ClubRow] = []
     for item, card in pairs:
-        meta, meta_role = _meta(stats_by_rid.get(item.resource_id or -1), card)
+        meta, meta_role, meta_source = _meta(stats_by_rid.get(item.resource_id or -1), card)
         price, source = _price_used(item, effective.get(item.resource_id or -1))
         rows.append(
             ClubRow(
@@ -201,6 +207,7 @@ def get_club(
                 seen_at=item.seen_at,
                 meta=meta,
                 meta_role=meta_role,
+                meta_source=meta_source,
             )
         )
     summary = ClubSummary(

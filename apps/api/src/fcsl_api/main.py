@@ -5,6 +5,7 @@ from . import db
 from .routes.club import router as club_router
 from .routes.imports import ImportBodyLimit
 from .routes.imports import router as imports_router
+from .routes.players import router as players_router
 from .routes.sbc import router as sbc_router
 from .routes.solve import router as solve_router
 from .routes.squad import router as squad_router
@@ -24,6 +25,7 @@ app.include_router(imports_router)
 app.include_router(club_router)
 app.include_router(sbc_router)
 app.include_router(squad_router)
+app.include_router(players_router)
 
 
 @app.get("/health")

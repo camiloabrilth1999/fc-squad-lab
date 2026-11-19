@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from .attributes import ALL_STATS, PlayerAttributes
+from .face import face_meta
 from .rating import meta_rating
 from .roles import role_for
 
@@ -14,7 +15,7 @@ DEFAULT_HEIGHT = 182  # cm; si la carta no trae altura, no se hunde el meta
 class MetaValue:
     value: float | None  # None si no hay stats ni rating de respaldo
     role: str | None
-    source: Literal["stats", "rating"]
+    source: Literal["stats", "face", "rating"]
 
 
 def attributes_for(stats: dict[str, int], card: Any) -> PlayerAttributes:
@@ -40,8 +41,8 @@ def compute_meta(
     """Meta en el rol de la posición preferida de `card` (objeto con `positions`).
 
     Con `role` se calcula el meta en ese rol (p. ej. el del hueco donde jugaría).
-    Sin stats (o un portero sin sus stats de portero) se usa el rating como respaldo
-    con `source="rating"`.
+    Sin stats detallados (o un portero sin sus stats de portero) se estima con el modelo de
+    la cara (`source="face"`); sin eso, el rating como respaldo (`source="rating"`).
     """
     positions = getattr(card, "positions", None) or []
     if not positions:
@@ -50,6 +51,9 @@ def compute_meta(
     role = role or role_for(pos)  # por defecto, el rol de su posición preferida
     needs_gk = pos == "GK" or role == "goalkeeper"
     if not stats or (needs_gk and "gk_diving" not in stats):
+        estimated = face_meta(card, role)  # sin stats detallados: modelo de la cara
+        if estimated is not None:
+            return MetaValue(estimated, role, "face")
         rating = fallback_rating if fallback_rating is not None else getattr(card, "rating", None)
         return MetaValue(float(rating) if rating is not None else None, role, "rating")
     return MetaValue(meta_rating(attributes_for(stats, card), role), role, "stats")

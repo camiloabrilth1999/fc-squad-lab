@@ -46,10 +46,36 @@ class CardRow:
     skill_moves: int | None = None
     weak_foot: int | None = None
     height: int | None = None
+    face_stats: dict[str, int] = field(default_factory=dict)
 
 
 def _ea_id(p: dict, key: str) -> int | None:
     return (p.get(key) or {}).get("eaId")
+
+
+_FACE_KEYS = {
+    "facePace": "pace",
+    "faceShooting": "shooting",
+    "facePassing": "passing",
+    "faceDribbling": "dribbling",
+    "faceDefending": "defending",
+    "facePhysicality": "physicality",
+    "gkFaceDiving": "gk_diving",
+    "gkFaceHandling": "gk_handling",
+    "gkFaceKicking": "gk_kicking",
+    "gkFaceReflexes": "gk_reflexes",
+    "gkFaceSpeed": "gk_speed",
+    "gkFacePositioning": "gk_positioning",
+}
+
+
+def _face_stats(p: dict) -> dict[str, int]:
+    """Stats de la cara (6 de campo + 6 de portero) y la fuerza, del listado."""
+    face = p.get("faceStatsV2") or {}
+    out = {name: int(face[key]) for key, name in _FACE_KEYS.items() if face.get(key) is not None}
+    if p.get("attributeStrength") is not None:
+        out["strength"] = int(p["attributeStrength"])
+    return out
 
 
 def parse_futgg_player(p: dict) -> CardRow | None:
@@ -85,6 +111,7 @@ def parse_futgg_player(p: dict) -> CardRow | None:
         skill_moves=p.get("skillMoves"),
         weak_foot=p.get("weakFoot"),
         height=p.get("height"),
+        face_stats=_face_stats(p),
     )
 
 

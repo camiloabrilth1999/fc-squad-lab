@@ -84,3 +84,29 @@ def test_fitted_weights_drive_the_meta(monkeypatch: pytest.MonkeyPatch):
     with_ps = meta_rating(PlayerAttributes(finishing=80, play_styles_plus=[22]), "adv_forward")
     assert with_ps == 52.0
     assert meta_rating(PlayerAttributes(finishing=80), "winger") != 50.0  # rol sin ajuste: semilla
+
+
+def test_parser_reads_face_stats_and_strength():
+    p = dict(PAGE["data"][0])
+    p.update(
+        faceStatsV2={
+            "facePace": 90,
+            "faceShooting": 80,
+            "facePassing": 70,
+            "faceDribbling": 85,
+            "faceDefending": 40,
+            "facePhysicality": 75,
+            "gkFaceDiving": 0,
+        },
+        attributeStrength=77,
+    )
+    row = parse_futgg_player(p)
+    assert row.face_stats["pace"] == 90 and row.face_stats["physicality"] == 75
+    assert row.face_stats["strength"] == 77 and row.face_stats["gk_diving"] == 0
+
+
+def test_parser_face_stats_empty_when_missing():
+    p = dict(PAGE["data"][0])
+    p.pop("faceStatsV2", None)
+    p.pop("attributeStrength", None)
+    assert parse_futgg_player(p).face_stats == {}

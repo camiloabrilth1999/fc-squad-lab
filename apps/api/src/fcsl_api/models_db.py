@@ -6,6 +6,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    Float,
     Index,
     Integer,
     SmallInteger,
@@ -45,6 +46,7 @@ class Card(Base):
     skill_moves: Mapped[int | None] = mapped_column(SmallInteger)
     weak_foot: Mapped[int | None] = mapped_column(SmallInteger)
     height: Mapped[int | None] = mapped_column(SmallInteger)
+    face_stats: Mapped[dict | None] = mapped_column(JSON)  # stats de la cara + fuerza (listado)
 
 
 class CardAttributes(Base):
@@ -54,6 +56,20 @@ class CardAttributes(Base):
 
     resource_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
     stats: Mapped[dict] = mapped_column(JSON, nullable=False)  # nombre de stat -> valor
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CardMeta(Base):
+    """Meta rating precalculado por carta (rol de su posición preferida), para la Players DB."""
+
+    __tablename__ = "card_meta"
+    __table_args__ = (Index("ix_card_meta_meta", "meta"),)
+
+    resource_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    meta: Mapped[float] = mapped_column(Float, nullable=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False)  # stats | face
+    tier: Mapped[str] = mapped_column(Text, nullable=False)  # S | A+ | A | B+ | B
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
