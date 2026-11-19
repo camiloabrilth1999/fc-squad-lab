@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import db
 from .routes.catalog import router as catalog_router
 from .routes.club import router as club_router
+from .routes.evolutions import import_router as evolutions_import_router
+from .routes.evolutions import router as evolutions_router
 from .routes.imports import ImportBodyLimit
 from .routes.imports import router as imports_router
 from .routes.players import router as players_router
@@ -30,6 +32,8 @@ app.include_router(squad_router)
 app.include_router(players_router)
 app.include_router(catalog_router)
 app.include_router(value_router)
+app.include_router(evolutions_import_router)
+app.include_router(evolutions_router)
 
 
 @app.get("/health")

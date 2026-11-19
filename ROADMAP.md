@@ -105,9 +105,16 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   `GET /ut/game/fc27/academy/hub/v2` al abrir Evoluciones; la respuesta trae las ~70 evoluciones
   con nombre, estado, requisitos, niveles, objetivos, mejoras y recompensas, y el cliente de EA
   expone las tablas de ids (stats, roles+/++, PlayStyles, requisitos). Todo documentado en
-  `docs/superpowers/specs/2026-11-19-evoluciones-objetivos-recon.md`. **Siguiente**: extensión
-  (capturar y reducir la respuesta) → tabla + `POST /import/evolutions` + `GET /evolutions` →
-  página web → cruce con tu club.
+  `docs/superpowers/specs/2026-11-19-evoluciones-objetivos-recon.md`. **MVP HECHO** (rama
+  `feat/evolutions`): la extensión reconoce `academy/hub/v2` y envía una versión reducida (sin el
+  jugador de muestra) a `POST /import/evolutions` (token); tablas `evolutions` y
+  `evolution_categories` (migración 0009); `GET /evolutions` (categoría, texto, caducadas) y
+  `/evolutions/categories` con nombres de stat/rol/PlayStyle en español (`evolutions/enums.py`);
+  página `/evoluciones` (tarjetas con mejoras, coste, caducidad y niveles). **Para ver datos
+  reales**: recargar la extensión en `chrome://extensions` (dist reconstruido) y abrir
+  Evoluciones en la web app. **Falta**: decodificar los requisitos de elegibilidad (`elgReqs`
+  crudos), validar el formato de `currencies` con datos reales, y cruzar con tu club (qué
+  cartas cumplen y cuánto sube su meta rating).
 - **Objectives**: seguimiento de objetivos/hitos. Reconocido a medias: `services.Objectives` tiene
   `activeCampaign`, `categories` y `metaGroups`; falta abrir la sección y capturar la respuesta
   (ver el documento de reconocimiento). Nada de reclamar ni comprar: solo lectura.

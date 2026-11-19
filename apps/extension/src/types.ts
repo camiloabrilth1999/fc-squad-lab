@@ -1,5 +1,5 @@
 export type Location = "club" | "storage" | "tradepile" | "watchlist";
-export type Endpoint = Location | "market";
+export type Endpoint = Location | "market" | "academy";
 
 export interface EaItem {
   id: number;
@@ -27,6 +27,39 @@ export interface MarketObservation {
   resourceId: number;
   buyNowPrice: number;
   seenAt: string;
+}
+
+/** Evoluciones (EA `academy/hub/v2`) reducidas: sin el jugador de muestra ni imágenes. */
+export interface EvolutionLevel {
+  level: number;
+  state: string | null;
+  objectives: { id: number | null; name: string; description: string | null }[];
+  awards: { stat: number; count: number; max_value: number | null }[];
+}
+export interface EvolutionSlot {
+  id: number;
+  content_id: number | null;
+  name: string | null;
+  description: string | null;
+  status: string | null;
+  timed: boolean;
+  end_time: number | null;
+  category_id: number | null;
+  gk_only: boolean;
+  outfield_only: boolean;
+  multi_choice: boolean;
+  reset_count: number;
+  total_rewards: number | null;
+  currencies: unknown[];
+  top_rewards: { stat: number; count: number; max_value: number | null }[];
+  requirements: { type: string; key: number; slot: number; value: number }[];
+  levels: EvolutionLevel[];
+  /** Mejora acumulada por nivel sobre un jugador de ejemplo: nivel → [{stat, total, initial}]. */
+  bonuses: Record<string, { stat: number; total: number; initial: number | null }[]>;
+}
+export interface EvolutionsImport {
+  categories: { id: number; name: string; slot_ids: number[] }[];
+  slots: EvolutionSlot[];
 }
 
 export interface PageMessage {

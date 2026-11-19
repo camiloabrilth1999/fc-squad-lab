@@ -166,3 +166,29 @@ describe("background", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+
+describe("evoluciones", () => {
+  const hub = { categories: [], slots: [{ id: 5, slotName: "E", levels: [] }] };
+  it("envía la versión reducida a /import/evolutions", async () => {
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/academy/hub/v2`, body: hub });
+    await bg.flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8787/import/evolutions");
+    expect(JSON.parse(init.body).slots.map((s: { id: number }) => s.id)).toEqual([5]);
+    expect(init.headers["X-FCSL-Token"]).toBe("tok");
+  });
+  it("si llegan dos lecturas seguidas, solo manda la última", async () => {
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/academy/hub/v2`, body: hub });
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/academy/hub/v2`, body: { categories: [], slots: [{ id: 9 }] } });
+    await bg.flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).slots.map((s: { id: number }) => s.id)).toEqual([9]);
+  });
+  it("una respuesta rara no envía nada", async () => {
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/academy/hub/v2`, body: { nada: true } });
+    await bg.flush();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
