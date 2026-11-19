@@ -35,7 +35,10 @@ sync-cards:
 sync-prices:
 	cd apps/api && uv run python -m fcsl_api.ingest sync-prices $(ARGS)
 
+sync-club-attributes:
+	cd apps/api && uv run python -m fcsl_api.ingest sync-club-attributes $(ARGS)
+
 data-status:
 	cd apps/api && uv run python -m fcsl_api.ingest status
 
-.PHONY: check ext-build ext-test api-test api-dev db-start db-stop db-migrate sync-cards sync-prices data-status
+.PHONY: sync-club-attributes check ext-build ext-test api-test api-dev db-start db-stop db-migrate sync-cards sync-prices data-status

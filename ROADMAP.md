@@ -37,7 +37,10 @@ que ninguna decisión ni tarea se pierda. Diseño general en
     solo en la **ficha de carta de FUT.GG** (`/players/<slug>/27-<eaId>/`, HTML SSR
     parseable), no en EA ni en el listado. Ingesta = detalle por carta del club
     (~179), ≤ 1 req/s, caché. `tier-list/player-tier` de FUT.GG como 2ª referencia.
-  - Pendiente: (a) **ingesta de atributos** del club desde el detalle de FUT.GG; (b) mapear ids de
+  - **Ingesta de atributos: HECHO** (parser, tabla `card_attributes`, migración 0003,
+    `sync_club_attributes`, `make sync-club-attributes`, `/club` devuelve `meta` y
+    `meta_role`). Falta correr la primera descarga real contra FUT.GG (con OK de Camilo).
+  - Pendiente: (b) mapear ids de
     PlayStyle+ de EA (ahora provisionales en la semilla); (c) **calibrar pesos**
     contra EasySBC (script dev); (d) stats de portero propios (el rol GK es
     placeholder); (e) los PlayStyles no-plus aún no suman al score.
