@@ -195,3 +195,7 @@ def test_describe_award_labels() -> None:
     )
     assert describe_award(_award("event_token_1", 3), {})["label"] == "Ficha de evento ×3"
     assert describe_award(_award("raro", 1), {})["label"] == "raro ×1"
+    assert (
+        describe_award(_award("graduated_access_transfer_market_entry", 1), {})["label"]
+        == "Acceso al mercado de transferencias"
+    )

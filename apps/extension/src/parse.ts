@@ -258,9 +258,11 @@ function toGroup(raw: unknown): ObjectiveGroup | null {
 
 /** Respuesta de `scmp/objective/categories/all` → categorías reducidas (o null si no lo parece). */
 export function toObjectivesImport(body: unknown): ObjectivesImport | null {
-  if (!isRecord(body)) return null;
+  // EA devuelve un array de categorías (o, en pruebas, un objeto indexado por id).
+  const list = Array.isArray(body) ? body : isRecord(body) ? Object.values(body) : null;
+  if (!list) return null;
   const categories: ObjectiveCategory[] = [];
-  for (const raw of Object.values(body)) {
+  for (const raw of list) {
     if (!isRecord(raw) || !num(raw.categoryId) || !Array.isArray(raw.groupsList)) continue;
     categories.push({
       id: raw.categoryId,

@@ -287,6 +287,10 @@ describe("toObjectivesImport", () => {
     expect(g.objectives[1]).toMatchObject({ id: 161, progress: null, target: 3, state: null });
     expect(JSON.stringify(out)).not.toContain("attributeArray");
   });
+  it("acepta un array de categorías, que es como responde EA", () => {
+    const out = toObjectivesImport(Object.values(OBJ));
+    expect(out!.categories[0].groups[0].id).toBe(30);
+  });
   it("devuelve null si no es la respuesta de objetivos", () => {
     expect(toObjectivesImport(null)).toBeNull();
     expect(toObjectivesImport({ slots: [] })).toBeNull();

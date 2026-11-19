@@ -123,7 +123,11 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   `GET /objectives` (categoría, pendientes/completados, texto, caducados) y `/objectives/categories`;
   recompensas legibles (monedas, XP, jugadores con su nombre, sobres como `Sobre #id`, fichas);
   página `/objetivos` con progreso. Solo lectura: nada de reclamar ni comprar.
-  **Para ver datos reales**: recargar la extensión (dist reconstruido) y abrir FC Hub → Objetivos.
+  **Verificado con datos reales (2026-11-19)** usando las muestras crudas que guarda la extensión:
+  EA responde a objetivos con un **array** de categorías (corregido en `toObjectivesImport`), y el
+  coste de las evoluciones viene como `{funds, finalFunds, name: COINS|POINTS}` (corregido en la
+  web). 9 evoluciones y 53 grupos de objetivos se ven bien en `/evoluciones` y `/objetivos`.
+  Pendiente de confirmar: que la extensión recargada envíe sola ambos imports (ver nota).
   **Falta**: nombres de sobres (hoy `Sobre #id`), campaña/pase de temporada (`activeCampaign`, otra
   llamada), fichas con nombre, y avisos de objetivos por caducar.
 - **Vistas de valor: HECHAS (parte 1)** (rama `feat/value-views`): `GET /value/bargains`
