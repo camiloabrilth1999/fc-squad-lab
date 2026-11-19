@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CardImage from "./CardImage";
 
 type Assignment = {
   evolution: { id: number; name: string | null; category: string | null };
-  card: { item_id: number; name: string | null; rating: number | null; positions: string[] };
+  card: { item_id: number; name: string | null; rating: number | null; positions: string[]; image_path?: string | null };
   meta_before: number;
   meta_after: number;
   meta_gain: number;
@@ -95,8 +96,16 @@ export default function EvolutionPlan({ apiUrl }: { apiUrl: string }) {
           </p>
           <ul className="mt-2 divide-y divide-line text-sm">
             {plan.assignments.map((a) => (
-              <li key={a.evolution.id} className="flex flex-wrap items-baseline justify-between gap-x-4 py-2">
-                <span className="font-medium">{a.evolution.name ?? "Evolución"}</span>
+              <li key={a.evolution.id} className="flex flex-wrap items-center justify-between gap-x-4 py-2">
+                <div className="w-10 shrink-0">
+                  <CardImage
+                    path={a.card.image_path}
+                    position={a.card.positions[0]}
+                    alt={`Carta de ${a.card.name ?? "jugador"}`}
+                    width={100}
+                  />
+                </div>
+                <span className="min-w-0 flex-1 font-medium">{a.evolution.name ?? "Evolución"}</span>
                 <span className="text-muted">
                   {a.card.name ?? "Carta"} · {a.card.rating} · {a.card.positions.slice(0, 2).join("/")}
                 </span>
