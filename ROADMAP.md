@@ -103,7 +103,12 @@ que ninguna decisión ni tarea se pierda. Diseño general en
 - **Gallery**: modo soluciones de sets de galería sobre el solver de SBC.
 - **Evolutions**: capturar datos de evoluciones de EA + planificación.
 - **Objectives**: seguimiento de objetivos/hitos.
-- **Vistas de valor**: "hidden profit" / "SBC fodder".
+- **Vistas de valor: HECHAS (parte 1)** (rama `feat/value-views`): `GET /value/bargains`
+  ("hidden profit": percentil de meta − percentil de precio dentro del rol, entre cartas 75+;
+  filtros por rol/posición/media/precio) y `GET /value/fodder` (las N cartas más baratas por
+  media, para SBC); página web `/valor` con pestañas Chollos / Fodder. Usa el precio
+  `easysbc:market` (suelo de 650). **Falta**: cruzar con tu club (qué cartas tuyas valen más
+  de lo que crees, qué sobra como fodder), tendencia de precios y alertas.
 - **Calibración meta** (dev): script que baja una muestra de ratings de EasySBC de
   *mi club* para comparar y afinar pesos (no es parte del producto).
 - **Solver / rendimiento**: en pools de mercado grandes el solve devuelve *feasible*
