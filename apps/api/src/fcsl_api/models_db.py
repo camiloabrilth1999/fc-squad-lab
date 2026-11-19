@@ -69,6 +69,40 @@ class Catalog(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class EvolutionCategory(Base):
+    """Categoría de Evoluciones (Evoluciones, Campus, Roles++…) según EA."""
+
+    __tablename__ = "evolution_categories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    slot_ids: Mapped[list[int]] = mapped_column(JSON, nullable=False, default=list)
+
+
+class Evolution(Base):
+    """Una evolución (slot de la Academia) tal como la vio la extensión, ya reducida."""
+
+    __tablename__ = "evolutions"
+    __table_args__ = (Index("ix_evolutions_category", "category_id"),)
+
+    slot_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    content_id: Mapped[int | None] = mapped_column(Integer)
+    name: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str | None] = mapped_column(Text)
+    timed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    end_time: Mapped[int | None] = mapped_column(BigInteger)  # epoch en segundos; 0 = sin caducidad
+    category_id: Mapped[int | None] = mapped_column(Integer)
+    gk_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    outfield_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    multi_choice: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    reset_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_rewards: Mapped[int | None] = mapped_column(Integer)
+    # currencies, top_rewards, requirements (filas crudas), levels y bonuses
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class CardMeta(Base):
     """Meta rating precalculado por carta (rol de su posición preferida), para la Players DB."""
 

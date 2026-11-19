@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { classifyUrl, isFutUrl, sanitizeUrl, toClubImport, toMarketObservations } from "../parse";
+import { classifyUrl, isFutUrl, sanitizeUrl, toClubImport, toEvolutionsImport, toMarketObservations } from "../parse";
 
 const load = (name: string) =>
   JSON.parse(readFileSync(new URL(`../../../api/tests/data/${name}`, import.meta.url), "utf8"));
@@ -15,6 +15,7 @@ describe("classifyUrl", () => {
     expect(classifyUrl(`${BASE}/tradepile`)).toBe("tradepile");
     expect(classifyUrl(`${BASE}/watchlist`)).toBe("watchlist");
     expect(classifyUrl(`${BASE}/transfermarket?num=21&type=player`)).toBe("market");
+    expect(classifyUrl(`${BASE}/academy/hub/v2?offset=0&count=20`)).toBe("academy");
   });
   it("ignora otros endpoints y URLs fuera de /ut/game/", () => {
     expect(classifyUrl(`${BASE}/club/stats/staff`)).toBeNull();
@@ -133,5 +134,78 @@ describe("toMarketObservations", () => {
     };
     expect(toMarketObservations(body, now).map((o) => o.resourceId)).toEqual([3]);
     for (const b of [null, {}, "x", { auctionInfo: 3 }]) expect(toMarketObservations(b, now)).toEqual([]);
+  });
+});
+
+
+const HUB = {
+  categories: [{ id: 0, description: "Evoluciones", count: 1, priority: 200, slotIds: [2695] }],
+  slots: [
+    {
+      id: 2695,
+      contentId: 23409,
+      slotName: "Introducción a las Evoluciones",
+      slotDescription: "Mejora a un futbolista",
+      status: "NOT_STARTED",
+      timed: false,
+      endTime: 0,
+      categoryId: 0,
+      isGkExclusive: false,
+      isOutfieldExclusive: true,
+      isMultiChoice: false,
+      resetCount: 0,
+      totalRewardsCount: 18,
+      currencies: [{ currency: "COINS", amount: 10000 }],
+      academyTopRewards: [{ value: 11, count: 34, maxValue: 79, priority: 1 }],
+      elgReqs: [{ type: "PLAYER_ATTRIBUTE", eligibilityKey: 1, eligibilitySlot: 1, eligibilityValue: 80 }],
+      levels: [
+        { level: 0, levelState: "NOT_STARTED", awards: [{ value: 11, count: 34, priority: 1 }] },
+        {
+          level: 1,
+          levelState: "NOT_STARTED",
+          objectives: [{ objectiveId: 7, name: "Juega 3 partidos", description: "*", multiplier: 1, priority: 1 }],
+          awards: [{ value: 22, count: 40, maxValue: 80, priority: 1 }],
+        },
+      ],
+      randomPlayerPreview: {
+        itemData: { resourceId: 80327, rating: 75 },
+        academyBonusesPerLevel: { "1": [{ id: 11, totalBonus: 79, initialAttributeValue: 75 }, { id: 22, totalBonus: 80 }] },
+      },
+    },
+  ],
+};
+
+describe("toEvolutionsImport", () => {
+  it("reduce la respuesta: sin jugador de muestra, con claves snake_case", () => {
+    const out = toEvolutionsImport(HUB);
+    expect(out).not.toBeNull();
+    expect(out!.categories).toEqual([{ id: 0, name: "Evoluciones", slot_ids: [2695] }]);
+    const s = out!.slots[0];
+    expect(s).toMatchObject({
+      id: 2695,
+      name: "Introducción a las Evoluciones",
+      description: "Mejora a un futbolista",
+      status: "NOT_STARTED",
+      timed: false,
+      category_id: 0,
+      outfield_only: true,
+      gk_only: false,
+      total_rewards: 18,
+    });
+    expect(s.top_rewards).toEqual([{ stat: 11, count: 34, max_value: 79 }]);
+    expect(s.requirements).toEqual([{ type: "PLAYER_ATTRIBUTE", key: 1, slot: 1, value: 80 }]);
+    expect(s.levels[1].objectives).toEqual([{ id: 7, name: "Juega 3 partidos", description: "*" }]);
+    expect(s.levels[1].awards).toEqual([{ stat: 22, count: 40, max_value: 80 }]);
+    expect(s.bonuses).toEqual({ "1": [{ stat: 11, total: 79, initial: 75 }, { stat: 22, total: 80, initial: null }] });
+    expect(JSON.stringify(out)).not.toContain("80327"); // el jugador de muestra no sale
+  });
+  it("devuelve null si no es una respuesta de evoluciones", () => {
+    expect(toEvolutionsImport(null)).toBeNull();
+    expect(toEvolutionsImport({ itemData: [] })).toBeNull();
+    expect(toEvolutionsImport({ slots: "no" })).toBeNull();
+  });
+  it("ignora slots sin id", () => {
+    const out = toEvolutionsImport({ categories: [], slots: [{ slotName: "x" }, ...HUB.slots] });
+    expect(out!.slots.map((s) => s.id)).toEqual([2695]);
   });
 });

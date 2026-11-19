@@ -1,4 +1,12 @@
-import type { Endpoint, EaItem, ImportClubBody, MarketObservation } from "./types";
+import type {
+  Endpoint,
+  EaItem,
+  EvolutionLevel,
+  EvolutionSlot,
+  EvolutionsImport,
+  ImportClubBody,
+  MarketObservation,
+} from "./types";
 
 const ENDPOINTS: Record<string, Endpoint> = {
   club: "club",
@@ -8,6 +16,8 @@ const ENDPOINTS: Record<string, Endpoint> = {
   transfermarket: "market",
 };
 const ENDPOINT_RE = /\/ut\/game\/[^/]+\/(club|storagepile|tradepile|watchlist|transfermarket)\/?$/;
+
+const ACADEMY_RE = /\/ut\/game\/[^/]+\/academy\/hub\/v2\/?$/;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -26,6 +36,7 @@ export function isFutUrl(url: string): boolean {
 
 export function classifyUrl(url: string): Endpoint | null {
   const u = parseUrl(url);
+  if (u && ACADEMY_RE.test(u.pathname)) return "academy";
   const m = u ? ENDPOINT_RE.exec(u.pathname) : null;
   return m ? ENDPOINTS[m[1]] : null;
 }
@@ -74,7 +85,7 @@ function stillOwned(a: Record<string, unknown>): boolean {
 
 export function toClubImport(url: string, body: unknown): ImportClubBody | null {
   const endpoint = classifyUrl(url);
-  if (!endpoint || endpoint === "market" || !isRecord(body)) return null;
+  if (!endpoint || endpoint === "market" || endpoint === "academy" || !isRecord(body)) return null;
   let rawItems: unknown[] | null = null;
   if (Array.isArray(body.itemData)) rawItems = body.itemData;
   else if (Array.isArray(body.auctionInfo))
@@ -106,4 +117,82 @@ export function toMarketObservations(body: unknown, now: Date): MarketObservatio
     }
   }
   return out;
+}
+
+
+const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
+const numOrNull = (v: unknown): number | null => (num(v) ? v : null);
+
+function toLevel(raw: unknown): EvolutionLevel | null {
+  if (!isRecord(raw) || !num(raw.level)) return null;
+  const objectives = Array.isArray(raw.objectives) ? raw.objectives : [];
+  const awards = Array.isArray(raw.awards) ? raw.awards : [];
+  return {
+    level: raw.level,
+    state: str(raw.levelState),
+    objectives: objectives.filter(isRecord).map((o) => ({
+      id: numOrNull(o.objectiveId),
+      name: str(o.name) ?? "",
+      description: str(o.description),
+    })),
+    awards: awards
+      .filter((a): a is Record<string, unknown> => isRecord(a) && num(a.value) && num(a.count))
+      .map((a) => ({ stat: a.value as number, count: a.count as number, max_value: numOrNull(a.maxValue) })),
+  };
+}
+
+function toSlot(raw: unknown): EvolutionSlot | null {
+  if (!isRecord(raw) || !num(raw.id)) return null;
+  const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+  const preview = isRecord(raw.randomPlayerPreview) ? raw.randomPlayerPreview : {};
+  const perLevel = isRecord(preview.academyBonusesPerLevel) ? preview.academyBonusesPerLevel : {};
+  const bonuses: EvolutionSlot["bonuses"] = {};
+  for (const [level, list] of Object.entries(perLevel)) {
+    bonuses[level] = arr(list)
+      .filter((b): b is Record<string, unknown> => isRecord(b) && num(b.id) && num(b.totalBonus))
+      .map((b) => ({ stat: b.id as number, total: b.totalBonus as number, initial: numOrNull(b.initialAttributeValue) }));
+  }
+  return {
+    id: raw.id,
+    content_id: numOrNull(raw.contentId),
+    name: str(raw.slotName),
+    description: str(raw.slotDescription),
+    status: str(raw.status),
+    timed: raw.timed === true,
+    end_time: numOrNull(raw.endTime),
+    category_id: numOrNull(raw.categoryId),
+    gk_only: raw.isGkExclusive === true,
+    outfield_only: raw.isOutfieldExclusive === true,
+    multi_choice: raw.isMultiChoice === true,
+    reset_count: num(raw.resetCount) ? raw.resetCount : 0,
+    total_rewards: numOrNull(raw.totalRewardsCount),
+    currencies: arr(raw.currencies),
+    top_rewards: arr(raw.academyTopRewards)
+      .filter((r): r is Record<string, unknown> => isRecord(r) && num(r.value) && num(r.count))
+      .map((r) => ({ stat: r.value as number, count: r.count as number, max_value: numOrNull(r.maxValue) })),
+    requirements: arr(raw.elgReqs)
+      .filter((r): r is Record<string, unknown> => isRecord(r) && num(r.eligibilityKey))
+      .map((r) => ({
+        type: str(r.type) ?? "",
+        key: r.eligibilityKey as number,
+        slot: num(r.eligibilitySlot) ? r.eligibilitySlot : 0,
+        value: num(r.eligibilityValue) ? r.eligibilityValue : 0,
+      })),
+    levels: arr(raw.levels).map(toLevel).filter((l): l is EvolutionLevel => l !== null),
+    bonuses,
+  };
+}
+
+/** Respuesta de `academy/hub/v2` → evoluciones reducidas (sin el jugador de muestra). */
+export function toEvolutionsImport(body: unknown): EvolutionsImport | null {
+  if (!isRecord(body) || !Array.isArray(body.slots)) return null;
+  const categories = (Array.isArray(body.categories) ? body.categories : [])
+    .filter((c): c is Record<string, unknown> => isRecord(c) && num(c.id))
+    .map((c) => ({
+      id: c.id as number,
+      name: str(c.description) ?? "",
+      slot_ids: (Array.isArray(c.slotIds) ? c.slotIds : []).filter(num) as number[],
+    }));
+  const slots = body.slots.map(toSlot).filter((s): s is EvolutionSlot => s !== null);
+  return { categories, slots };
 }
