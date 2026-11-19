@@ -11,6 +11,7 @@ recortado a [0, 99.9]. Los pesos y bonus son nuestros y se afinan por calibraci√
 from collections.abc import Sequence
 
 from .attributes import PlayerAttributes
+from .fitted import fitted_meta
 from .roles import get_role
 
 MAX_META = 99.9
@@ -22,6 +23,9 @@ STAR_STEP = 0.3  # por estrella de SM/WF por encima de 3
 
 def meta_rating(attrs: PlayerAttributes, role: str) -> float:
     rw = get_role(role)
+    fitted = fitted_meta(attrs, role)
+    if fitted is not None:  # pesos ajustados por calibraci√≥n (ver fitted.py)
+        return fitted
     total_w = sum(rw.key_stats.values())
     base = (
         sum(w * attrs.get(stat) for stat, w in rw.key_stats.items()) / total_w if total_w else 0.0

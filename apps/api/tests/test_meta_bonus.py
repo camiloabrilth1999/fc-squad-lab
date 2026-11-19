@@ -1,6 +1,9 @@
 from types import SimpleNamespace
 
+import pytest
+
 from fcsl_api.ingest.futgg import parse_futgg_player
+from fcsl_api.meta import fitted
 from fcsl_api.meta.attributes import PlayerAttributes
 from fcsl_api.meta.compute import compute_meta
 from fcsl_api.meta.rating import meta_rating
@@ -41,7 +44,8 @@ def test_real_playstyle_ids_in_roles():
     assert role_for("CM") != role_for("CAM")
 
 
-def test_plain_playstyle_counts_less_than_plus():
+def test_plain_playstyle_counts_less_than_plus(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(fitted, "load_fitted", dict)  # fórmula semilla, sin ajuste
     base = meta_rating(PlayerAttributes(**STATS), "adv_forward")
     plain = meta_rating(PlayerAttributes(**STATS, play_styles=[22]), "adv_forward")
     plus = meta_rating(PlayerAttributes(**STATS, play_styles_plus=[22]), "adv_forward")
@@ -69,3 +73,13 @@ def test_compute_meta_uses_card_bonus_fields():
     assert with_bonus.role == "adv_forward" and with_bonus.source == "stats"
     assert with_bonus.value > without.value
     assert compute_meta(None, _card(), fallback_rating=80).source == "rating"
+
+
+def test_fitted_weights_drive_the_meta(monkeypatch: pytest.MonkeyPatch):
+    fit = {"adv_forward": {"intercept": 10.0, "coef": {"finishing": 0.5, "ps_plus": 2.0}}}
+    monkeypatch.setattr(fitted, "load_fitted", lambda: fit)
+    base = meta_rating(PlayerAttributes(finishing=80), "adv_forward")
+    assert base == 50.0  # 10 + 0.5 * 80
+    with_ps = meta_rating(PlayerAttributes(finishing=80, play_styles_plus=[22]), "adv_forward")
+    assert with_ps == 52.0
+    assert meta_rating(PlayerAttributes(finishing=80), "winger") != 50.0  # rol sin ajuste: semilla

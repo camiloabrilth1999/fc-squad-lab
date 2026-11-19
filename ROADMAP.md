@@ -39,11 +39,18 @@ que ninguna decisión ni tarea se pierda. Diseño general en
     (~179), ≤ 1 req/s, caché. `tier-list/player-tier` de FUT.GG como 2ª referencia.
   - **Ingesta de atributos: HECHO** (parser, tabla `card_attributes`, migración 0003,
     `sync_club_attributes`, `make sync-club-attributes`, `/club` devuelve `meta` y
-    `meta_role`). Falta correr la primera descarga real contra FUT.GG (con OK de Camilo).
+    `meta_role`); primera descarga real hecha (170 cartas del club).
+  - **Calibración: HECHA (2026-11-19)**. Referencia de dev = `metaRating` de EasySBC (ya en
+    la caché de precios, `var/cache/easysbc`); muestra de ~490 cartas 78+ con stats de FUT.GG
+    (`python -m fcsl_api.meta fetch-sample`). Regresión ridge con coef ≥ 0 por rol
+    (`python -m fcsl_api.meta fit` → `meta/fitted_weights.json`, versionado). Sobre 630 cartas:
+    Pearson 0,81 → **0,974**, MAE 5,5 → **1,25**, sesgo +4,4 → 0,0; corr. en validación
+    cruzada 0,93–0,98 por rol. El producto solo lee el JSON, no consulta EasySBC.
+    Límites: porteros sin ajuste (usan rating); PlayStyles como conteo por rol (mejorable con
+    un coeficiente por PlayStyle); la referencia mezcla roles de EasySBC dentro de una posición.
   - Pendiente: (b) ~~mapear ids de PlayStyle+~~ **HECHO**: ids reales
     (tabla de `fut.gg/playstyles`, listas por rol de `best-by-role`), bonus de PlayStyle+/PlayStyle,
-    AcceleRATE y estrellas leídos del listado (migración 0004, `meta/compute.py`); (c) **calibrar pesos**
-    contra EasySBC (script dev); (d) stats de portero propios (el rol GK es
+    AcceleRATE y estrellas leídos del listado (migración 0004, `meta/compute.py`); (c) ~~calibrar pesos~~ HECHO (ver arriba); (d) stats de portero propios (el rol GK es
     placeholder); (e) ~~PlayStyles no-plus~~ HECHO (0.5 c/u).
 - **Squad Builder — Fase A (solo club): API HECHA** (`POST /squad/build`, `squad/builder.py`,
   en posición, Σ meta + química; óptimo al instante con tu club real) + **página web

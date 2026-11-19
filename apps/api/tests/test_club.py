@@ -268,7 +268,26 @@ def test_club_includes_meta_when_stats_known(client: TestClient, session: Sessio
     from fcsl_api.models_db import CardAttributes
 
     _seed(session)
-    session.add(CardAttributes(resource_id=1, stats={"finishing": 95, "acceleration": 90}))
+    session.add(
+        CardAttributes(
+            resource_id=1,
+            stats={
+                n: 90
+                for n in (
+                    "finishing",
+                    "acceleration",
+                    "sprint_speed",
+                    "agility",
+                    "dribbling",
+                    "ball_control",
+                    "shot_power",
+                    "balance",
+                    "positioning",
+                    "strength",
+                )
+            },
+        )
+    )
     session.commit()
     by_id = {r["item_id"]: r for r in client.get("/club").json()["items"]}
     assert by_id[11]["meta"] is not None and by_id[11]["meta"] > 0
