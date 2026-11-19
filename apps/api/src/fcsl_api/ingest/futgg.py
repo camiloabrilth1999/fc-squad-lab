@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from fcsl_api.ingest.http import PoliteClient
@@ -40,6 +40,11 @@ class CardRow:
     rarity_tags: list[str]
     is_icon: bool
     is_hero: bool
+    accelerate_type: str | None = None
+    play_styles: list[int] = field(default_factory=list)
+    play_styles_plus: list[int] = field(default_factory=list)
+    skill_moves: int | None = None
+    weak_foot: int | None = None
 
 
 def _ea_id(p: dict, key: str) -> int | None:
@@ -73,6 +78,11 @@ def parse_futgg_player(p: dict) -> CardRow | None:
         rarity_tags=tags,
         is_icon=bool(p.get("isIcon")),
         is_hero=bool(p.get("isHero")),
+        accelerate_type=p.get("accelerateType"),
+        play_styles=list(p.get("playStyleEaIds") or []),
+        play_styles_plus=list(p.get("playStylePlusEaIds") or []),
+        skill_moves=p.get("skillMoves"),
+        weak_foot=p.get("weakFoot"),
     )
 
 

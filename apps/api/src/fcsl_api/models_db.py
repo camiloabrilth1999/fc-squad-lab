@@ -39,6 +39,11 @@ class Card(Base):
     rarity_ea_id: Mapped[int | None] = mapped_column(Integer)
     rarity_name: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str | None] = mapped_column(Text)
+    accelerate_type: Mapped[str | None] = mapped_column(Text)
+    play_styles: Mapped[list[int] | None] = mapped_column(ARRAY(Integer))
+    play_styles_plus: Mapped[list[int] | None] = mapped_column(ARRAY(Integer))
+    skill_moves: Mapped[int | None] = mapped_column(SmallInteger)
+    weak_foot: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class CardAttributes(Base):

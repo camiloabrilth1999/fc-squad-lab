@@ -40,10 +40,11 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   - **Ingesta de atributos: HECHO** (parser, tabla `card_attributes`, migración 0003,
     `sync_club_attributes`, `make sync-club-attributes`, `/club` devuelve `meta` y
     `meta_role`). Falta correr la primera descarga real contra FUT.GG (con OK de Camilo).
-  - Pendiente: (b) mapear ids de
-    PlayStyle+ de EA (ahora provisionales en la semilla); (c) **calibrar pesos**
+  - Pendiente: (b) ~~mapear ids de PlayStyle+~~ **HECHO**: ids reales
+    (tabla de `fut.gg/playstyles`, listas por rol de `best-by-role`), bonus de PlayStyle+/PlayStyle,
+    AcceleRATE y estrellas leídos del listado (migración 0004, `meta/compute.py`); (c) **calibrar pesos**
     contra EasySBC (script dev); (d) stats de portero propios (el rol GK es
-    placeholder); (e) los PlayStyles no-plus aún no suman al score.
+    placeholder); (e) ~~PlayStyles no-plus~~ HECHO (0.5 c/u).
 - **Squad Builder — Fase A (solo club): API HECHA** (`POST /squad/build`, `squad/builder.py`,
   en posición, Σ meta + química; óptimo al instante con tu club real) + **página web
   `/plantillas` HECHA** (formación, química mínima, once sobre la cancha). Falta jugar

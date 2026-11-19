@@ -7,13 +7,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..meta.attributes import STATS, PlayerAttributes
-from ..meta.rating import meta_rating
-from ..meta.roles import role_for
+from ..meta.compute import compute_meta
+from ..models_db import Card as CardRow
 from ..models_db import CardAttributes
 from ..sbc import formations
 from ..sbc.pool import club_cards
-from ..solver.models import Card
 from .builder import DEFAULT_CHEM_WEIGHT, build_squad
 
 
@@ -48,16 +46,6 @@ class SquadBuildResponse(BaseModel):
     message: str | None = None
 
 
-def _meta_for(card: Card, stats: dict | None) -> tuple[float, Literal["stats", "rating"]]:
-    """Meta de la carta en el rol de su posición preferida; el rating si no hay stats
-    o es portero (el rol GK aún no tiene stats propios)."""
-    pos = card.positions[0]
-    if not stats or pos == "GK":
-        return float(card.rating), "rating"
-    attrs = PlayerAttributes(**{k: v for k, v in stats.items() if k in STATS})
-    return round(meta_rating(attrs, role_for(pos)), 1), "stats"
-
-
 def build_club_squad(session: Session, req: SquadBuildRequest) -> SquadBuildResponse:
     formation = formations.normalize(req.formation)
     slots = formations.slots_for(formation)
@@ -66,10 +54,22 @@ def build_club_squad(session: Session, req: SquadBuildRequest) -> SquadBuildResp
         rid: s
         for rid, s in session.execute(select(CardAttributes.resource_id, CardAttributes.stats))
     }
+    rows = {
+        r.resource_id: r
+        for r in session.scalars(
+            select(CardRow).where(CardRow.resource_id.in_({c.resource_id for c in cards}))
+        )
+    }
     meta: dict[str, float] = {}
     source: dict[str, Literal["stats", "rating"]] = {}
     for card in cards:
-        meta[card.card_id], source[card.card_id] = _meta_for(card, stats.get(card.resource_id))
+        m = compute_meta(
+            stats.get(card.resource_id),
+            rows.get(card.resource_id) or card,
+            fallback_rating=card.rating,
+        )
+        meta[card.card_id] = round(m.value if m.value is not None else float(card.rating), 1)
+        source[card.card_id] = m.source
 
     result = build_squad(
         cards,

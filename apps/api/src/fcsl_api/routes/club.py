@@ -8,9 +8,7 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import any_, delete, func, literal, or_, select
 from sqlalchemy.orm import Session
 
-from ..meta.attributes import STATS, PlayerAttributes
-from ..meta.rating import meta_rating
-from ..meta.roles import role_for
+from ..meta.compute import compute_meta
 from ..models_db import Card, CardAttributes, ClubItem, Price, SyncRun
 from ..prices import effective_prices
 from ..solver import models as solver_models
@@ -124,9 +122,8 @@ def _meta(stats: dict | None, card: Card | None) -> tuple[float | None, str | No
     """Meta rating de la carta en el rol de su primera posición (None sin stats)."""
     if not stats or card is None or not card.positions:
         return None, None
-    role = role_for(card.positions[0])
-    attrs = PlayerAttributes(**{k: v for k, v in stats.items() if k in STATS})
-    return round(meta_rating(attrs, role), 1), role
+    m = compute_meta(stats, card)
+    return (round(m.value, 1) if m.value is not None else None), m.role
 
 
 @router.get("/club", response_model=ClubPage)

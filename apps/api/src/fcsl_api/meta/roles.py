@@ -3,11 +3,14 @@
 Los pesos salen de los "top stats por rol" que EasySBC publica + conocimiento del
 juego; son **nuestros** y se afinan por calibración (no hace falta que sumen 1, el
 cálculo normaliza). `playstyles_plus` lista los ids de PlayStyle+ que más suman en el
-rol: los ids son **provisionales** hasta mapear la tabla id→nombre de EA (tarea de
-datos aparte); el cálculo funciona igual y el valor exacto se ajusta luego.
+rol: los ids son los `eaId` de PlayStyle de EA/FUT.GG y las listas salen del ranking público
+`fut.gg/playstyles/best-by-role` (guía de calibración, 2026-11-19): 0 Finesse Shot, 5 Incisive
+Pass, 6 Pinged Pass, 10 Jockey, 12 Intercept, 13 Anticipate, 15 Bruiser, 17 Rapid, 22 Quick
+Step, 29 Footwork, 30 Cross Claimer, 31 1v1 Close Down, 32 Far Reach, 33 Deflector,
+34 Low Driven Shot, 37 Gamechanger.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 
 @dataclass(frozen=True)
@@ -31,7 +34,7 @@ ROLES: dict[str, RoleWeights] = {
             "positioning": 0.06,
             "shot_power": 0.04,
         },
-        playstyles_plus=[22, 17],  # provisional (p. ej. Quick Step / Finesse)
+        playstyles_plus=[34, 37, 22, 17, 0],
         best_accelerate="EXPLOSIVE",
     ),
     "winger": RoleWeights(  # LW/RW/LM/RM — velocidad + regate + pase
@@ -46,7 +49,7 @@ ROLES: dict[str, RoleWeights] = {
             "finishing": 0.06,
             "short_passing": 0.04,
         },
-        playstyles_plus=[22, 25],
+        playstyles_plus=[34, 37, 22, 17, 0],
         best_accelerate="EXPLOSIVE",
     ),
     "playmaker": RoleWeights(  # CAM/CM — pase + regate + visión
@@ -61,7 +64,7 @@ ROLES: dict[str, RoleWeights] = {
             "acceleration": 0.08,
             "balance": 0.08,
         },
-        playstyles_plus=[25, 19],
+        playstyles_plus=[34, 5, 37, 0, 6],
     ),
     "box_crasher": RoleWeights(  # CDM — físico + recuperación + pase
         key_stats={
@@ -75,7 +78,7 @@ ROLES: dict[str, RoleWeights] = {
             "aggression": 0.08,
             "reactions": 0.08,
         },
-        playstyles_plus=[19, 34],
+        playstyles_plus=[6, 10, 13, 22, 5],
     ),
     "falseback": RoleWeights(  # LB/RB/LWB/RWB — velocidad + defensa + pase
         key_stats={
@@ -89,7 +92,7 @@ ROLES: dict[str, RoleWeights] = {
             "crossing": 0.08,
             "balance": 0.08,
         },
-        playstyles_plus=[34, 17],
+        playstyles_plus=[10, 22, 13, 12, 15],
         best_accelerate="EXPLOSIVE",
     ),
     "defender": RoleWeights(  # CB — defensa + físico + remate
@@ -104,12 +107,18 @@ ROLES: dict[str, RoleWeights] = {
             "composure": 0.06,
             "sprint_speed": 0.04,
         },
-        playstyles_plus=[34],
+        playstyles_plus=[10, 13, 22, 12, 15],
     ),
     "goalkeeper": RoleWeights(  # GK — placeholder: sin stats de portero propios aún
         key_stats={"reactions": 0.5, "composure": 0.3, "jumping": 0.2},
+        playstyles_plus=[31, 32, 29, 30, 33],
     ),
 }
+
+# CM: mismos stats que el creador, pero su propia lista de PlayStyles (pase + recuperación).
+ROLES["central_mid"] = replace(
+    ROLES["playmaker"], playstyles_plus=[6, 5, 10, 22, 37], best_accelerate=None
+)
 
 # Posición → rol por defecto.
 _POSITION_ROLE: dict[str, str] = {
@@ -120,7 +129,7 @@ _POSITION_ROLE: dict[str, str] = {
     "LM": "winger",
     "RM": "winger",
     "CAM": "playmaker",
-    "CM": "playmaker",
+    "CM": "central_mid",
     "CDM": "box_crasher",
     "LB": "falseback",
     "RB": "falseback",
