@@ -106,3 +106,40 @@ describe("SquadBuilder", () => {
     );
   });
 });
+
+describe("SquadBuilder con mercado", () => {
+  it("envía pool y presupuesto y muestra lo que hay que comprar", async () => {
+    const market = {
+      ...built,
+      slots: [{ ...slot(1, "CB", "Fichaje Caro"), source: "market", price: 5000 }],
+      spent: 5000,
+      pending_stats: 3,
+    };
+    const fetchMock = vi.fn().mockResolvedValue(json(market));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SquadBuilder apiUrl={URL_} />);
+
+    fireEvent.change(screen.getByLabelText("Cartas"), { target: { value: "both" } });
+    fireEvent.change(screen.getByLabelText("Presupuesto (monedas)"), { target: { value: "50000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
+
+    expect(await screen.findByText("Fichaje Caro")).toBeInTheDocument();
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toMatchObject({ pool: "both", budget: 50000 });
+    expect(screen.getByText(/5\.000 monedas/)).toBeInTheDocument();
+    expect(screen.getByText(/comprar 5\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/3 candidatos del mercado aún no tienen stats/)).toBeInTheDocument();
+  });
+
+  it("con solo mi club no manda presupuesto", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(built));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SquadBuilder apiUrl={URL_} />);
+    expect(screen.queryByLabelText("Presupuesto (monedas)")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Armar mi mejor once" }));
+    await screen.findByText("Óptimo");
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.pool).toBeUndefined();
+    expect(body.budget).toBeUndefined();
+  });
+});

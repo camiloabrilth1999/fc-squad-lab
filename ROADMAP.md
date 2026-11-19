@@ -69,9 +69,16 @@ que ninguna decisión ni tarea se pierda. Diseño general en
 
 ## Pendiente / aparcado (no perder)
 
-- **Squad Builder — Fase B (mercado + filtros)**: sugerir compras de cualquier carta
-  con presupuesto, fuente (mercado/club/iconos), filtros (país/liga/club, must-include),
-  "best formation", jugadores fijados. **Requiere** la DB completa de players.
+- **Squad Builder — Fase B (mercado + filtros)**: **mercado + presupuesto HECHO** (rama
+  `feat/squad-market`): `pool: both` + `budget` en `POST /squad/build`; candidatos de
+  mercado = capas de Pareto (rating/precio) por posición (`squad/market.py`); stats
+  detallados bajo demanda con `make squad-scan ARGS='--formation 442 --budget 150000'`
+  (≤ 1 req/s; los candidatos sin stats se excluyen y se avisa con `pending_stats`); la web
+  tiene selector de cartas y presupuesto. Con tu club y 150.000 monedas: meta 926,6 → 945,4,
+  rating 84 → 86, gasto 109.050 (resultado *feasible* al límite de 10 s).
+  **Falta**: filtros (país/liga/club, must-include), "best formation", jugadores fijados,
+  fuente icono/héroe, escaneo desde la web (hoy es por CLI), y afinar el rendimiento del
+  modelo con mercado (no llega a probar optimalidad en 10 s).
 - **Players DB** (~21k cartas con meta rating por rol + stats + precio).
 - **Squad Recommendations** del club (se cubre con Squad Builder Fase A).
 - **Gallery**: modo soluciones de sets de galería sobre el solver de SBC.

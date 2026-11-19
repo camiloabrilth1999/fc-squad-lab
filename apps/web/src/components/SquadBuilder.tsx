@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatNumber } from "../lib/format";
 
 type Slot = {
   slot_index: number;
@@ -13,6 +14,8 @@ type Slot = {
   meta_source: "stats" | "rating";
   chemistry: number;
   in_position: boolean;
+  source: "club" | "market";
+  price: number | null;
 };
 type BuildResult = {
   status: string;
@@ -22,8 +25,12 @@ type BuildResult = {
   team_rating: number;
   team_chemistry: number;
   solve_time_s: number;
+  spent: number;
+  pending_stats: number;
   message: string | null;
 };
+
+export type Pool = "club" | "both";
 
 export type OopMode = "none" | "family" | "any";
 export const OOP_LABELS: Record<OopMode, string> = {
@@ -61,6 +68,8 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
   const [formation, setFormation] = useState("442");
   const [minChem, setMinChem] = useState(0);
   const [oop, setOop] = useState<OopMode>("family");
+  const [pool, setPool] = useState<Pool>("club");
+  const [budget, setBudget] = useState(100000);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [result, setResult] = useState<BuildResult | null>(null);
@@ -73,7 +82,12 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
       const r = await fetch(`${apiUrl}/squad/build`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formation, min_chemistry: minChem, out_of_position: oop }),
+        body: JSON.stringify({
+          formation,
+          min_chemistry: minChem,
+          out_of_position: oop,
+          ...(pool === "both" ? { pool, budget } : {}),
+        }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setResult((await r.json()) as BuildResult);
@@ -116,6 +130,30 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           />
         </label>
         <label className="text-sm">
+          <span className="mb-1 block text-muted">Cartas</span>
+          <select
+            value={pool}
+            onChange={(e) => setPool(e.target.value as Pool)}
+            className="rounded-lg border border-line bg-surface-2 px-3 py-2"
+          >
+            <option value="club">Solo mi club</option>
+            <option value="both">Club + mercado</option>
+          </select>
+        </label>
+        {pool === "both" ? (
+          <label className="text-sm">
+            <span className="mb-1 block text-muted">Presupuesto (monedas)</span>
+            <input
+              type="number"
+              min={0}
+              step={10000}
+              value={budget}
+              onChange={(e) => setBudget(Math.max(0, Number(e.target.value) || 0))}
+              className="w-36 rounded-lg border border-line bg-surface-2 px-3 py-2"
+            />
+          </label>
+        ) : null}
+        <label className="text-sm">
           <span className="mb-1 block text-muted">Fuera de posición</span>
           <select
             value={oop}
@@ -152,11 +190,20 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
                 <Stat label="Media" value={String(result.team_rating)} />
                 <Stat label="Química" value={`${result.team_chemistry}/33`} />
                 <Stat label="Meta total" value={result.total_meta.toFixed(1)} />
+                {result.spent > 0 ? (
+                  <Stat label="A comprar" value={`${formatNumber(result.spent)} monedas`} />
+                ) : null}
               </>
             ) : null}
           </div>
           {result.message && !solved ? (
             <p className="mt-2 text-sm text-muted">{result.message}</p>
+          ) : null}
+          {result.pending_stats > 0 ? (
+            <p className="mt-2 text-sm text-warn">
+              {result.pending_stats} candidatos del mercado aún no tienen stats y no se usaron. Corre{" "}
+              <code>make squad-scan</code> para bajarlos.
+            </p>
           ) : null}
           {solved ? <Pitch slots={result.slots} /> : null}
         </div>
@@ -202,6 +249,9 @@ function PlayerSlot({ slot }: { slot: Slot }) {
       <p className="mt-1 truncate text-sm font-medium" title={slot.name}>
         {slot.name}
       </p>
+      {slot.source === "market" ? (
+        <p className="text-[11px] text-warn">comprar {slot.price ? formatNumber(slot.price) : ""}</p>
+      ) : null}
       {slot.in_position ? null : (
         <p className="text-[11px] text-warn">fuera de posición</p>
       )}

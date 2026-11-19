@@ -114,3 +114,23 @@ def test_meta_can_depend_on_position():
     r = build_squad(cards, meta, SLOTS, chem_weight=0, allowed=allowed)
     assert [a.card_id for a in r.assignments if a.slot_index == 2] == ["club:3"]
     assert r.total_meta == 80.0 + 70.0 + 90.0
+
+
+def test_budget_limits_total_price_of_priced_cards():
+    cards = [_c(1, "GK"), _c(2, "CB"), _c(3, "CB"), _c(4, "ST")]
+    meta = {"club:1": 80.0, "club:2": 70.0, "club:3": 95.0, "club:4": 85.0}
+    prices = {"club:3": 5000}  # la carta de mercado, mejor que club:2
+    free = build_squad(cards, meta, SLOTS, chem_weight=0, prices=prices, budget=10000)
+    assert [a.card_id for a in free.assignments if a.slot_index == 1] == ["club:3"]
+    assert free.spent == 5000
+    tight = build_squad(cards, meta, SLOTS, chem_weight=0, prices=prices, budget=4000)
+    assert [a.card_id for a in tight.assignments if a.slot_index == 1] == ["club:2"]
+    assert tight.spent == 0
+
+
+def test_no_budget_means_prices_are_ignored():
+    cards = [_c(1, "GK"), _c(2, "CB"), _c(3, "CB"), _c(4, "ST")]
+    meta = {"club:1": 80.0, "club:2": 70.0, "club:3": 95.0, "club:4": 85.0}
+    r = build_squad(cards, meta, SLOTS, chem_weight=0, prices={"club:3": 999999})
+    assert [a.card_id for a in r.assignments if a.slot_index == 1] == ["club:3"]
+    assert r.spent == 999999
