@@ -6,6 +6,11 @@ import type {
   EvolutionsImport,
   ImportClubBody,
   MarketObservation,
+  ObjectiveAward,
+  ObjectiveCategory,
+  ObjectiveGroup,
+  ObjectivesImport,
+  ObjectiveTask,
 } from "./types";
 
 const ENDPOINTS: Record<string, Endpoint> = {
@@ -18,6 +23,8 @@ const ENDPOINTS: Record<string, Endpoint> = {
 const ENDPOINT_RE = /\/ut\/game\/[^/]+\/(club|storagepile|tradepile|watchlist|transfermarket)\/?$/;
 
 const ACADEMY_RE = /\/ut\/game\/[^/]+\/academy\/hub\/v2\/?$/;
+
+const OBJECTIVES_RE = /\/ut\/game\/[^/]+\/scmp\/objective\/categories\/all\/?$/;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -37,6 +44,7 @@ export function isFutUrl(url: string): boolean {
 export function classifyUrl(url: string): Endpoint | null {
   const u = parseUrl(url);
   if (u && ACADEMY_RE.test(u.pathname)) return "academy";
+  if (u && OBJECTIVES_RE.test(u.pathname)) return "objectives";
   const m = u ? ENDPOINT_RE.exec(u.pathname) : null;
   return m ? ENDPOINTS[m[1]] : null;
 }
@@ -85,7 +93,7 @@ function stillOwned(a: Record<string, unknown>): boolean {
 
 export function toClubImport(url: string, body: unknown): ImportClubBody | null {
   const endpoint = classifyUrl(url);
-  if (!endpoint || endpoint === "market" || endpoint === "academy" || !isRecord(body)) return null;
+  if (!endpoint || endpoint === "market" || endpoint === "academy" || endpoint === "objectives" || !isRecord(body)) return null;
   let rawItems: unknown[] | null = null;
   if (Array.isArray(body.itemData)) rawItems = body.itemData;
   else if (Array.isArray(body.auctionInfo))
@@ -195,4 +203,72 @@ export function toEvolutionsImport(body: unknown): EvolutionsImport | null {
     }));
   const slots = body.slots.map(toSlot).filter((s): s is EvolutionSlot => s !== null);
   return { categories, slots };
+}
+
+
+function toAward(raw: unknown): ObjectiveAward | null {
+  if (!isRecord(raw) || typeof raw.awardType !== "string" || !num(raw.value)) return null;
+  const reduced = isRecord(raw.itemDataReduced) ? raw.itemDataReduced : isRecord(raw.itemData) ? raw.itemData : null;
+  return {
+    type: raw.awardType,
+    value: raw.value,
+    count: num(raw.count) ? raw.count : 1,
+    untradeable: raw.untradeable === true,
+    item: reduced && num(reduced.resourceId) ? { resource_id: reduced.resourceId, rating: numOrNull(reduced.rating) } : null,
+  };
+}
+
+const awardsOf = (v: unknown): ObjectiveAward[] =>
+  (Array.isArray(v) ? v : []).map(toAward).filter((a): a is ObjectiveAward => a !== null);
+
+function toTask(raw: unknown): ObjectiveTask | null {
+  if (!isRecord(raw) || !num(raw.objectiveId)) return null;
+  return {
+    id: raw.objectiveId,
+    name: str(raw.name) ?? "",
+    description: str(raw.description),
+    progress: numOrNull(raw.currentProgress),
+    target: numOrNull(raw.multiplier),
+    state: str(raw.state),
+    awards: awardsOf(raw.awards),
+  };
+}
+
+function toGroup(raw: unknown): ObjectiveGroup | null {
+  if (!isRecord(raw) || !num(raw.groupId)) return null;
+  return {
+    id: raw.groupId,
+    type: num(raw.groupType) ? raw.groupType : 0,
+    content_id: numOrNull(raw.contentId),
+    title: str(raw.title),
+    subtitle: str(raw.subTitle),
+    state: numOrNull(raw.groupState),
+    repeatability: str(raw.repeatabilityMode),
+    times_completed: num(raw.timesCompleted) ? raw.timesCompleted : 0,
+    start_time: numOrNull(raw.startTime),
+    end_time: numOrNull(raw.endTime),
+    visibility_time: numOrNull(raw.visibilityTime),
+    priority: numOrNull(raw.priority),
+    awards: awardsOf(raw.awardsList),
+    objectives: (Array.isArray(raw.objectives) ? raw.objectives : [])
+      .map(toTask)
+      .filter((t): t is ObjectiveTask => t !== null),
+  };
+}
+
+/** Respuesta de `scmp/objective/categories/all` → categorías reducidas (o null si no lo parece). */
+export function toObjectivesImport(body: unknown): ObjectivesImport | null {
+  if (!isRecord(body)) return null;
+  const categories: ObjectiveCategory[] = [];
+  for (const raw of Object.values(body)) {
+    if (!isRecord(raw) || !num(raw.categoryId) || !Array.isArray(raw.groupsList)) continue;
+    categories.push({
+      id: raw.categoryId,
+      name: str(raw.name) ?? "",
+      type: numOrNull(raw.type),
+      priority: numOrNull(raw.priority),
+      groups: raw.groupsList.map(toGroup).filter((g): g is ObjectiveGroup => g !== null),
+    });
+  }
+  return categories.length > 0 ? { categories } : null;
 }

@@ -192,3 +192,21 @@ describe("evoluciones", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+
+describe("objetivos", () => {
+  const body = { "0": { categoryId: 0, name: "Fundamentos", priority: 0, type: 8, groupsList: [{ groupId: 1, groupType: 8, title: "G", objectives: [] }] } };
+  it("envía la versión reducida a /import/objectives", async () => {
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/scmp/objective/categories/all`, body });
+    await bg.flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8787/import/objectives");
+    expect(JSON.parse(init.body).categories[0].groups[0].id).toBe(1);
+  });
+  it("una respuesta rara no envía nada", async () => {
+    bg.handleMessage({ source: "fcsl", url: `${BASE}/scmp/objective/categories/all`, body: { nada: true } });
+    await bg.flush();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

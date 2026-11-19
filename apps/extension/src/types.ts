@@ -1,5 +1,5 @@
 export type Location = "club" | "storage" | "tradepile" | "watchlist";
-export type Endpoint = Location | "market" | "academy";
+export type Endpoint = Location | "market" | "academy" | "objectives";
 
 export interface EaItem {
   id: number;
@@ -60,6 +60,51 @@ export interface EvolutionSlot {
 export interface EvolutionsImport {
   categories: { id: number; name: string; slot_ids: number[] }[];
   slots: EvolutionSlot[];
+}
+
+/** Objetivos (EA `scmp/objective/categories/all`) reducidos: sin imágenes ni datos de jugador. */
+export interface ObjectiveAward {
+  type: string;
+  value: number;
+  count: number;
+  untradeable: boolean;
+  /** Solo en recompensas de tipo jugador: qué carta es. */
+  item: { resource_id: number; rating: number | null } | null;
+}
+export interface ObjectiveTask {
+  id: number;
+  name: string;
+  description: string | null;
+  progress: number | null;
+  target: number | null;
+  state: string | null;
+  awards: ObjectiveAward[];
+}
+export interface ObjectiveGroup {
+  id: number;
+  type: number;
+  content_id: number | null;
+  title: string | null;
+  subtitle: string | null;
+  state: number | null;
+  repeatability: string | null;
+  times_completed: number;
+  start_time: number | null;
+  end_time: number | null;
+  visibility_time: number | null;
+  priority: number | null;
+  awards: ObjectiveAward[];
+  objectives: ObjectiveTask[];
+}
+export interface ObjectiveCategory {
+  id: number;
+  name: string;
+  type: number | null;
+  priority: number | null;
+  groups: ObjectiveGroup[];
+}
+export interface ObjectivesImport {
+  categories: ObjectiveCategory[];
 }
 
 export interface PageMessage {

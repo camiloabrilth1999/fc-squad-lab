@@ -29,7 +29,9 @@ MAX_SAMPLES = 50
 MAX_BODY_BYTES = 2 * 1024 * 1024
 PRICE_SOURCE = "ea-session"
 PRICE_PLATFORM = "PC"
-CAPPED_PATHS = frozenset({"/import/club", "/import/market", "/import/evolutions"})
+CAPPED_PATHS = frozenset(
+    {"/import/club", "/import/market", "/import/evolutions", "/import/objectives"}
+)
 TOO_LARGE = "Cuerpo demasiado grande"
 
 
