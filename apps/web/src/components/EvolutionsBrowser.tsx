@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatNumber, formatRemaining } from "../lib/format";
+import EvolutionPlan from "./EvolutionPlan";
 
 export { formatRemaining };
 
@@ -84,6 +85,7 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
   const [mine, setMine] = useState<number | null>(null);
+  const [showPlan, setShowPlan] = useState(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -122,6 +124,17 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
 
   return (
     <div className="mt-6 space-y-5">
+      <div>
+        <button
+          type="button"
+          aria-expanded={showPlan}
+          onClick={() => setShowPlan((v) => !v)}
+          className="rounded-lg border border-accent px-3 py-1.5 text-sm font-medium text-accent hover:bg-surface-2"
+        >
+          {showPlan ? "Ocultar el plan" : "Plan para tu club"}
+        </button>
+      </div>
+      {showPlan ? <EvolutionPlan apiUrl={apiUrl} /> : null}
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

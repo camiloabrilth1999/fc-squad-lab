@@ -172,7 +172,16 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   **Límites**: la proyección solo cubre cartas con stats detallados (las demás salen «sin stats»;
   `make sync-club-attributes` los baja); las evoluciones de «ruta» (el jugador elige PlayStyles) no
   suben stats y salen con +0,0; los roles+/++ y los PlayStyle+ no se proyectan; el meta es del rol
-  de la posición preferida. Siguiente idea: recomendar la mejor evolución para cada carta.
+  de la posición preferida.
+  **Mejor evolución por carta y plan global: HECHO (rama `feat/evolutions-plan`)**:
+  `GET /evolutions/for-card/{item_id}` (las evoluciones activas que esa carta puede tomar, por mayor
+  meta final) y `GET /evolutions/plan?min_after=` (asignación óptima con CP-SAT: cada evolución y
+  cada carta una sola vez, maximizando la mejora total de meta; solo cartas aptas con stats
+  detallados). `ClubEvaluator` carga el club una vez (0,2 s para 9 evoluciones × 193 cartas). En la
+  web, botón «Plan para tu club» en `/evoluciones` con «Meta final mínimo» (por defecto 70): con tu
+  club, 7 de 9 evoluciones y +58,8 de meta. **Falta**: vista por carta en la web (el endpoint ya
+  existe), evoluciones repetibles (hoy cada una se usa una vez) y tener en cuenta el coste en
+  monedas/FC Points.
   **Falta**: nombres de sobres (hoy `Sobre #id`), campaña/pase de temporada (`activeCampaign`, otra
   llamada), fichas con nombre, y avisos de objetivos por caducar.
 - **Vistas de valor: HECHAS (parte 1)** (rama `feat/value-views`): `GET /value/bargains`

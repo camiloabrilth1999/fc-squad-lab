@@ -9,9 +9,9 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from ..evolutions.enums import stat_name
-from ..evolutions.projection import project_meta
-from ..evolutions.requirements import Requirement, check, decode, describe, facts_for
-from ..models_db import Card, CardAttributes, Catalog, ClubItem, Evolution, EvolutionCategory
+from ..evolutions.requirements import decode, describe
+from ..evolutions.service import ClubEvaluator, Match, active_evolutions, plan
+from ..models_db import Catalog, Evolution, EvolutionCategory
 from .imports import DbSession, require_token
 
 import_router = APIRouter(prefix="/import", tags=["import"], dependencies=[Depends(require_token)])
@@ -287,6 +287,146 @@ class CandidatesOut(BaseModel):
     total_checked: int
 
 
+class CardRef(BaseModel):
+    item_id: int
+    resource_id: int
+    name: str | None
+    rating: int | None
+    positions: list[str]
+
+
+class EvolutionRef(BaseModel):
+    id: int
+    name: str | None
+    category: str | None = None
+
+
+class ForCardItem(BaseModel):
+    evolution: EvolutionRef
+    eligible: bool | None
+    unknown: list[str] = Field(default_factory=list)
+    meta_before: float | None
+    meta_after: float | None
+    meta_gain: float | None
+
+
+class ForCardOut(BaseModel):
+    card: CardRef
+    items: list[ForCardItem]
+
+
+class PlanItem(BaseModel):
+    evolution: EvolutionRef
+    card: CardRef
+    meta_before: float
+    meta_after: float
+    meta_gain: float
+
+
+class PlanOut(BaseModel):
+    assignments: list[PlanItem]
+    total_gain: float
+    evolutions_considered: int
+
+
+def _card_ref(m: Match) -> CardRef:
+    return CardRef(
+        item_id=m.item_id,
+        resource_id=m.resource_id,
+        name=m.name,
+        rating=m.rating,
+        positions=m.positions,
+    )
+
+
+def _candidate(m: Match) -> Candidate:
+    return Candidate(
+        item_id=m.item_id,
+        resource_id=m.resource_id,
+        name=m.name,
+        rating=m.rating,
+        positions=m.positions,
+        eligible=m.eligible,
+        unknown=m.unknown,
+        meta_before=m.meta_before,
+        meta_after=m.meta_after,
+        meta_gain=m.meta_gain,
+    )
+
+
+def _categories(session: DbSession) -> dict[int, str]:
+    return {c.id: c.name for c in session.scalars(select(EvolutionCategory))}
+
+
+@router.get("/plan", response_model=PlanOut)
+def evolution_plan(
+    session: DbSession,
+    min_after: Annotated[float, Query(ge=0, le=100)] = 0.0,
+) -> PlanOut:
+    """Qué evolución dar a qué carta de tu club para subir más el meta en total.
+
+    Cada evolución se usa una vez y cada carta una vez; solo cuentan las cartas que cumplen los
+    requisitos y tienen stats detallados. `min_after` descarta resultados con meta final bajo.
+    """
+    evos = active_evolutions(session)
+    ev = ClubEvaluator(session)
+    cats = _categories(session)
+    pairs = [(e, m) for e in evos for m in ev.matches(e)]
+    chosen = plan(pairs, min_after=min_after)
+    items = [
+        PlanItem(
+            evolution=EvolutionRef(id=e.slot_id, name=e.name, category=cats.get(e.category_id)),
+            card=_card_ref(m),
+            meta_before=m.meta_before or 0.0,
+            meta_after=m.meta_after or 0.0,
+            meta_gain=m.meta_gain or 0.0,
+        )
+        for e, m in chosen
+    ]
+    return PlanOut(
+        assignments=items,
+        total_gain=round(sum(i.meta_gain for i in items), 1),
+        evolutions_considered=len(evos),
+    )
+
+
+@router.get("/for-card/{item_id}", response_model=ForCardOut)
+def evolutions_for_card(item_id: int, session: DbSession) -> ForCardOut:
+    """Las evoluciones activas que esta carta de tu club puede tomar, de mayor a menor meta final."""
+    ev = ClubEvaluator(session)
+    card, found = ev.for_card(item_id, active_evolutions(session))
+    if card is None:
+        raise HTTPException(status_code=404, detail="Carta no encontrada en tu club")
+    cats = _categories(session)
+    found.sort(
+        key=lambda p: (
+            p[1].eligible is not True,
+            -(p[1].meta_after if p[1].meta_after is not None else -999.0),
+        )
+    )
+    ref = CardRef(
+        item_id=item_id,
+        resource_id=card.resource_id,
+        name=card.name,
+        rating=card.rating,
+        positions=card.positions or [],
+    )
+    return ForCardOut(
+        card=ref,
+        items=[
+            ForCardItem(
+                evolution=EvolutionRef(id=e.slot_id, name=e.name, category=cats.get(e.category_id)),
+                eligible=m.eligible,
+                unknown=m.unknown,
+                meta_before=m.meta_before,
+                meta_after=m.meta_after,
+                meta_gain=m.meta_gain,
+            )
+            for e, m in found
+        ],
+    )
+
+
 @router.get("/{slot_id}/candidates", response_model=CandidatesOut)
 def candidates(
     slot_id: int,
@@ -301,58 +441,24 @@ def candidates(
     evo = session.get(Evolution, slot_id)
     if evo is None:
         raise HTTPException(status_code=404, detail="Evolución no encontrada")
-    data = evo.data or {}
-    reqs: list[Requirement] = decode(data.get("requirements") or [])
-    texts = [describe(r, _catalog_names(session)) for r in reqs]
-    levels = data.get("levels") or []
-    rows = session.execute(
-        select(ClubItem, Card)
-        .join(Card, Card.resource_id == ClubItem.resource_id)
-        .where(ClubItem.location.is_distinct_from("watchlist"))
-    ).all()
-    stats = dict(session.execute(select(CardAttributes.resource_id, CardAttributes.stats)).all())
-    out: list[Candidate] = []
-    unknown_count = 0
-    for item, card in rows:
-        card_stats = stats.get(card.resource_id)
-        facts = facts_for(card, card_stats, untradeable=item.untradeable)
-        verdicts = [check(r, facts) for r in reqs]
-        if any(v is False for v in verdicts):
-            continue
-        missing = [t for t, v in zip(texts, verdicts, strict=True) if v is None]
-        if missing:
-            unknown_count += 1
-            if not include_unknown:
-                continue
-        before, after = project_meta(card, card_stats, levels)
-        out.append(
-            Candidate(
-                item_id=item.item_id,
-                resource_id=card.resource_id,
-                name=card.name,
-                rating=card.rating,
-                positions=card.positions or [],
-                eligible=None if missing else True,
-                unknown=missing,
-                meta_before=round(before, 1) if before is not None else None,
-                meta_after=round(after, 1) if after is not None else None,
-                meta_gain=round(after - before, 1)
-                if before is not None and after is not None
-                else None,
-            )
-        )
+    ev = ClubEvaluator(session)
+    _, texts = ev.requirements(evo)
+    found = ev.matches(evo)
+    unknown_count = sum(1 for m in found if m.eligible is None)
+    if not include_unknown:
+        found = [m for m in found if m.eligible is not None]
 
-    def _rank(c: Candidate) -> float:
-        value = c.meta_after if sort == "after" else c.meta_gain
+    def _rank(m: Match) -> float:
+        value = m.meta_after if sort == "after" else m.meta_gain
         return -(value if value is not None else -999.0)
 
-    out.sort(key=lambda c: (c.eligible is not True, _rank(c), -(c.rating or 0)))
+    found.sort(key=lambda m: (m.eligible is not True, _rank(m), -(m.rating or 0)))
     return CandidatesOut(
         id=evo.slot_id,
         name=evo.name,
         requirements=texts,
-        items=out[:limit],
-        eligible_count=sum(1 for c in out if c.eligible),
+        items=[_candidate(m) for m in found[:limit]],
+        eligible_count=sum(1 for m in found if m.eligible),
         unknown_count=unknown_count,
-        total_checked=len(rows),
+        total_checked=len(ev.rows),
     )
