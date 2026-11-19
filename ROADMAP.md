@@ -100,7 +100,22 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   **Falta**: selector de clubes (692; hace falta un buscador), meta por rol alternativo en la
   lista, ranking por rol y comparación de cartas.
 - **Squad Recommendations** del club (se cubre con Squad Builder Fase A).
-- **Gallery** (reconocida 2026-11-19, SIN construir; decisión pendiente de Camilo). Qué es: un modo
+- **Gallery** (reconocida 2026-11-19, APARCADA: falta la tabla de puntos por carta). Decisión de
+  Camilo: sembrar las reglas desde EasySBC como guía. Lo que SÍ es público y estático
+  (`GET api-fc27.easysbc.io/gallery/sets`, 297 KB, sin cuenta): **198 sets en 10 grupos** (Rarities,
+  Premier League, LaLiga, Bundesliga, Ligue 1, Serie A, Leagues, Saudi, MLS, NWSL), cada uno con
+  `requiredCards` (15 en 166 sets; 4–30 en el resto), 5 grados con **umbral de puntos** (p. ej.
+  Stade Brestois: D 10, C 700, B 1000, A 1600, S 2300) y fichas por grado, y un `market` con
+  presupuesto y pérdida por impuestos (`/gallery/sets/<grupo>/<set>` solo repite los metadatos).
+  **Lo que NO es público**: los puntos de cada carta y el pool de cada set; EasySBC los entrega
+  dentro de su solución (llamadas con cuenta y cupo diario: "1 left today"). De las soluciones
+  vistas se intuye `puntos = f(nivel, rareza, media)` (bronce ≤62 → 20, plata 65–73 → 35, oro
+  común 75 → 90, especial 84 → 830) más un bonus de *First Owner*, pero faltaría una tabla completa
+  y validada (no se puede sacar sin gastar el cupo de su cuenta, y no queremos depender de eso).
+  **Para retomarla** hace falta esa tabla de puntos por (nivel, rareza, media) —por ejemplo
+  observándola en el juego— y el estado de coleccionado (`isCollected` en los jugadores de EA).
+  Con eso el solver es un CP-SAT de cobertura (elegir N cartas del pool con puntos ≥ umbral al
+  mínimo de monedas + impuesto 5 %), que reusa `squad/market.py`. Descripción original: un modo
   de EA (se completa "en la consola") donde coleccionas jugadores en **sets por club/liga/nación**
   (15, 20 o 30 jugadores) en grados **D, C, B, A, S**; cada jugador aporta puntos (p. ej. 20 un
   59–61, 35 un 65–73, 90 un 75, 830 un 84 especial) y cada grado da fichas (13/28…). "Coleccionar"
