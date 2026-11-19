@@ -194,3 +194,36 @@ describe("EvolutionsBrowser: requisitos y mis cartas", () => {
     expect(screen.queryByText("Paulina Bartz")).toBeNull();
   });
 });
+
+
+describe("EvolutionsBrowser: plan para tu club", () => {
+  it("abre y cierra el plan desde el botón", async () => {
+    const plan = {
+      assignments: [
+        {
+          evolution: { id: 1, name: "Bajo los focos", category: "Evoluciones" },
+          card: { item_id: 1, name: "Iron Gomis", rating: 68, positions: ["CM"] },
+          meta_before: 68.6,
+          meta_after: 78.1,
+          meta_gain: 9.5,
+        },
+      ],
+      total_gain: 9.5,
+      evolutions_considered: 9,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes("/evolutions/plan")) return json(plan);
+        if (String(url).includes("/evolutions/categories")) return json(cats);
+        return json({ items: [], total: 0 });
+      }),
+    );
+    render(<EvolutionsBrowser apiUrl={URL_} />);
+    expect(screen.queryByText("Plan para tu club", { selector: "h2" })).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "Plan para tu club" }));
+    expect(await screen.findByText(/Iron Gomis/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ocultar el plan" }));
+    expect(screen.queryByText(/Iron Gomis/)).toBeNull();
+  });
+});
