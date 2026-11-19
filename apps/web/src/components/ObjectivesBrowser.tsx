@@ -41,6 +41,13 @@ const FILTERS: [string, string][] = [
   ["done", "Completados"],
 ];
 
+/** Caduca en menos de 48 h (y aún no ha caducado). */
+function endsSoon(iso: string | null): boolean {
+  if (!iso) return false;
+  const ms = new Date(iso).getTime() - Date.now();
+  return ms > 0 && ms < 48 * 3_600_000;
+}
+
 export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [category, setCategory] = useState<number | null>(null);
@@ -172,15 +179,38 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
         </div>
       ) : null}
 
+      {items && items.length > 0 ? (
+        <dl className="grid grid-cols-3 gap-3">
+          {(
+            [
+              ["Total", items.length],
+              ["Hechos", items.filter((g) => g.status === "done").length],
+              ["Por caducar", items.filter((g) => g.status !== "done" && endsSoon(g.ends_at)).length],
+            ] as [string, number][]
+          ).map(([label, n]) => (
+            <div key={label} className="rounded-card border border-line bg-surface p-3">
+              <dt className="text-xs uppercase tracking-wider text-muted">{label}</dt>
+              <dd className="mt-1 font-mono text-lg font-semibold tabular-nums">{n}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {(items ?? []).map((g) => {
           const key = `${g.type}-${g.id}`;
           const st = STATUS[g.status];
           const remaining = formatRemaining(g.ends_at);
+          const urgent = g.status !== "done" && endsSoon(g.ends_at);
           const pct = g.progress.total ? Math.round((g.progress.done / g.progress.total) * 100) : 0;
           const isOpen = open === key;
           return (
-            <article key={key} className="flex flex-col rounded-card border border-line bg-surface p-4">
+            <article
+              key={key}
+              className={`flex flex-col rounded-card border border-l-4 bg-surface p-4 ${
+                urgent ? "border-warn/60 border-l-warn" : g.status === "done" ? "border-line border-l-accent" : "border-line border-l-line"
+              }`}
+            >
               <header className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold">{g.title ?? "Objetivos"}</h3>
                 <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${st.cls}`}>{st.label}</span>
@@ -216,7 +246,9 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
               ) : null}
 
               <footer className="mt-3 flex items-center gap-3 text-xs text-muted">
-                {remaining ? <span>Termina en {remaining}</span> : null}
+                {remaining ? (
+                  <span className={urgent ? "font-medium text-warn" : ""}>Termina en {remaining}</span>
+                ) : null}
                 {g.objectives.length > 0 ? (
                   <button
                     type="button"
