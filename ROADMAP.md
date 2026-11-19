@@ -44,7 +44,9 @@ que ninguna decisión ni tarea se pierda. Diseño general en
     PlayStyle+ de EA (ahora provisionales en la semilla); (c) **calibrar pesos**
     contra EasySBC (script dev); (d) stats de portero propios (el rol GK es
     placeholder); (e) los PlayStyles no-plus aún no suman al score.
-- **Squad Builder — Fase A (solo club)**: "mejor XI de tu club" maximizando
+- **Squad Builder — Fase A (solo club): API HECHA** (`POST /squad/build`, `squad/builder.py`,
+  en posición, Σ meta + química; óptimo al instante con tu club real). Falta la página web,
+  jugar fuera de posición y meta por (carta, hueco). Descripción original: "mejor XI de tu club" maximizando
   meta + química (la función "best possible squad" de EasySBC). Reusa el solver;
   objetivo = maximizar Σ meta en vez de minimizar coste.
 
