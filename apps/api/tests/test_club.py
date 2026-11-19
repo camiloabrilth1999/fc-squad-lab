@@ -117,6 +117,7 @@ def test_default_listing_excludes_watchlist_and_values(
         "value": 9500 + 1710 + 0 + 475 + 285,
         "untradeable": 1,
         "unknown_cards": 1,
+        "loans": 0,
     }
 
 

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..meta.compute import compute_meta
 from ..meta.roles import role_for
 from ..models_db import Card as CardRow
-from ..models_db import CardAttributes
+from ..models_db import CardAttributes, ClubItem
 from ..sbc import formations
 from ..sbc.pool import club_cards
 from ..solver.models import Card
@@ -33,6 +33,8 @@ class SquadBuildRequest(BaseModel):
     nation_ids: list[int] = Field(default_factory=list)
     club_ids: list[int] = Field(default_factory=list)
     time_limit_s: float = Field(default=10.0, gt=0, le=60)
+    # las cartas cedidas (por partidos o por tiempo) no son tuyas: por defecto no entran
+    include_loans: bool = False
     # club = solo tus cartas; both = tus cartas + candidatos del mercado dentro del presupuesto
     pool: Literal["club", "both"] = "club"
     budget: int | None = Field(default=None, ge=0)  # monedas para comprar; obligatorio con both
@@ -56,6 +58,7 @@ class SquadSlot(BaseModel):
     chemistry: int
     in_position: bool = True
     source: Literal["club", "market"] = "club"
+    loan: bool = False  # cedida: solo la puedes usar un tiempo o unos partidos
     price: int | None = None  # monedas, solo si hay que comprarla
 
 
@@ -124,7 +127,11 @@ def _build(session: Session, req: SquadBuildRequest, formation: str) -> SquadBui
     slots = formations.slots_for(formation)
     now = datetime.now(UTC)
     pinned = set(req.include_card_ids)
-    cards = [c for c in club_cards(session, now) if c.card_id in pinned or _passes(c, req)]
+    cards = [
+        c
+        for c in club_cards(session, now, include_loans=req.include_loans)
+        if c.card_id in pinned or _passes(c, req)
+    ]
     stats = {
         rid: s
         for rid, s in session.execute(select(CardAttributes.resource_id, CardAttributes.stats))
@@ -198,6 +205,10 @@ def _build(session: Session, req: SquadBuildRequest, formation: str) -> SquadBui
         time_limit_s=req.time_limit_s,
     )
     by_id = {c.card_id: c for c in cards}
+    loan_items = {
+        f"club:{i}"
+        for i in session.scalars(select(ClubItem.item_id).where(ClubItem.loan.is_(True)))
+    }
     out = [
         SquadSlot(
             slot_index=a.slot_index,
@@ -211,6 +222,7 @@ def _build(session: Session, req: SquadBuildRequest, formation: str) -> SquadBui
             chemistry=result.player_chemistry.get(a.card_id, 0),
             in_position=a.position in by_id[a.card_id].positions,
             source=by_id[a.card_id].source,
+            loan=a.card_id in loan_items,
             price=prices.get(a.card_id),
         )
         for a in result.assignments

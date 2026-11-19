@@ -9,6 +9,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from ..models_db import Card, CardAttributes, Catalog, ClubItem, Evolution
+from ..sbc.pool import not_a_loan
 from .projection import project_meta
 from .requirements import Requirement, check, decode, describe, facts_for
 
@@ -53,7 +54,10 @@ class ClubEvaluator:
         self.rows = session.execute(
             select(ClubItem, Card)
             .join(Card, Card.resource_id == ClubItem.resource_id)
-            .where(ClubItem.location.is_distinct_from("watchlist"))
+            .where(
+                ClubItem.location.is_distinct_from("watchlist"),
+                not_a_loan(datetime.now(UTC)),  # una cesión no se puede evolucionar
+            )
         ).all()
         self.stats = dict(
             session.execute(select(CardAttributes.resource_id, CardAttributes.stats)).all()

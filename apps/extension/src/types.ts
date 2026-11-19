@@ -12,6 +12,8 @@ export interface EaItem {
   marketDataMaxPrice?: number | null;
   owners?: number | null;
   loans?: number | null;
+  /** Cesión: MATCH_LOAN (loanValue = partidos) o USER_TIME_LIMIT_LOAN (loanValue = epoch en que acaba). */
+  loansInfo?: { loanType: string; loanValue: number } | null;
   itemType?: string | null;
 }
 

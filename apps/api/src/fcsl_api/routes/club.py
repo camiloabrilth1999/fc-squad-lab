@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from ..meta.compute import compute_meta
 from ..models_db import Card, CardAttributes, ClubItem, Price, SyncRun
 from ..prices import effective_prices
+from ..sbc.pool import not_a_loan
 from ..solver import models as solver_models
 from ..solver.valuation import card_cost
 from .imports import (  # noqa: F401  (get_db se reexporta para los overrides)
@@ -38,6 +39,9 @@ class ClubRow(BaseModel):
     location: str | None
     duplicate: bool
     loan: bool
+    loan_type: str | None = None
+    loan_value: int | None = None
+    loan_label: str | None = None  # «Cedido: 5 partidos», «Temporal: hasta …»
     price: int | None
     price_source: str | None
     value: int
@@ -52,6 +56,7 @@ class ClubSummary(BaseModel):
     value: int
     untradeable: int
     unknown_cards: int
+    loans: int = 0  # cartas cedidas: aparecen en el club pero no son tuyas
 
 
 class ClubPage(BaseModel):
@@ -62,6 +67,16 @@ class ClubPage(BaseModel):
 
 class ForgetBody(BaseModel):
     older_than_days: int = Field(ge=1)
+
+
+def _loan_label(item: ClubItem) -> str | None:
+    if item.loan_type == "MATCH_LOAN" and item.loan_value is not None:
+        n = item.loan_value
+        return f"Cedido: {n} partido{'s' if n != 1 else ''}"
+    if item.loan_type == "USER_TIME_LIMIT_LOAN" and item.loan_value:
+        until = datetime.fromtimestamp(item.loan_value, UTC).strftime("%d/%m %H:%M")
+        return f"Temporal: hasta {until}"
+    return "Cedido" if item.loan else None
 
 
 def _price_used(item: ClubItem, effective: tuple[int, str] | None) -> tuple[int | None, str | None]:
@@ -83,6 +98,8 @@ def _value(item: ClubItem, card: Card | None, price: int | None) -> int:
     `card_cost(card, ValuationSettings())`. Si la carta es desconocida o sus datos no sirven al
     solver: 0 si es intransferible, si no precio × factor (0.95) redondeado.
     """
+    if item.loan:
+        return 0  # una cesión no es tuya: no suma valor
     used = price or 0
     rating = card.rating if card is not None and card.rating is not None else item.rating
     if (
@@ -155,6 +172,8 @@ def get_club(
         stmt = stmt.where(ClubItem.location.is_distinct_from("watchlist"))
     else:
         stmt = stmt.where(ClubItem.location == location)
+    # Una cesión por tiempo ya caducada deja de estar en el club (EA la retira): no se muestra.
+    stmt = stmt.where(not_a_loan(datetime.now(UTC), include_loans=True))
     # La importación es pasiva y no ve bajas: lo no visto en `max_age_days` se oculta (0/None = todo).
     now = datetime.now(UTC)
     if max_age_days:
@@ -201,6 +220,9 @@ def get_club(
                 location=item.location,
                 duplicate=bool(item.duplicate),
                 loan=bool(item.loan),
+                loan_type=item.loan_type,
+                loan_value=item.loan_value,
+                loan_label=_loan_label(item),
                 price=price,
                 price_source=source,
                 value=_value(item, card, price),
@@ -215,6 +237,7 @@ def get_club(
         value=sum(r.value for r in rows),
         untradeable=sum(r.untradeable for r in rows),
         unknown_cards=sum(card is None for _, card in pairs),
+        loans=sum(1 for r in rows if r.loan),
     )
     start = (page - 1) * page_size
     return ClubPage(items=rows[start : start + page_size], total=len(rows), summary=summary)

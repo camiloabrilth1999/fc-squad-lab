@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import and_, false, func, not_, or_, select
 from sqlalchemy.orm import Session
 
 from ..models_db import Card, ClubItem
@@ -63,12 +63,26 @@ def _solver_card(
         return None
 
 
-def club_cards(session: Session, now: datetime) -> list[SolverCard]:
-    """Tu club como cartas del solver (ubicaciones club/almacén), con precio PC."""
+def not_a_loan(now: datetime, include_loans: bool = False):
+    """Condición SQL: solo lo que es tuyo; con `include_loans`, también las cesiones aún vigentes
+    (las de tiempo ya caducadas no cuentan nunca)."""
+    expired = and_(
+        ClubItem.loan_type == "USER_TIME_LIMIT_LOAN", ClubItem.loan_value < int(now.timestamp())
+    )
+    if include_loans:
+        return not_(func.coalesce(expired, false()))  # NULL (carta propia) = no caducada
+    return or_(ClubItem.loan.is_(None), ClubItem.loan.is_(False))
+
+
+def club_cards(session: Session, now: datetime, *, include_loans: bool = False) -> list[SolverCard]:
+    """Tu club como cartas del solver (ubicaciones club/almacén), con precio PC.
+
+    Las cartas cedidas (por partidos o por tiempo) no son tuyas: se excluyen salvo `include_loans`.
+    """
     stmt = (
         select(ClubItem, Card)
         .join(Card, Card.resource_id == ClubItem.resource_id)
-        .where(ClubItem.location.in_(USABLE_LOCATIONS))
+        .where(ClubItem.location.in_(USABLE_LOCATIONS), not_a_loan(now, include_loans))
     )
     pairs = [(i, c) for i, c in session.execute(stmt)]
     resource_ids = {i.resource_id for i, _ in pairs if i.resource_id is not None}
