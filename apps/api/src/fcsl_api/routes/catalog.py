@@ -15,6 +15,7 @@ router = APIRouter(prefix="/catalog", tags=["catalog"])
 class CatalogEntry(BaseModel):
     id: int
     name: str
+    image_path: str | None = None
 
 
 @router.get("", response_model=list[CatalogEntry])
@@ -28,4 +29,4 @@ def list_catalog(
     if q:
         stmt = stmt.where(Catalog.name.ilike(f"%{q.strip()}%"))
     rows = session.scalars(stmt.order_by(Catalog.name, Catalog.ea_id).limit(limit))
-    return [CatalogEntry(id=r.ea_id, name=r.name) for r in rows]
+    return [CatalogEntry(id=r.ea_id, name=r.name, image_path=r.image_path) for r in rows]

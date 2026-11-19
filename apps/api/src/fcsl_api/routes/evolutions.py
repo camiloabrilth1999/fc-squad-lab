@@ -275,6 +275,7 @@ class Candidate(BaseModel):
     meta_before: float | None = None
     meta_after: float | None = None
     meta_gain: float | None = None
+    image_path: str | None = None
 
 
 class CandidatesOut(BaseModel):
@@ -293,6 +294,7 @@ class CardRef(BaseModel):
     name: str | None
     rating: int | None
     positions: list[str]
+    image_path: str | None = None
 
 
 class EvolutionRef(BaseModel):
@@ -336,6 +338,7 @@ def _card_ref(m: Match) -> CardRef:
         name=m.name,
         rating=m.rating,
         positions=m.positions,
+        image_path=m.image_path,
     )
 
 
@@ -351,6 +354,7 @@ def _candidate(m: Match) -> Candidate:
         meta_before=m.meta_before,
         meta_after=m.meta_after,
         meta_gain=m.meta_gain,
+        image_path=m.image_path,
     )
 
 
@@ -410,6 +414,7 @@ def evolutions_for_card(item_id: int, session: DbSession) -> ForCardOut:
         name=card.name,
         rating=card.rating,
         positions=card.positions or [],
+        image_path=card.image_path,
     )
     return ForCardOut(
         card=ref,

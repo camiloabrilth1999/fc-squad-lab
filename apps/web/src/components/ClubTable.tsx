@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { formatNumber, formatSeenAgo, sourceLabel } from "../lib/format";
+import CardImage, { Badge } from "./CardImage";
 
 const PAGE_SIZE = 50;
 const STALE_DAYS = 30;
@@ -42,12 +43,61 @@ type ClubRow = {
   price_source: string | null;
   value: number;
   seen_at: string | null;
+  loan?: boolean | null;
+  loan_label?: string | null;
+  image_path?: string | null;
+  nation_image?: string | null;
+  club_image?: string | null;
 };
 type ClubResponse = {
   items: ClubRow[];
   total: number;
-  summary: { count: number; value: number; untradeable: number; unknown_cards: number };
+  summary: { count: number; value: number; untradeable: number; unknown_cards: number; loans?: number };
 };
+
+const rowName = (r: ClubRow) => r.name ?? `Carta desconocida #${r.resource_id}`;
+
+function ClubCard({ r }: { r: ClubRow }) {
+  return (
+    <article className="relative flex flex-col rounded-card border border-line bg-surface p-2 transition-colors hover:border-accent/50">
+      {r.loan ? (
+        <span className="absolute left-2 top-2 z-10 rounded bg-amber-500 px-1.5 py-0.5 text-[11px] font-medium text-black">
+          {r.loan_label ?? "Cedido"}
+        </span>
+      ) : r.untradeable ? (
+        <span className="absolute left-2 top-2 z-10 rounded bg-surface-2/90 px-1.5 py-0.5 text-[11px] text-muted">
+          Intransferible
+        </span>
+      ) : null}
+      <CardImage path={r.image_path} rating={r.rating} position={r.positions[0]} alt={rowName(r)} />
+      <div className="mt-2 min-w-0">
+        <p className="truncate text-sm font-medium" title={rowName(r)}>
+          {rowName(r)}
+        </p>
+        <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted">
+          <Badge path={r.nation_image} alt="Nación" size={14} />
+          <Badge path={r.club_image} alt="Club" size={14} />
+          <span className="truncate">
+            {r.rating} · {r.positions.join(", ")}
+          </span>
+        </p>
+        <p className="mt-1 font-mono text-sm tabular-nums">
+          {r.loan ? (
+            <span className="text-muted">No es tuyo</span>
+          ) : r.price === null ? (
+            "—"
+          ) : (
+            formatNumber(r.price)
+          )}
+        </p>
+        {!r.loan && r.price !== null && r.price_source ? (
+          <p className="text-[11px] text-muted">{sourceLabel(r.price_source)}</p>
+        ) : null}
+        <p className="text-[11px] text-muted">{formatSeenAgo(r.seen_at)}</p>
+      </div>
+    </article>
+  );
+}
 
 const LOCATIONS = [
   { value: "", label: "Todas (sin lista de seguimiento)" },
@@ -68,6 +118,7 @@ export default function ClubTable({ apiUrl }: { apiUrl: string }) {
   const [location, setLocation] = useState("");
   const [showStale, setShowStale] = useState(false);
   const [page, setPage] = useState(1);
+  const [view, setView] = useState<"cards" | "table">("cards");
   // Token guardado (vacío en el servidor) salvo que el usuario lo haya editado en esta visita.
   const storedToken = useSyncExternalStore(subscribeToken, loadToken, () => "");
   const [tokenDraft, setTokenDraft] = useState<string | null>(null);
@@ -199,11 +250,31 @@ export default function ClubTable({ apiUrl }: { apiUrl: string }) {
             <span className="font-medium">{formatNumber(data.summary.count)}</span> jugadores · valor del club{" "}
             <span className="font-medium">{formatNumber(data.summary.value)}</span> monedas
             {data.summary.unknown_cards > 0 ? ` · ${formatNumber(data.summary.unknown_cards)} cartas desconocidas` : ""}
+            {data.summary.loans ? ` · ${formatNumber(data.summary.loans)} cedidas (no cuentan en el valor)` : ""}
           </p>
+          <div className="flex gap-2 text-sm" role="group" aria-label="Vista">
+            {(["cards", "table"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                className={`${input} ${view === v ? "bg-surface-2 font-medium" : ""}`}
+                onClick={() => setView(v)}
+              >
+                {v === "cards" ? "Cartas" : "Tabla"}
+              </button>
+            ))}
+          </div>
           {data.items.length === 0 ? (
             <p className="text-zinc-500">
               No hay cartas. Abre la web app de EA con la extensión activa para importar tu club.
             </p>
+          ) : view === "cards" ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              {data.items.map((r) => (
+                <ClubCard key={r.item_id} r={r} />
+              ))}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -223,7 +294,14 @@ export default function ClubTable({ apiUrl }: { apiUrl: string }) {
                 <tbody>
                   {data.items.map((r) => (
                     <tr key={r.item_id} className="border-t border-zinc-200 dark:border-zinc-800">
-                      <td className="py-1 pr-3">{r.name ?? `Carta desconocida #${r.resource_id}`}</td>
+                      <td className="py-1 pr-3">
+                        {rowName(r)}
+                        {r.loan ? (
+                          <span className="ml-2 rounded bg-amber-500 px-1.5 py-0.5 text-[11px] font-medium text-black">
+                            {r.loan_label ?? "Cedido"}
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="pr-3">{r.rating}</td>
                       <td className="pr-3">{r.positions.join(", ")}</td>
                       <td className="pr-3">{r.rarity_name ?? ""}</td>

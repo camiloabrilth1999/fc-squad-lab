@@ -60,6 +60,9 @@ class SquadSlot(BaseModel):
     source: Literal["club", "market"] = "club"
     loan: bool = False  # cedida: solo la puedes usar un tiempo o unos partidos
     price: int | None = None  # monedas, solo si hay que comprarla
+    image_path: str | None = None
+    nation_id: int | None = None
+    club_id: int | None = None
 
 
 class SquadBuildResponse(BaseModel):
@@ -223,6 +226,9 @@ def _build(session: Session, req: SquadBuildRequest, formation: str) -> SquadBui
             in_position=a.position in by_id[a.card_id].positions,
             source=by_id[a.card_id].source,
             loan=a.card_id in loan_items,
+            image_path=getattr(rows.get(by_id[a.card_id].resource_id), "image_path", None),
+            nation_id=by_id[a.card_id].nation_id,
+            club_id=by_id[a.card_id].club_id,
             price=prices.get(a.card_id),
         )
         for a in result.assignments

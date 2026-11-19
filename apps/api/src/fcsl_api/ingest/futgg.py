@@ -51,6 +51,12 @@ class CardRow:
     league_name: str | None = None
     nation_name: str | None = None
     club_name: str | None = None
+    # imágenes: rutas en el CDN de FUT.GG (el ancho se pide al construir la URL)
+    image_path: str | None = None  # carta completa
+    portrait_path: str | None = None  # retrato del jugador
+    league_image: str | None = None  # escudo de liga / bandera / escudo de club (catálogo)
+    nation_image: str | None = None
+    club_image: str | None = None
 
 
 def _ea_id(p: dict, key: str) -> int | None:
@@ -119,6 +125,11 @@ def parse_futgg_player(p: dict) -> CardRow | None:
         league_name=(p.get("league") or {}).get("name"),
         nation_name=(p.get("nation") or {}).get("name"),
         club_name=(p.get("club") or {}).get("name"),
+        image_path=p.get("cardImagePath"),
+        portrait_path=p.get("imagePath"),
+        league_image=(p.get("league") or {}).get("imagePath"),
+        nation_image=(p.get("nation") or {}).get("imagePath"),
+        club_image=(p.get("club") or {}).get("imagePath"),
     )
 
 

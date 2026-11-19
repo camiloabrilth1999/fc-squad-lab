@@ -78,6 +78,28 @@ describe("ClubTable", () => {
     expect(screen.getByText("1.234.567")).toBeInTheDocument();
   });
 
+  it("shows loaned players with a badge and without a price, and counts them in the summary", async () => {
+    mockClub(
+      [row({ item_id: 9, name: "Hazard", loan: true, loan_label: "Cedido: 5 partidos", price: null, value: 0 })],
+      1,
+      { count: 1, value: 0, untradeable: 0, unknown_cards: 0, loans: 1 },
+    );
+    render(<ClubTable apiUrl={URL_} />);
+    expect(await screen.findByText("Cedido: 5 partidos")).toBeInTheDocument();
+    expect(screen.getByText("No es tuyo")).toBeInTheDocument();
+    expect(screen.getByText(/1 cedidas/)).toBeInTheDocument();
+  });
+
+  it("builds the card image from the CDN path and switches to the table view", async () => {
+    mockClub([row({ image_path: "2027/card/1.webp" })]);
+    render(<ClubTable apiUrl={URL_} />);
+    const img = await screen.findByAltText("Vinícius Jr");
+    expect(img.getAttribute("src")).toContain("game-assets.fut.gg");
+    expect(img.getAttribute("src")).toContain("2027/card/1.webp");
+    fireEvent.click(screen.getByRole("button", { name: "Tabla" }));
+    expect(screen.getByRole("columnheader", { name: "Nombre" })).toBeInTheDocument();
+  });
+
   it("requests page 1 with page_size 50 and sends filters in the URL", async () => {
     const fn = mockClub([row()]);
     render(<ClubTable apiUrl={URL_} />);

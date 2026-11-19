@@ -84,7 +84,7 @@ def test_catalog_endpoint_lists_and_searches(client: TestClient, clean_db: Sessi
     leagues = client.get("/catalog", params={"kind": "league"}).json()
     assert [x["name"] for x in leagues] == ["LaLiga EA SPORTS", "Premier League"]  # por nombre
     found = client.get("/catalog", params={"kind": "league", "q": "prem"}).json()
-    assert found == [{"id": 13, "name": "Premier League"}]
+    assert found == [{"id": 13, "name": "Premier League", "image_path": None}]
     assert client.get("/catalog", params={"kind": "bad"}).status_code == 422
 
 

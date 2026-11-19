@@ -9,7 +9,7 @@ from sqlalchemy import any_, delete, func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from ..meta.compute import compute_meta
-from ..models_db import Card, CardAttributes, ClubItem, Price, SyncRun
+from ..models_db import Card, CardAttributes, Catalog, ClubItem, Price, SyncRun
 from ..prices import effective_prices
 from ..sbc.pool import not_a_loan
 from ..solver import models as solver_models
@@ -49,6 +49,9 @@ class ClubRow(BaseModel):
     meta: float | None = None
     meta_role: str | None = None
     meta_source: str | None = None  # stats | face
+    image_path: str | None = None  # carta completa
+    nation_image: str | None = None
+    club_image: str | None = None
 
 
 class ClubSummary(BaseModel):
@@ -201,6 +204,10 @@ def get_club(
         )
     }
 
+    badges = {
+        (c.kind, c.ea_id): c.image_path
+        for c in session.scalars(select(Catalog).where(Catalog.image_path.is_not(None)))
+    }
     rows: list[ClubRow] = []
     for item, card in pairs:
         meta, meta_role, meta_source = _meta(stats_by_rid.get(item.resource_id or -1), card)
@@ -223,6 +230,9 @@ def get_club(
                 loan_type=item.loan_type,
                 loan_value=item.loan_value,
                 loan_label=_loan_label(item),
+                image_path=card.image_path if card else None,
+                nation_image=badges.get(("nation", card.nation_id)) if card else None,
+                club_image=badges.get(("club", card.club_id)) if card else None,
                 price=price,
                 price_source=source,
                 value=_value(item, card, price),

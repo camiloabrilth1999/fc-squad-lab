@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { formatNumber } from "../lib/format";
 import { useCatalog } from "../lib/useCatalog";
+import CardImage from "./CardImage";
 
 type Slot = {
   slot_index: number;
@@ -17,6 +18,8 @@ type Slot = {
   in_position: boolean;
   source: "club" | "market";
   price: number | null;
+  loan?: boolean;
+  image_path?: string | null;
 };
 type BuildResult = {
   status: string;
@@ -75,6 +78,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
   const [budget, setBudget] = useState(100000);
   const [league, setLeague] = useState("");
   const [nation, setNation] = useState("");
+  const [includeLoans, setIncludeLoans] = useState(false);
   const leagues = useCatalog(apiUrl, "league");
   const nations = useCatalog(apiUrl, "nation");
   const [loading, setLoading] = useState(false);
@@ -98,6 +102,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           min_chemistry: minChem,
           out_of_position: oop,
           ...(pool === "both" ? { pool, budget } : {}),
+          ...(includeLoans ? { include_loans: true } : {}),
           ...(league ? { league_ids: [Number(league)] } : {}),
           ...(nation ? { nation_ids: [Number(nation)] } : {}),
           ...(pins.length ? { include_card_ids: pins.map((m) => m.id) } : {}),
@@ -233,6 +238,10 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
             ))}
           </select>
         </label>
+        <label className="flex items-center gap-2 pb-2 text-sm">
+          <input type="checkbox" checked={includeLoans} onChange={(e) => setIncludeLoans(e.target.checked)} />
+          Incluir cesiones (Hazard, Lukaku…)
+        </label>
         <button
           type="button"
           onClick={() => void build()}
@@ -361,6 +370,14 @@ function PlayerSlot({
           {"◆".repeat(slot.chemistry)}
           {"◇".repeat(3 - slot.chemistry)}
         </span>
+      </div>
+      <div className="relative mx-auto mt-1 w-20">
+        <CardImage path={slot.image_path} position={slot.position} alt={slot.name} width={160} />
+        {slot.loan ? (
+          <span className="absolute inset-x-0 bottom-0 rounded bg-amber-500 px-1 text-[10px] font-medium text-black">
+            Cedido
+          </span>
+        ) : null}
       </div>
       <p className="mt-1 truncate text-sm font-medium" title={slot.name}>
         {slot.name}
