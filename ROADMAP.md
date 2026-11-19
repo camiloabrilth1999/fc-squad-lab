@@ -127,7 +127,9 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   EA responde a objetivos con un **array** de categorías (corregido en `toObjectivesImport`), y el
   coste de las evoluciones viene como `{funds, finalFunds, name: COINS|POINTS}` (corregido en la
   web). 9 evoluciones y 53 grupos de objetivos se ven bien en `/evoluciones` y `/objetivos`.
-  Pendiente de confirmar: que la extensión recargada envíe sola ambos imports (ver nota).
+  **Confirmado de punta a punta (2026-11-19)**: con las tablas vacías, al recorrer Evoluciones y
+  FC Hub → Objetivos la extensión envió sola 9 evoluciones y 53 grupos / 209 objetivos. La causa de
+  los fallos previos era que Chrome cargaba una copia vieja de la extensión (ver `CLAUDE.md`).
   **Falta**: nombres de sobres (hoy `Sobre #id`), campaña/pase de temporada (`activeCampaign`, otra
   llamada), fichas con nombre, y avisos de objetivos por caducar.
 - **Vistas de valor: HECHAS (parte 1)** (rama `feat/value-views`): `GET /value/bargains`
