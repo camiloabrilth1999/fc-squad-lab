@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatRemaining } from "../lib/format";
+import ObjectivesPlan from "./ObjectivesPlan";
 
 type Award = { type: string; label: string; count: number };
 type Task = {
@@ -77,6 +78,7 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
   const [now, setNow] = useState(0); // «ahora» de la última carga (render puro)
   const [sort, setSort] = useState<"pending" | "ends" | "progress">("pending");
   const [soonOnly, setSoonOnly] = useState(false);
+  const [view, setView] = useState<"list" | "plan">("list");
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -129,8 +131,40 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
       active ? "border-accent bg-surface-2 font-medium" : "border-line text-muted hover:text-fg"
     }`;
 
+  const viewToggle = (
+    <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm" role="group" aria-label="Vista">
+      {(
+        [
+          ["list", "Objetivos"],
+          ["plan", "Plan de partidos"],
+        ] as const
+      ).map(([v, label]) => (
+        <button
+          key={v}
+          type="button"
+          aria-pressed={view === v}
+          onClick={() => setView(v)}
+          className={`rounded-md px-4 py-1.5 transition-colors ${
+            view === v ? "bg-accent font-medium text-accent-fg" : "text-muted hover:text-fg"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (view === "plan")
+    return (
+      <div className="mt-6 space-y-5">
+        {viewToggle}
+        <ObjectivesPlan apiUrl={apiUrl} />
+      </div>
+    );
+
   return (
     <div className="mt-6 space-y-5">
+      {viewToggle}
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

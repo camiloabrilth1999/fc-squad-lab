@@ -18,6 +18,12 @@ from .builder import DEFAULT_CHEM_WEIGHT, build_squad
 from .market import market_candidates, market_card
 
 
+class GroupMinReq(BaseModel):
+    kind: Literal["league", "nation", "club"]
+    id: int
+    k: int = Field(ge=1, le=11)
+
+
 class SquadBuildRequest(BaseModel):
     formation: str = formations.DEFAULT_FORMATION  # o "best": prueba todas y elige la mejor
     chem_weight: float = Field(default=DEFAULT_CHEM_WEIGHT, ge=0, le=20)
@@ -35,6 +41,9 @@ class SquadBuildRequest(BaseModel):
     time_limit_s: float = Field(default=10.0, gt=0, le=60)
     # las cartas cedidas (por partidos o por tiempo) no son tuyas: por defecto no entran
     include_loans: bool = False
+    # exige al menos K jugadores de una liga, nación o club en el once (objetivos)
+    min_players: list[GroupMinReq] = Field(default_factory=list)
+    feasibility_only: bool = False  # solo comprobar que existe un once (sin optimizar)
     # club = solo tus cartas; both = tus cartas + candidatos del mercado dentro del presupuesto
     pool: Literal["club", "both"] = "club"
     budget: int | None = Field(default=None, ge=0)  # monedas para comprar; obligatorio con both
@@ -203,6 +212,8 @@ def _build(session: Session, req: SquadBuildRequest, formation: str) -> SquadBui
         min_chemistry=req.min_chemistry,
         exclude_card_ids=req.exclude_card_ids,
         include_card_ids=req.include_card_ids,
+        group_mins=[(g.kind, g.id, g.k) for g in req.min_players],
+        feasibility_only=req.feasibility_only,
         prices=prices,
         budget=req.budget if req.pool == "both" else None,
         time_limit_s=req.time_limit_s,

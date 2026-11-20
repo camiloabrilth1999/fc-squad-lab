@@ -293,8 +293,11 @@ def _neighbourhoods(m: SbcModel, coef: list[int]) -> list[set[int]]:
     return result
 
 
-def _run_solver(model: cp_model.CpModel, time_limit_s: float) -> SolverResult:
+def _run_solver(
+    model: cp_model.CpModel, time_limit_s: float, *, first_solution: bool = False
+) -> SolverResult:
     solver = cp_model.CpSolver()
+    solver.parameters.stop_after_first_solution = first_solution  # solo comprobar si cabe
     solver.parameters.max_time_in_seconds = max(0.0, time_limit_s)
     solver.parameters.num_workers = 8
     solver.parameters.random_seed = 0

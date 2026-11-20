@@ -190,6 +190,19 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   **Confirmado de punta a punta (2026-11-19)**: con las tablas vacías, al recorrer Evoluciones y
   FC Hub → Objetivos la extensión envió sola 9 evoluciones y 53 grupos / 209 objetivos. La causa de
   los fallos previos era que Chrome cargaba una copia vieja de la extensión (ver `CLAUDE.md`).
+  **Plan de objetivos HECHO (2026-11-20)**: EA no entrega las condiciones estructuradas, solo el
+  texto de `description`; `objectives/parse.py` lo interpreta con patrones (jugar/ganar N partidos,
+  goles, asistencias, «marca ≥1 gol en N partidos», mínimos de futbolistas de liga/nación/club,
+  modo: Rivals, Champions, Squad Battles, Draft, Rush, cooperativo, eventos…) y marca el resto como
+  no planificable con su motivo (SBC, Mercado, Galería, primera adquisición, jugadas concretas…):
+  entiende 78 de 128 descripciones reales. `objectives/plan.py` estima partidos (victorias al 60 %,
+  2 goles y 1,2 asistencias por partido) y agrupa en **sesiones** los objetivos del mismo modo cuyos
+  mínimos caben en un mismo once (comprobado con el solver, `feasibility_only`, parada en la
+  primera solución): una sesión dura lo que su objetivo más largo. Tus 77 objetivos: 864 partidos
+  frente a 1.935 por separado. `GET /objectives/plan/candidates`, `/objectives/plan?ids=&win_rate=`
+  y `/objectives/plan/squad?mins=league:13:3` (el Squad Builder acepta `min_players`); web:
+  «Plan de partidos» en `/objetivos`. **Pendiente**: objetivos de torneo (ganarlo), de primera
+  adquisición, ver cuántos días quedan por sesión y priorizar por recompensa.
   **Evoluciones con tu club: HECHO (2026-11-19, rama `feat/evolutions-club`)**: los requisitos de
   elegibilidad se decodifican (`evolutions/requirements.py`: filas `PLAYER_ATTRIBUTE`/`SCOPE`/
   `ACADEMY_PLAYER_SLOTTING`/`ADDITIONAL_TARGET_VALUE` agrupadas por `eligibilitySlot`, verificados
