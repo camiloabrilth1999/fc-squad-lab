@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatRemaining } from "../lib/format";
 
 type Award = { type: string; label: string; count: number };
@@ -41,10 +41,27 @@ const FILTERS: [string, string][] = [
   ["done", "Completados"],
 ];
 
+const YEAR_MS = 365 * 86_400_000;
+
+/** Fecha de fin con significado: EA pone fines de años para lo que no caduca. */
+function realEnd(iso: string | null, now: number): number | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) || t - now > YEAR_MS ? null : t;
+}
+
+const ORDER: Record<Group["status"], number> = { in_progress: 0, not_started: 1, done: 2 };
+
 /** Caduca en menos de 48 h (y aún no ha caducado). */
 function endsSoon(iso: string | null): boolean {
   if (!iso) return false;
   const ms = new Date(iso).getTime() - Date.now();
+  return ms > 0 && ms < 48 * 3_600_000;
+}
+
+/** Caduca dentro de las próximas 48 h respecto a `now`. */
+function endsInside(iso: string, now: number): boolean {
+  const ms = new Date(iso).getTime() - now;
   return ms > 0 && ms < 48 * 3_600_000;
 }
 
@@ -57,6 +74,9 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
   const [items, setItems] = useState<Group[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [now, setNow] = useState(0); // «ahora» de la última carga (render puro)
+  const [sort, setSort] = useState<"pending" | "ends" | "progress">("pending");
+  const [soonOnly, setSoonOnly] = useState(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -80,6 +100,7 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
       })
       .then((body: { items: Group[] }) => {
         setItems(body.items);
+        setNow(Date.now());
         setFailed(false);
       })
       .catch((e: unknown) => {
@@ -88,6 +109,20 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
       });
     return () => ctrl.abort();
   }, [apiUrl, category, status, applied]);
+
+  const visible = useMemo(() => {
+    const list = (items ?? []).filter(
+      (g) => !soonOnly || (g.status !== "done" && g.ends_at !== null && endsInside(g.ends_at, now)),
+    );
+    const end = (g: Group) => realEnd(g.ends_at, now) ?? Number.POSITIVE_INFINITY;
+    const frac = (g: Group) => (g.progress.total ? g.progress.done / g.progress.total : 0);
+    list.sort((a, b) => {
+      if (sort === "ends") return end(a) - end(b);
+      if (sort === "progress") return frac(b) - frac(a);
+      return ORDER[a.status] - ORDER[b.status] || end(a) - end(b);
+    });
+    return list;
+  }, [items, now, sort, soonOnly]);
 
   const chip = (active: boolean) =>
     `rounded-full border px-3 py-1 text-sm ${
@@ -170,6 +205,25 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
         </form>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <button type="button" aria-pressed={soonOnly} onClick={() => setSoonOnly((v) => !v)} className={chip(soonOnly)}>
+          Caducan pronto
+        </button>
+        <label className="ml-auto flex items-center gap-2 text-muted">
+          Ordenar
+          <select
+            aria-label="Ordenar"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as "pending" | "ends" | "progress")}
+            className="rounded-lg border border-line bg-surface px-3 py-1.5 text-fg"
+          >
+            <option value="pending">Pendientes primero</option>
+            <option value="ends">Caducan antes</option>
+            <option value="progress">Más progreso</option>
+          </select>
+        </label>
+      </div>
+
       {failed ? <p className="text-danger">No se pudieron cargar los objetivos.</p> : null}
       {!items && !failed ? <p className="text-muted">Cargando…</p> : null}
       {items && items.length === 0 ? (
@@ -196,11 +250,16 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
         </dl>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {(items ?? []).map((g) => {
+      {items && items.length > 0 && visible.length === 0 ? (
+        <p className="text-muted">Ningún objetivo cumple esos filtros.</p>
+      ) : null}
+
+      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {visible.map((g) => {
           const key = `${g.type}-${g.id}`;
           const st = STATUS[g.status];
-          const remaining = formatRemaining(g.ends_at);
+          const end = realEnd(g.ends_at, now);
+          const remaining = end !== null ? formatRemaining(g.ends_at) : null;
           const urgent = g.status !== "done" && endsSoon(g.ends_at);
           const pct = g.progress.total ? Math.round((g.progress.done / g.progress.total) * 100) : 0;
           const isOpen = open === key;
@@ -216,7 +275,13 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
                 <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${st.cls}`}>{st.label}</span>
               </header>
               <p className="mt-1 text-xs text-muted">
-                {[g.category, g.repeatability === "REFRESH" ? "se renueva" : null].filter(Boolean).join(" · ")}
+                {[
+                  g.category,
+                  g.repeatability === "REFRESH" ? "se renueva" : null,
+                  g.times_completed > 0 ? `completado ${g.times_completed} ${g.times_completed === 1 ? "vez" : "veces"}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
               {g.subtitle ? <p className="mt-2 line-clamp-2 text-sm text-muted">{g.subtitle}</p> : null}
 
@@ -230,7 +295,10 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
                     aria-label={`Progreso de ${g.title ?? "objetivos"}`}
                     className="h-1.5 overflow-hidden rounded bg-surface-2"
                   >
-                    <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+                    <div
+                      className={`h-full ${g.status === "done" ? "bg-good" : "bg-accent"}`}
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
                   <p className="mt-1 text-xs text-muted">
                     {g.progress.done}/{g.progress.total} objetivos
@@ -248,7 +316,9 @@ export default function ObjectivesBrowser({ apiUrl }: { apiUrl: string }) {
               <footer className="mt-3 flex items-center gap-3 text-xs text-muted">
                 {remaining ? (
                   <span className={urgent ? "font-medium text-warn" : ""}>Termina en {remaining}</span>
-                ) : null}
+                ) : (
+                  <span>Sin caducidad</span>
+                )}
                 {g.objectives.length > 0 ? (
                   <button
                     type="button"
