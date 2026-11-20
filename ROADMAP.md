@@ -118,11 +118,14 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   **Plan multi-set HECHO** (`gallery/plan.py`, `GET /gallery/plan`, pestaña «Plan de fichas»):
   una opción por set y grado; con objetivo de fichas, el menor impuesto; sin él, las máximas
   fichas dentro de los límites (saldo, impuestos, traspasos, sets). 751 fichas → ~24K de impuestos,
-  510 traspasos, 34 sets (EasySBC: 26K, 556, 40). Aproximación: los sets se resuelven por separado
-  (una carta de club+liga cuenta en ambos).
+  496 traspasos, 34 sets (EasySBC: 26K, 556, 40). **Cartas compartidas HECHO**: una carta de club
+  y de liga se compra una vez; el plan se resuelve en orden (cada set reutiliza lo comprado antes)
+  y se re-planifica hasta 3 rondas mientras mejore (`make_plan`); ahorro ≈1,3K en el plan de 751
+  fichas, expuesto como `saved_tax`. Resultado válido siempre en ese orden (no hay dependencias
+  circulares); puede variar unos cientos entre ejecuciones (CP-SAT multihilo).
   **Pendiente**: bonus *First Owner* (magnitud sin observar), factores de rarezas aún no vistas
-  (Season 1, Hall of FUT, Icons…), puntos de 90 y ≥92, descontar cartas compartidas entre sets,
-  marcar coleccionadas a mano y la lista completa por si el club no trae todo lo coleccionado.
+  (Season 1, Hall of FUT, Icons…), puntos de 90 y ≥92, marcar coleccionadas a mano y la lista
+  completa por si el club no trae todo lo coleccionado.
   Historial de la decisión original (ya superada): decisión de
   Camilo: sembrar las reglas desde EasySBC como guía. Lo que SÍ es público y estático
   (`GET api-fc27.easysbc.io/gallery/sets`, 297 KB, sin cuenta): **198 sets en 10 grupos** (Rarities,

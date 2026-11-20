@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from ..gallery.plan import build_options, plan
+from ..gallery.plan import build, make_plan
 from ..gallery.service import (
     PoolCard,
     collected_ids,
@@ -177,6 +177,7 @@ class PlanOut(BaseModel):
     coins_needed: int
     sets: int
     max_tokens: int  # fichas máximas con esos límites (o en total, sin objetivo)
+    saved_tax: int = 0  # impuesto que se ahorra por reutilizar cartas compartidas entre sets
     items: list[PlanItemOut]
 
 
@@ -191,8 +192,8 @@ def gallery_plan(
     complete: bool = True,
 ) -> PlanOut:
     """Plan multi-set: con `target_tokens`, el de menor impuesto; sin él, el de más fichas."""
-    res = plan(
-        build_options(session, complete=complete),
+    res = make_plan(
+        build(session, complete=complete),
         target_tokens=target_tokens,
         max_tax=max_tax,
         max_transfers=max_transfers,
@@ -209,6 +210,7 @@ def gallery_plan(
         coins_needed=res.coins_needed,
         sets=len(res.items),
         max_tokens=res.max_tokens,
+        saved_tax=max(0, res.independent_tax - res.tax),
         items=[
             PlanItemOut(
                 set_id=it.set.id,

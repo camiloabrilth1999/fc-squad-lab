@@ -1,4 +1,5 @@
-from fcsl_api.gallery.plan import Option, SetOptions, plan
+from fcsl_api.gallery.plan import Built, Option, SetOptions, _option, make_plan, plan
+from fcsl_api.gallery.service import PoolCard
 from fcsl_api.gallery.sets import GallerySet, Grade
 
 
@@ -58,3 +59,55 @@ def test_unreachable_target_reports_the_maximum() -> None:
     assert res.max_tokens == 35  # 15 + 15 + 5 sin límites
     res = plan(SETS, target_tokens=40, max_sets=1)
     assert res.status == "infeasible" and res.max_tokens == 15
+
+
+def _card(rid: int, points: int, price: int) -> PoolCard:
+    return PoolCard(rid, f"C{rid}", 70, ["CM"], "Rare", None, points, True, price, False)
+
+
+def _built(pools: dict[int, list[PoolCard]]) -> Built:
+    options: list[SetOptions] = []
+    gains: dict[tuple[int, str], int] = {}
+    for sid, pool in pools.items():
+        s = GallerySet(
+            sid, "g", "G", f"S{sid}", f"s{sid}", 2, 5, "club", sid, (Grade("C", 105, 5),)
+        )
+        gains[sid, "C"] = 5
+        opt = _option(s, pool, "C", 105, 5, True)
+        options.append(SetOptions(set=s, current=None, options=[opt] if opt else []))
+    return Built(
+        complete=True,
+        options=options,
+        pools=pools,
+        pool_ids={sid: frozenset(c.resource_id for c in p) for sid, p in pools.items()},
+        gains=gains,
+    )
+
+
+def test_a_card_shared_by_two_sets_is_bought_once() -> None:
+    shared = _card(1, 100, 1000)
+    built = _built(
+        {
+            1: [shared, _card(2, 10, 100)],
+            2: [shared, _card(3, 10, 200)],
+        }
+    )
+    res = make_plan(built, target_tokens=10)
+    assert res.status == "optimal" and res.tokens == 10
+    # independiente: 55 + 60 de impuestos; compartiendo la carta de 1000 solo se compra una vez
+    assert res.independent_tax == 115
+    assert res.tax == 65
+    assert res.cost == 1100 + 200
+    bought = [it.option.bought for it in res.items]
+    assert bought[0] & bought[1] == frozenset()  # ninguna carta se compra dos veces
+
+
+def test_without_overlap_the_plan_is_the_independent_one() -> None:
+    built = _built(
+        {
+            1: [_card(1, 100, 1000), _card(2, 10, 100)],
+            2: [_card(3, 100, 900), _card(4, 10, 100)],
+        }
+    )
+    res = make_plan(built, target_tokens=10)
+    assert res.tax == res.independent_tax
