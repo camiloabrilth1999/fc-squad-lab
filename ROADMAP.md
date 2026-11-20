@@ -201,8 +201,16 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   primera solución): una sesión dura lo que su objetivo más largo. Tus 77 objetivos: 864 partidos
   frente a 1.935 por separado. `GET /objectives/plan/candidates`, `/objectives/plan?ids=&win_rate=`
   y `/objectives/plan/squad?mins=league:13:3` (el Squad Builder acepta `min_players`); web:
-  «Plan de partidos» en `/objetivos`. **Pendiente**: objetivos de torneo (ganarlo), de primera
-  adquisición, ver cuántos días quedan por sesión y priorizar por recompensa.
+  «Plan de partidos» en `/objetivos`. **Prioridad por recompensa HECHO (2026-11-20)**
+  (`objectives/value.py`): cada premio se valora en monedas con el mercado (monedas; jugadores a su
+  precio o al de una carta común de su media; sobres = N cartas de la media mínima que dice su
+  nombre —«Oro x3 81+»—; intransferibles al 50 %; XP/fichas, 0) y el premio del grupo se reparte
+  entre sus objetivos si todos están en el plan. Las sesiones se ordenan por valor/partido y,
+  con «Partidos que quieres jugar», una mochila (`allocate`) reparte el presupuesto entre
+  sesiones (jugar M partidos completa los objetivos de ≤M). Tus datos: ≈204 mil monedas en
+  904 partidos; con 100 partidos, ≈94 mil. 29 de 77 objetivos tienen premios sin valorar
+  (jugadores especiales sin precio) y cuentan 0. **Pendiente**: objetivos de torneo (ganarlo), de
+  primera adquisición y ver cuántos días quedan por sesión.
   **Evoluciones con tu club: HECHO (2026-11-19, rama `feat/evolutions-club`)**: los requisitos de
   elegibilidad se decodifican (`evolutions/requirements.py`: filas `PLAYER_ATTRIBUTE`/`SCOPE`/
   `ACADEMY_PLAYER_SLOTTING`/`ADDITIONAL_TARGET_VALUE` agrupadas por `eligibilitySlot`, verificados

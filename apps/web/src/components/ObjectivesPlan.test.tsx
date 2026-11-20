@@ -89,6 +89,42 @@ describe("ObjectivesPlan", () => {
     expect(url.searchParams.get("win_rate")).toBe("0.5");
   });
 
+  it("muestra el valor de los premios, la prioridad y lo que cabe en el presupuesto", async () => {
+    const valued = {
+      ...planBody,
+      sessions: [
+        {
+          ...planBody.sessions[0],
+          value: 12000,
+          value_per_match: 706,
+          play_matches: 5,
+          tasks: [
+            task(1, "Gana 10 partidos de Rivals.", { rewards: ["Sobre de futb. Oro x2 75+"], value: 12000, matches: 17, done: false }),
+            task(2, "Juega 5 partidos de Rivals.", { rewards: ["1.500 monedas"], value: 1500, matches: 5, done: true, value_known: false }),
+          ],
+        },
+      ],
+      totals: { ...planBody.totals, value: 13500, play_matches: 5, play_value: 1500 },
+    };
+    const fn = vi.fn(async (url: string) =>
+      String(url).includes("/objectives/plan/candidates") ? json(candidates) : json(valued),
+    );
+    vi.stubGlobal("fetch", fn);
+    render(<ObjectivesPlan apiUrl={URL_} />);
+    await screen.findByRole("button", { name: "Planificar 2 objetivos" });
+    fireEvent.change(screen.getByLabelText("Partidos que quieres jugar"), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("Ordenar sesiones"), { target: { value: "matches" } });
+    fireEvent.click(screen.getByRole("button", { name: "Planificar 2 objetivos" }));
+    expect(await screen.findByText("13.500 monedas")).toBeInTheDocument(); // valor total
+    expect(screen.getByText("1.500 monedas")).toBeInTheDocument(); // valor con presupuesto
+    expect(screen.getByText(/juega 5 de 17 partidos/)).toBeInTheDocument();
+    expect(screen.getByText(/Sobre de futb\. Oro x2 75\+ \(≈12\.000\)/)).toBeInTheDocument();
+    expect(screen.getByText(/1 objetivos tienen premios que no se pueden valorar/)).toBeInTheDocument();
+    const url = new URL(String(fn.mock.calls.find(([u]) => String(u).includes("/objectives/plan?"))![0]));
+    expect(url.searchParams.get("budget")).toBe("5");
+    expect(url.searchParams.get("sort")).toBe("matches");
+  });
+
   it("carga la plantilla de una sesión con sus mínimos", async () => {
     const fn = mockApi();
     render(<ObjectivesPlan apiUrl={URL_} />);
