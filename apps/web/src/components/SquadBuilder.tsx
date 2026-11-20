@@ -142,8 +142,8 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
   const status = result ? (STATUS[result.status] ?? { label: result.status, cls: "bg-surface-2" }) : null;
 
   return (
-    <div className="mt-6 space-y-5">
-      <div className="flex flex-wrap items-end gap-4 rounded-card border border-line bg-surface p-5">
+    <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
+      <div className="grid h-fit grid-cols-2 items-end gap-3 rounded-card border border-line bg-surface p-4 lg:order-2">
         <label className="text-sm">
           <span className="mb-1 block text-muted">Formación</span>
           <select
@@ -167,7 +167,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
             max={33}
             value={minChem}
             onChange={(e) => setMinChem(Math.min(33, Math.max(0, Number(e.target.value) || 0)))}
-            className="w-24 rounded-lg border border-line bg-surface-2 px-3 py-2"
+            className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
           />
         </label>
         <label className="text-sm">
@@ -190,7 +190,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
               step={10000}
               value={budget}
               onChange={(e) => setBudget(Math.max(0, Number(e.target.value) || 0))}
-              className="w-36 rounded-lg border border-line bg-surface-2 px-3 py-2"
+              className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
             />
           </label>
         ) : null}
@@ -199,7 +199,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           <select
             value={league}
             onChange={(e) => setLeague(e.target.value)}
-            className="w-44 rounded-lg border border-line bg-surface-2 px-3 py-2"
+            className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
           >
             <option value="">Todas</option>
             {leagues.map((l) => (
@@ -214,7 +214,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           <select
             value={nation}
             onChange={(e) => setNation(e.target.value)}
-            className="w-40 rounded-lg border border-line bg-surface-2 px-3 py-2"
+            className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
           >
             <option value="">Todas</option>
             {nations.map((n) => (
@@ -238,7 +238,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 pb-2 text-sm">
+        <label className="col-span-2 flex items-center gap-2 text-sm">
           <input type="checkbox" checked={includeLoans} onChange={(e) => setIncludeLoans(e.target.checked)} />
           Incluir cesiones (Hazard, Lukaku…)
         </label>
@@ -246,16 +246,23 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           type="button"
           onClick={() => void build()}
           disabled={loading}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-strong disabled:opacity-60"
+          className="col-span-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg transition-colors hover:bg-accent-strong disabled:opacity-60"
         >
           {loading ? "Calculando…" : "Armar mi mejor once"}
         </button>
       </div>
 
+      <div className="min-w-0 space-y-4 lg:order-1">
       {error ? <p className="text-danger">No se pudo armar la plantilla.</p> : null}
 
+      {!result && !loading && !error ? (
+        <div className="rounded-card border border-dashed border-line bg-surface p-10 text-center text-muted">
+          Elige formación y filtros y pulsa <strong>Armar mi mejor once</strong>.
+        </div>
+      ) : null}
+
       {result && status ? (
-        <div className="rounded-card border border-line bg-surface p-5">
+        <div className="rounded-card border border-line bg-surface p-4">
           <div className="flex flex-wrap items-center gap-3">
             <span className={`rounded-full px-3 py-1 text-sm font-medium ${status.cls}`}>
               {status.label}
@@ -307,6 +314,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           ) : null}
         </div>
       ) : null}
+      </div>
     </div>
   );
 }
@@ -323,26 +331,33 @@ function Pitch({
   onExclude: (s: Slot) => void;
 }) {
   return (
-    <div className="mt-4 space-y-3 rounded-card bg-surface-2 p-4">
-      {LINES.map((line) => {
-        const row = slots
-          .filter((s) => line.positions.includes(s.position))
-          .sort((a, b) => sideRank(a.position) - sideRank(b.position));
-        if (row.length === 0) return null;
-        return (
-          <div key={line.label} aria-label={line.label} className="flex flex-wrap justify-center gap-3">
-            {row.map((s) => (
-              <PlayerSlot
-                key={s.slot_index}
-                slot={s}
-                pinned={pinned.includes(s.card_id)}
-                onPin={() => onPin(s)}
-                onExclude={() => onExclude(s)}
-              />
-            ))}
-          </div>
-        );
-      })}
+    <div className="relative mt-4 overflow-hidden rounded-card border border-emerald-900/60 bg-gradient-to-b from-emerald-950 via-emerald-900/70 to-emerald-950 px-2 py-6 sm:px-6">
+      <div aria-hidden className="pointer-events-none absolute inset-3 rounded border-2 border-white/15" />
+      <div aria-hidden className="pointer-events-none absolute inset-x-3 top-1/2 border-t-2 border-white/15" />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/15" />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-3 h-16 w-1/2 -translate-x-1/2 border-2 border-t-0 border-white/15" />
+      <div aria-hidden className="pointer-events-none absolute bottom-3 left-1/2 h-16 w-1/2 -translate-x-1/2 border-2 border-b-0 border-white/15" />
+      <div className="relative flex min-h-[34rem] flex-col justify-around gap-4">
+        {LINES.map((line) => {
+          const row = slots
+            .filter((s) => line.positions.includes(s.position))
+            .sort((a, b) => sideRank(a.position) - sideRank(b.position));
+          if (row.length === 0) return null;
+          return (
+            <div key={line.label} aria-label={line.label} className="flex flex-wrap justify-around gap-2">
+              {row.map((s) => (
+                <PlayerSlot
+                  key={s.slot_index}
+                  slot={s}
+                  pinned={pinned.includes(s.card_id)}
+                  onPin={() => onPin(s)}
+                  onExclude={() => onExclude(s)}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -359,61 +374,59 @@ function PlayerSlot({
   onExclude: () => void;
 }) {
   return (
-    <div
-      className={`w-32 rounded-lg border bg-surface p-2 text-center ${
-        slot.in_position ? "border-line" : "border-warn/60"
-      }`}
-    >
-      <div className="flex items-center justify-between text-xs text-muted">
-        <span>{slot.position}</span>
-        <span title="Química" aria-label={`química ${slot.chemistry}`}>
-          {"◆".repeat(slot.chemistry)}
-          {"◇".repeat(3 - slot.chemistry)}
-        </span>
-      </div>
-      <div className="relative mx-auto mt-1 w-20">
-        <CardImage path={slot.image_path} position={slot.position} alt={slot.name} width={160} />
+    <div className={`group relative w-24 text-center sm:w-28 ${slot.in_position ? "" : "rounded-lg ring-2 ring-warn/70"}`}>
+      <div className="relative mx-auto w-full">
+        <CardImage path={slot.image_path} position={slot.position} alt={slot.name} width={200} />
         {slot.loan ? (
-          <span className="absolute inset-x-0 bottom-0 rounded bg-amber-500 px-1 text-[10px] font-medium text-black">
+          <span className="absolute inset-x-0 bottom-0 rounded bg-amber-500 px-1 text-[10px] font-semibold text-black">
             Cedido
           </span>
         ) : null}
-      </div>
-      <p className="mt-1 truncate text-sm font-medium" title={slot.name}>
-        {slot.name}
-      </p>
-      {slot.source === "market" ? (
-        <p className="text-[11px] text-warn">comprar {slot.price ? formatNumber(slot.price) : ""}</p>
-      ) : null}
-      {slot.in_position ? null : (
-        <p className="text-[11px] text-warn">fuera de posición</p>
-      )}
-      <div className="mt-1 flex justify-center gap-1 text-xs">
-        <button
-          type="button"
-          onClick={onPin}
-          aria-pressed={pinned}
-          aria-label={`${pinned ? "Soltar" : "Fijar"} a ${slot.name}`}
-          className={`rounded px-1.5 py-0.5 ${pinned ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted hover:text-fg"}`}
+        <span
+          className="absolute -top-1 left-0 rounded bg-black/70 px-1 text-[10px] font-semibold text-white"
+          title="Química"
+          aria-label={`química ${slot.chemistry}`}
         >
-          📌
-        </button>
-        <button
-          type="button"
-          onClick={onExclude}
-          aria-label={`Excluir a ${slot.name}`}
-          className="rounded bg-surface-2 px-1.5 py-0.5 text-muted hover:text-fg"
-        >
-          🚫
-        </button>
-      </div>
-      <p className="font-mono text-xs tabular-nums text-muted">
-        {slot.rating} ·{" "}
-        <span className="text-fg" title={slot.meta_source === "stats" ? "Meta rating" : "Sin stats: rating"}>
-          meta {slot.meta.toFixed(1)}
-          {slot.meta_source === "rating" ? "*" : ""}
+          {"◆".repeat(slot.chemistry)}
+          {"◇".repeat(3 - slot.chemistry)}
         </span>
-      </p>
+        <div className="absolute -right-1 top-0 flex flex-col gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={onPin}
+            aria-pressed={pinned}
+            aria-label={`${pinned ? "Soltar" : "Fijar"} a ${slot.name}`}
+            className={`rounded px-1.5 py-0.5 text-xs ${pinned ? "bg-accent text-accent-fg" : "bg-black/70 text-white"}`}
+          >
+            📌
+          </button>
+          <button
+            type="button"
+            onClick={onExclude}
+            aria-label={`Excluir a ${slot.name}`}
+            className="rounded bg-black/70 px-1.5 py-0.5 text-xs text-white"
+          >
+            🚫
+          </button>
+        </div>
+        {pinned ? <span className="absolute -left-1 bottom-6 text-xs">📌</span> : null}
+      </div>
+      <div className="mt-1 rounded-lg bg-black/60 px-1.5 py-1 text-white backdrop-blur-sm">
+        <p className="truncate text-xs font-semibold" title={slot.name}>
+          {slot.name}
+        </p>
+        <p className="font-mono text-[11px] tabular-nums text-white/80">
+          {slot.rating} ·{" "}
+          <span title={slot.meta_source === "stats" ? "Meta rating" : "Sin stats: rating"}>
+            meta {slot.meta.toFixed(1)}
+            {slot.meta_source === "rating" ? "*" : ""}
+          </span>
+        </p>
+        {slot.source === "market" ? (
+          <p className="text-[10px] text-amber-300">comprar {slot.price ? formatNumber(slot.price) : ""}</p>
+        ) : null}
+        {slot.in_position ? null : <p className="text-[10px] text-amber-300">fuera de posición</p>}
+      </div>
     </div>
   );
 }
