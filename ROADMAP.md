@@ -115,8 +115,13 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   `club_items.is_collected` (migración 0013; la extensión lo envía). Solver CP-SAT
   (`gallery/service.py`): rellena los N huecos al menor coste (impuesto 5 %, monedas necesarias =
   la carta más cara). `GET /gallery` y `GET /gallery/{id}/solve?grade=&complete=`; web `/galeria`.
+  **Plan multi-set HECHO** (`gallery/plan.py`, `GET /gallery/plan`, pestaña «Plan de fichas»):
+  una opción por set y grado; con objetivo de fichas, el menor impuesto; sin él, las máximas
+  fichas dentro de los límites (saldo, impuestos, traspasos, sets). 751 fichas → ~24K de impuestos,
+  510 traspasos, 34 sets (EasySBC: 26K, 556, 40). Aproximación: los sets se resuelven por separado
+  (una carta de club+liga cuenta en ambos).
   **Pendiente**: bonus *First Owner* (magnitud sin observar), factores de rarezas aún no vistas
-  (Season 1, Hall of FUT, Icons…), puntos de 90 y ≥92, plan multi-set con presupuesto de fichas,
+  (Season 1, Hall of FUT, Icons…), puntos de 90 y ≥92, descontar cartas compartidas entre sets,
   marcar coleccionadas a mano y la lista completa por si el club no trae todo lo coleccionado.
   Historial de la decisión original (ya superada): decisión de
   Camilo: sembrar las reglas desde EasySBC como guía. Lo que SÍ es público y estático

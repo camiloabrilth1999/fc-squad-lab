@@ -45,6 +45,31 @@ type Solution = {
   cards: SolCard[];
 };
 
+type PlanItem = {
+  set_id: number;
+  name: string;
+  image_path?: string | null;
+  from_grade: string | null;
+  grade: string;
+  tokens: number;
+  points: number;
+  cost: number;
+  tax: number;
+  buys: number;
+  coins_needed: number;
+};
+type Plan = {
+  status: string;
+  tokens: number;
+  tax: number;
+  cost: number;
+  transfers: number;
+  coins_needed: number;
+  sets: number;
+  max_tokens: number;
+  items: PlanItem[];
+};
+
 const GRADE_CLS: Record<string, string> = {
   D: "border-orange-700 text-orange-300",
   C: "border-zinc-400 text-zinc-200",
@@ -72,6 +97,11 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
   const [solution, setSolution] = useState<Solution | null>(null);
   const [solving, setSolving] = useState(false);
   const [solveError, setSolveError] = useState(false);
+  const [view, setView] = useState<"sets" | "plan">("sets");
+  const [limits, setLimits] = useState({ target: "", coins: "", tax: "", transfers: "", sets: "" });
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [planning, setPlanning] = useState(false);
+  const [planError, setPlanError] = useState(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -119,6 +149,35 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
     }
   };
 
+  const computePlan = async () => {
+    setPlanning(true);
+    setPlan(null);
+    setPlanError(false);
+    const p = new URLSearchParams({ complete: String(complete) });
+    if (limits.target) p.set("target_tokens", limits.target);
+    if (limits.coins) p.set("max_coins", limits.coins);
+    if (limits.tax) p.set("max_tax", limits.tax);
+    if (limits.transfers) p.set("max_transfers", limits.transfers);
+    if (limits.sets) p.set("max_sets", limits.sets);
+    try {
+      const r = await fetch(`${apiUrl}/gallery/plan?${p}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setPlan((await r.json()) as Plan);
+    } catch {
+      setPlanError(true);
+    } finally {
+      setPlanning(false);
+    }
+  };
+
+  const openPlanItem = (it: PlanItem) => {
+    const s = (sets ?? []).find((x) => x.id === it.set_id);
+    if (!s) return;
+    setSelected(s);
+    setGrade(it.grade);
+    void solve(s, it.grade, complete);
+  };
+
   const open = (s: GallerySet) => {
     setSelected(s);
     setSolution(null);
@@ -135,6 +194,38 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
 
   return (
     <div className="mt-6 space-y-5">
+      <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm" role="group" aria-label="Vista">
+        {(
+          [
+            ["sets", "Sets"],
+            ["plan", "Plan de fichas"],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            aria-pressed={view === v}
+            onClick={() => setView(v)}
+            className={`rounded-md px-4 py-1.5 transition-colors ${
+              view === v ? "bg-accent font-medium text-accent-fg" : "text-muted hover:text-fg"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "plan" ? (
+        <PlanForm
+          limits={limits}
+          setLimits={setLimits}
+          onCompute={() => void computePlan()}
+          loading={planning}
+        />
+      ) : null}
+      {planError ? <p className="text-danger">No se pudo calcular el plan.</p> : null}
+
+      {view === "sets" ? (
       <div className="flex flex-wrap items-center gap-3">
         <input
           aria-label="Buscar set"
@@ -160,8 +251,12 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
         </div>
         <span className="ml-auto text-sm text-muted">{visible.length} sets</span>
       </div>
+      ) : null}
 
       <div className={`grid gap-5 ${selected ? "lg:grid-cols-[minmax(0,1fr)_32rem]" : ""}`}>
+        {view === "plan" ? (
+          <PlanView plan={plan} loading={planning} selectedId={selected?.id ?? null} onOpen={openPlanItem} />
+        ) : (
         <div
           className={`grid items-start gap-3 self-start ${
             selected ? "sm:grid-cols-2 xl:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
@@ -216,6 +311,7 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
           ))}
           {visible.length === 0 ? <p className="text-muted">Ningún set coincide.</p> : null}
         </div>
+        )}
 
         {selected ? (
           <aside className="min-w-0 space-y-4 self-start lg:sticky lg:top-16">
@@ -343,6 +439,143 @@ function SolutionView({ solution }: { solution: Solution }) {
           </ul>
         </>
       ) : null}
+    </div>
+  );
+}
+
+const field = "w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm";
+
+function PlanForm({
+  limits,
+  setLimits,
+  onCompute,
+  loading,
+}: {
+  limits: { target: string; coins: string; tax: string; transfers: string; sets: string };
+  setLimits: (l: { target: string; coins: string; tax: string; transfers: string; sets: string }) => void;
+  onCompute: () => void;
+  loading: boolean;
+}) {
+  const set = (k: keyof typeof limits) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setLimits({ ...limits, [k]: e.target.value.replace(/[^\d]/g, "") });
+  const inputs: [keyof typeof limits, string, string][] = [
+    ["target", "Objetivo de fichas", "p. ej. 750"],
+    ["coins", "Saldo de monedas", "sin límite"],
+    ["tax", "Impuestos máx.", "sin límite"],
+    ["transfers", "Traspasos máx.", "sin límite"],
+    ["sets", "Sets máx.", "sin límite"],
+  ];
+  return (
+    <div className="rounded-card border border-line bg-surface p-5">
+      <p className="mb-3 text-sm text-muted">
+        Con un objetivo de fichas, el plan de menor pérdida por impuestos. Sin objetivo, el que más
+        fichas da dentro de tus límites.
+      </p>
+      <div className="grid grid-cols-2 items-end gap-3 md:grid-cols-6">
+        {inputs.map(([key, label, ph]) => (
+          <label key={key} className="text-sm">
+            <span className="mb-1 block text-muted">{label}</span>
+            <input
+              inputMode="numeric"
+              value={limits[key]}
+              onChange={set(key)}
+              placeholder={ph}
+              className={field}
+            />
+          </label>
+        ))}
+        <button
+          type="button"
+          disabled={loading}
+          onClick={onCompute}
+          className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg transition-colors hover:bg-accent-strong disabled:opacity-60"
+        >
+          {loading ? "Calculando…" : "Calcular plan"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PlanView({
+  plan,
+  loading,
+  selectedId,
+  onOpen,
+}: {
+  plan: Plan | null;
+  loading: boolean;
+  selectedId: number | null;
+  onOpen: (it: PlanItem) => void;
+}) {
+  if (loading) return <p className="text-muted">Calculando el plan de todos los sets…</p>;
+  if (!plan) return <p className="text-muted">Indica tus límites y pulsa «Calcular plan».</p>;
+  if (plan.status === "infeasible" || plan.status === "unknown") {
+    return (
+      <div className="rounded-card border border-line bg-surface p-5 text-sm">
+        <p className="font-medium text-danger">
+          {plan.status === "unknown" ? "Sin solución en el tiempo límite." : "Ese objetivo no es alcanzable con tus límites."}
+        </p>
+        {plan.status === "infeasible" ? (
+          <p className="mt-1 text-muted">Lo máximo con esos límites son {formatNumber(plan.max_tokens)} fichas.</p>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <div className="min-w-0 space-y-4 self-start">
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {(
+          [
+            ["Fichas", formatNumber(plan.tokens)],
+            ["Monedas necesarias", formatNumber(plan.coins_needed)],
+            ["Pérdida por impuestos", formatNumber(plan.tax)],
+            ["Traspasos", formatNumber(plan.transfers)],
+            ["Sets", String(plan.sets)],
+          ] as [string, string][]
+        ).map(([label, value]) => (
+          <div key={label} className="rounded-card border border-line bg-surface px-3 py-3">
+            <dt className="text-[10px] uppercase tracking-wider text-muted">{label}</dt>
+            <dd className="mt-1 font-mono text-lg font-semibold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="text-xs text-muted">
+        Cada set se resuelve por separado: una carta que está a la vez en un set de club y en uno de
+        liga cuenta en los dos, así que el coste real puede ser algo menor.
+      </p>
+      <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {plan.items.map((it) => (
+          <button
+            key={it.set_id}
+            type="button"
+            onClick={() => onOpen(it)}
+            aria-pressed={selectedId === it.set_id}
+            className={`flex flex-col gap-2 rounded-card border bg-surface p-4 text-left transition-colors hover:border-accent/60 ${
+              selectedId === it.set_id ? "border-accent" : "border-line"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-bg">
+                {it.image_path ? <Badge path={it.image_path} alt={it.name} size={32} /> : <span aria-hidden>🏆</span>}
+              </span>
+              <p className="min-w-0 flex-1 truncate font-semibold">{it.name}</p>
+              <span
+                className={`grid h-7 min-w-7 place-items-center rounded border px-1 text-sm font-semibold ${
+                  GRADE_CLS[it.grade] ?? ""
+                }`}
+              >
+                {it.grade}
+              </span>
+            </div>
+            <p className="text-xs text-muted">
+              <span className="font-mono text-fg">+{it.tokens}</span> fichas ·{" "}
+              <span className="font-mono text-fg">{formatNumber(it.tax)}</span> impuestos ·{" "}
+              {it.buys} traspasos
+            </p>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

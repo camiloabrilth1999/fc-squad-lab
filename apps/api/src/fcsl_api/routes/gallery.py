@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from ..gallery.plan import build_options, plan
 from ..gallery.service import (
     PoolCard,
     collected_ids,
@@ -79,6 +80,17 @@ def _card_out(c: PoolCard) -> CardOut:
     return CardOut(**{k: getattr(c, k) for k in CardOut.model_fields})
 
 
+def _badge_images(session: DbSession) -> dict[tuple[str, int], str | None]:
+    return {
+        (c.kind, c.ea_id): c.image_path
+        for c in session.scalars(
+            select(Catalog).where(
+                Catalog.kind.in_(("club", "league")), Catalog.image_path.is_not(None)
+            )
+        )
+    }
+
+
 @router.get("", response_model=SetsOut)
 def list_sets(session: DbSession, group: str | None = None, q: str | None = None) -> SetsOut:
     sets: list[GallerySet] = [
@@ -87,14 +99,7 @@ def list_sets(session: DbSession, group: str | None = None, q: str | None = None
         if (group is None or s.group == group) and (not q or q.lower() in s.name.lower())
     ]
     done = progress(session, sets)
-    images = {
-        (c.kind, c.ea_id): c.image_path
-        for c in session.scalars(
-            select(Catalog).where(
-                Catalog.kind.in_(("club", "league")), Catalog.image_path.is_not(None)
-            )
-        )
-    }
+    images = _badge_images(session)
     items = [
         SetOut(
             id=s.id,
@@ -146,4 +151,78 @@ def solve(
         buys=sel.buys,
         estimated=any(not c.exact for c in sel.cards),
         cards=[_card_out(c) for c in sel.cards],
+    )
+
+
+class PlanItemOut(BaseModel):
+    set_id: int
+    name: str
+    image_path: str | None = None
+    from_grade: str | None
+    grade: str
+    tokens: int  # fichas nuevas de este set
+    points: int
+    cost: int
+    tax: int
+    buys: int
+    coins_needed: int
+
+
+class PlanOut(BaseModel):
+    status: str  # optimal | feasible | infeasible | unknown
+    tokens: int
+    tax: int
+    cost: int
+    transfers: int
+    coins_needed: int
+    sets: int
+    max_tokens: int  # fichas máximas con esos límites (o en total, sin objetivo)
+    items: list[PlanItemOut]
+
+
+@router.get("/plan", response_model=PlanOut)
+def gallery_plan(
+    session: DbSession,
+    target_tokens: Annotated[int | None, Query(ge=1)] = None,
+    max_tax: Annotated[int | None, Query(ge=0)] = None,
+    max_transfers: Annotated[int | None, Query(ge=0)] = None,
+    max_sets: Annotated[int | None, Query(ge=1)] = None,
+    max_coins: Annotated[int | None, Query(ge=0)] = None,
+    complete: bool = True,
+) -> PlanOut:
+    """Plan multi-set: con `target_tokens`, el de menor impuesto; sin él, el de más fichas."""
+    res = plan(
+        build_options(session, complete=complete),
+        target_tokens=target_tokens,
+        max_tax=max_tax,
+        max_transfers=max_transfers,
+        max_sets=max_sets,
+        max_coins=max_coins,
+    )
+    images = _badge_images(session)
+    return PlanOut(
+        status=res.status,
+        tokens=res.tokens,
+        tax=res.tax,
+        cost=res.cost,
+        transfers=res.transfers,
+        coins_needed=res.coins_needed,
+        sets=len(res.items),
+        max_tokens=res.max_tokens,
+        items=[
+            PlanItemOut(
+                set_id=it.set.id,
+                name=it.set.name,
+                image_path=images.get((it.set.badge_type or "", it.set.badge_id)),  # type: ignore[arg-type]
+                from_grade=it.from_grade,
+                grade=it.option.grade,
+                tokens=it.option.tokens,
+                points=it.option.points,
+                cost=it.option.cost,
+                tax=it.option.tax,
+                buys=it.option.buys,
+                coins_needed=it.option.coins_needed,
+            )
+            for it in res.items
+        ],
     )
