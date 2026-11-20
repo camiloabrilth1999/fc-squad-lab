@@ -67,6 +67,7 @@ class SquadSlot(BaseModel):
     source: str  # "club" | "market"
     untradeable: bool
     price: int | None = None
+    image_path: str | None = None
 
 
 class SbcSolveResult(BaseModel):

@@ -72,6 +72,26 @@ describe("SbcBrowser", () => {
     expect(screen.getByText("Jugador X")).toBeInTheDocument();
   });
 
+  it("filtra por búsqueda y por repetibles", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json([
+          summary,
+          { ...summary, id: "otro", set_id: "otros", set_name: "Otros", name: "Reto único", repeatable: false },
+        ]),
+      ),
+    );
+    render(<SbcBrowser apiUrl={URL_} />);
+    expect(await screen.findByRole("button", { name: /Reto único/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Buscar SBC"), { target: { value: "mejora" } });
+    expect(screen.queryByRole("button", { name: /Reto único/ })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Buscar SBC"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Un solo uso" }));
+    expect(screen.queryByRole("button", { name: /Mejora 81\+/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reto único/ })).toBeInTheDocument();
+  });
+
   it("muestra error si la API falla", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("red")));
     render(<SbcBrowser apiUrl={URL_} />);
