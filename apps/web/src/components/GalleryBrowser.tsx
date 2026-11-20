@@ -17,6 +17,19 @@ type GallerySet = {
   collected: number;
   points: number;
   grade: string | null;
+  tokens_left?: number;
+  options?: Option[] | null;
+  best_grade?: string | null;
+  verdict?: "good" | "ok" | "expensive" | null;
+};
+type Option = {
+  grade: string;
+  tokens: number;
+  points: number;
+  cost: number;
+  tax: number;
+  buys: number;
+  coins_needed: number;
 };
 type SolCard = {
   resource_id: number;
@@ -99,6 +112,9 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
   const [solving, setSolving] = useState(false);
   const [solveError, setSolveError] = useState(false);
   const [view, setView] = useState<"sets" | "plan">("sets");
+  const [sort, setSort] = useState<"value" | "tokens" | "tax" | "name">("name");
+  const [status, setStatus] = useState<"all" | "open" | "done">("all");
+  const [costsLoading, setCostsLoading] = useState(true); // la carga de costes empieza al montar
   const [limits, setLimits] = useState({ target: "", coins: "", tax: "", transfers: "", sets: "" });
   const [plan, setPlan] = useState<Plan | null>(null);
   const [planning, setPlanning] = useState(false);
@@ -122,6 +138,34 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
     return () => ctrl.abort();
   }, [apiUrl]);
 
+  // Costes por grado de cada set: tarda unos segundos la primera vez, así que va aparte.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(`${apiUrl}/gallery?costs=true`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { items: GallerySet[] } | null) => {
+        if (!b) return;
+        setSets(b.items);
+        setSort((cur) => (cur === "name" ? "value" : cur));
+      })
+      .catch(() => {})
+      .finally(() => setCostsLoading(false));
+    return () => ctrl.abort();
+  }, [apiUrl]);
+
+  const summary = useMemo(() => {
+    const all = sets ?? [];
+    const total = all.reduce((n, s) => n + s.tokens, 0);
+    const left = all.reduce((n, s) => n + (s.tokens_left ?? s.tokens), 0);
+    return {
+      total,
+      earned: total - left,
+      left,
+      done: all.filter((s) => s.tokens_left === 0).length,
+      started: all.filter((s) => s.collected > 0).length,
+    };
+  }, [sets]);
+
   const groups = useMemo(() => {
     const seen = new Map<string, string>();
     for (const s of sets ?? []) if (!seen.has(s.group)) seen.set(s.group, s.group_name);
@@ -130,10 +174,23 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (sets ?? []).filter(
-      (s) => (!group || s.group === group) && (!q || s.name.toLowerCase().includes(q)),
+    const list = (sets ?? []).filter(
+      (s) =>
+        (!group || s.group === group) &&
+        (!q || s.name.toLowerCase().includes(q)) &&
+        (status === "all" || (status === "done" ? s.tokens_left === 0 : (s.tokens_left ?? 1) > 0)),
     );
-  }, [sets, group, query]);
+    const best = (s: GallerySet) => s.options?.find((o) => o.grade === s.best_grade);
+    const ratio = (s: GallerySet) => {
+      const b = best(s);
+      return b ? b.tax / b.tokens : Number.POSITIVE_INFINITY;
+    };
+    if (sort === "value") list.sort((a, b) => ratio(a) - ratio(b) || a.name.localeCompare(b.name));
+    else if (sort === "tokens") list.sort((a, b) => (b.tokens_left ?? 0) - (a.tokens_left ?? 0));
+    else if (sort === "tax")
+      list.sort((a, b) => (best(a)?.tax ?? Number.POSITIVE_INFINITY) - (best(b)?.tax ?? Number.POSITIVE_INFINITY));
+    return list;
+  }, [sets, group, query, sort, status]);
 
   const solve = async (s: GallerySet, g: string, c: boolean) => {
     setSolving(true);
@@ -297,6 +354,52 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
         <span className="ml-auto text-sm text-muted">{visible.length} sets</span>
       </div>
       ) : null}
+      {view === "sets" ? (
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {(
+            [
+              ["Fichas ganadas", `${formatNumber(summary.earned)} / ${formatNumber(summary.total)}`],
+              ["Fichas por ganar", formatNumber(summary.left)],
+              ["Sets completados", `${summary.done} / ${sets.length}`],
+              ["Sets empezados", String(summary.started)],
+            ] as [string, string][]
+          ).map(([label, value]) => (
+            <div key={label} className="rounded-card border border-line bg-surface px-3 py-3">
+              <dt className="text-[10px] uppercase tracking-wider text-muted">{label}</dt>
+              <dd className="mt-1 font-mono text-lg font-semibold tabular-nums">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {view === "sets" ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <select
+            aria-label="Estado de los sets"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as "all" | "open" | "done")}
+            className="rounded-lg border border-line bg-surface px-3 py-1.5"
+          >
+            <option value="all">Todos los sets</option>
+            <option value="open">Con fichas por ganar</option>
+            <option value="done">Completados</option>
+          </select>
+          <label className="flex items-center gap-2 text-muted">
+            Ordenar
+            <select
+              aria-label="Ordenar sets"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as "value" | "tokens" | "tax" | "name")}
+              className="rounded-lg border border-line bg-surface px-3 py-1.5 text-fg"
+            >
+              <option value="value">Mejor valor (impuestos por ficha)</option>
+              <option value="tokens">Más fichas por ganar</option>
+              <option value="tax">Menos impuestos</option>
+              <option value="name">Nombre</option>
+            </select>
+          </label>
+          {costsLoading ? <span className="text-xs text-muted">Calculando costes de los 198 sets…</span> : null}
+        </div>
+      ) : null}
 
       <div className={`grid gap-5 ${selected ? "lg:grid-cols-[minmax(0,1fr)_32rem]" : ""}`}>
         {view === "plan" ? (
@@ -352,6 +455,7 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
                 </span>{" "}
                 · <span className="font-mono text-fg">{formatNumber(s.points)}</span> pts
               </p>
+              <SetCost set={s} />
             </button>
           ))}
           {visible.length === 0 ? <p className="text-muted">Ningún set coincide.</p> : null}
@@ -692,4 +796,50 @@ function CardGrid({
       ))}
     </ul>
   );
+}
+
+const VERDICT: Record<string, { label: string; cls: string }> = {
+  good: { label: "Buen valor", cls: "bg-good/15 text-good" },
+  ok: { label: "Valor normal", cls: "bg-surface-2 text-muted" },
+  expensive: { label: "Caro", cls: "bg-danger/15 text-danger" },
+};
+
+/** Coste del mejor grado del set: fichas, impuestos y monedas necesarias, con su veredicto. */
+function SetCost({ set }: { set: GallerySet }) {
+  if (set.tokens_left === 0)
+    return <p className="rounded-lg bg-good/10 px-3 py-1.5 text-center text-xs font-medium text-good">Completado ✓</p>;
+  const best = set.options?.find((o) => o.grade === set.best_grade);
+  if (!set.options) return <p className="text-xs text-muted">+{set.tokens_left ?? 0} fichas por ganar</p>;
+  if (!best) return <p className="text-xs text-muted">Sin cartas con precio para resolverlo</p>;
+  const verdict = set.verdict ? VERDICT[set.verdict] : null;
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-3 gap-1.5 text-center">
+        {(
+          [
+            [`+${best.tokens}`, `fichas (${best.grade})`],
+            [compact(best.tax), "impuestos"],
+            [compact(best.coins_needed), "monedas"],
+          ] as [string, string][]
+        ).map(([value, label]) => (
+          <div key={label} className="rounded-lg bg-bg px-1 py-1.5">
+            <p className="font-mono text-xs font-semibold tabular-nums">{value}</p>
+            <p className="text-[10px] text-muted">{label}</p>
+          </div>
+        ))}
+      </div>
+      {verdict ? (
+        <p className={`rounded px-2 py-0.5 text-center text-[11px] font-semibold uppercase tracking-wide ${verdict.cls}`}>
+          {verdict.label}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** 1.234 → «1,2K», 12.345 → «12K»: cifras cortas para tarjetas pequeñas. */
+function compact(n: number): string {
+  if (n >= 100_000) return `${Math.round(n / 1000)}K`;
+  if (n >= 1_000) return `${(n / 1000).toFixed(1).replace(".", ",")}K`;
+  return String(n);
 }

@@ -129,8 +129,15 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   clic en una carta de la solución, «marcar las N como coleccionadas» tras comprarlas y listado
   «Ver y marcar las cartas del set». El plan y los progresos se recalculan solos (la caché usa
   lo coleccionado como clave).
-  **Pendiente**: bonus *First Owner* (magnitud sin observar), factores de rarezas aún no vistas
-  (Season 1, Hall of FUT, Icons…) y puntos de 90 y ≥92.
+  **Galería pulida (2026-11-20)**: calibrado con más soluciones de EasySBC (Icons, Holographics,
+  Squad Foundations, Starter Set, Season 1): Icono base ×2,25, Squad Foundations ×1, otros
+  Iconos ×2,25 sin confirmar, y bases observadas 90→14.000, 92→20.000, 93→25.000 (94+ siguen
+  estimadas). Cada set muestra su mejor grado con fichas, impuestos y monedas necesarias y un
+  veredicto por tercios de impuestos por ficha (`GET /gallery?costs=true`, cacheado); la web ordena
+  por mejor valor / fichas / impuestos, filtra por estado y resume fichas ganadas y por ganar.
+  **Pendiente**: bonus *First Owner* (magnitud sin observar), factor de Season 1 / Hall of FUT /
+  POTM (cada carta de esos sets trae factores distintos y varias no están en nuestra base) y puntos
+  de 94+. Las cartas evolucionadas puntúan con su media nueva ×1,875 (no modelado).
   Historial de la decisión original (ya superada): decisión de
   Camilo: sembrar las reglas desde EasySBC como guía. Lo que SÍ es público y estático
   (`GET api-fc27.easysbc.io/gallery/sets`, 297 KB, sin cuenta): **198 sets en 10 grupos** (Rarities,

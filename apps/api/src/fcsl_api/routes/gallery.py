@@ -30,6 +30,16 @@ class GradeOut(BaseModel):
     tokens: int
 
 
+class OptionOut(BaseModel):
+    grade: str
+    tokens: int  # fichas nuevas al llegar a ese grado
+    points: int
+    cost: int  # suma de precios de lo que hay que comprar
+    tax: int  # pérdida por impuestos (5 %)
+    buys: int
+    coins_needed: int  # monedas a mano (la carta más cara)
+
+
 class SetOut(BaseModel):
     id: int
     name: str
@@ -43,6 +53,11 @@ class SetOut(BaseModel):
     collected: int  # cartas del set que ya tienes coleccionadas
     points: int  # puntos de tus `required` mejores coleccionadas
     grade: str | None  # grado que ya alcanzas
+    tokens_left: int = 0  # fichas que aún puedes ganar en el set
+    # solo con `costs=true`: lo que cuesta cada grado que aún da fichas
+    options: list[OptionOut] | None = None
+    best_grade: str | None = None  # el de menos impuestos por ficha
+    verdict: str | None = None  # good | ok | expensive (por impuestos por ficha)
 
 
 class SetsOut(BaseModel):
@@ -93,8 +108,57 @@ def _badge_images(session: DbSession) -> dict[tuple[str, int], str | None]:
     }
 
 
+def _tokens_left(s: GallerySet, grade: str | None) -> int:
+    names = [g.name for g in s.grades]
+    reached = names.index(grade) if grade in names else -1
+    return sum(g.tokens for g in s.grades[reached + 1 :])
+
+
+def _add_costs(session: DbSession, items: list[SetOut]) -> None:
+    """Coste de cada grado por set (cacheado) y veredicto relativo por impuestos por ficha."""
+    options = {so.set.id: so for so in build(session).options}
+    ratios: dict[int, float] = {}
+    for it in items:
+        so = options.get(it.id)
+        if so is None:
+            continue
+        it.options = [
+            OptionOut(
+                grade=o.grade,
+                tokens=o.tokens,
+                points=o.points,
+                cost=o.cost,
+                tax=o.tax,
+                buys=o.buys,
+                coins_needed=o.coins_needed,
+            )
+            for o in so.options
+        ]
+        if it.options:
+            best = min(it.options, key=lambda o: o.tax / o.tokens)
+            it.best_grade = best.grade
+            ratios[it.id] = best.tax / best.tokens
+    if len(ratios) >= 3:  # tercios: el más barato por ficha es «buen valor»
+        ordered = sorted(ratios.values())
+        low, high = ordered[len(ordered) // 3], ordered[2 * len(ordered) // 3]
+        for it in items:
+            if it.id in ratios:
+                it.verdict = (
+                    "good"
+                    if ratios[it.id] <= low
+                    else "ok"
+                    if ratios[it.id] <= high
+                    else "expensive"
+                )
+
+
 @router.get("", response_model=SetsOut)
-def list_sets(session: DbSession, group: str | None = None, q: str | None = None) -> SetsOut:
+def list_sets(
+    session: DbSession,
+    group: str | None = None,
+    q: str | None = None,
+    costs: bool = False,
+) -> SetsOut:
     sets: list[GallerySet] = [
         s
         for s in load_sets()
@@ -118,9 +182,12 @@ def list_sets(session: DbSession, group: str | None = None, q: str | None = None
             collected=done[s.id][0],
             points=done[s.id][1],
             grade=current_grade(s, done[s.id][1]),
+            tokens_left=_tokens_left(s, current_grade(s, done[s.id][1])),
         )
         for s in sets
     ]
+    if costs:
+        _add_costs(session, items)
     return SetsOut(items=items)
 
 
