@@ -45,7 +45,6 @@ RARITY_FACTOR: dict[int, float] = {
     87: 1.0,  # Squad Foundations
     12: 2.25,  # Icono base
     3: 1.25,  # Team of the Week
-    72: 1.25,  # Héroe base
     22: 1.25,  # Destined for Glory
     177: 1.25,  # POTM
     50: 1.25,  # UEFA RTTK
@@ -53,7 +52,8 @@ RARITY_FACTOR: dict[int, float] = {
     71: 1.5,  # Future Stars
     151: 1.5,  # Ultimate Scream
 }
-_ESTIMATED_FACTOR: dict[int, float] = {9: 2.25, 150: 1.25}  # Hall of FUT, Season 1 (a confirmar)
+# Estimados: Hall of FUT y Season 1 (a confirmar) y Héroe base (5 de 8 cartas ×1,25, 3 ×1,875)
+_ESTIMATED_FACTOR: dict[int, float] = {9: 2.25, 150: 1.25, 72: 1.25}
 DEFAULT_SPECIAL_FACTOR = 1.25  # rarezas especiales no observadas aún
 EVOLVED_FACTOR = 1.875
 

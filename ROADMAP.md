@@ -135,9 +135,15 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   estimadas). Cada set muestra su mejor grado con fichas, impuestos y monedas necesarias y un
   veredicto por tercios de impuestos por ficha (`GET /gallery?costs=true`, cacheado); la web ordena
   por mejor valor / fichas / impuestos, filtra por estado y resume fichas ganadas y por ganar.
-  **Pendiente**: bonus *First Owner* (magnitud sin observar), factor de Season 1 / Hall of FUT /
-  POTM (cada carta de esos sets trae factores distintos y varias no están en nuestra base) y puntos
-  de 94+. Las cartas evolucionadas puntúan con su media nueva ×1,875 (no modelado).
+  **Calibración de rarezas (2026-11-20)**: ≈270 cartas de ~35 soluciones; 232 coinciden con la
+  base de su media y las 38 especiales dan factores 1 / 1,25 / 1,5 / 1,875 / 2,25 (detalle y
+  evidencia en `docs/superpowers/specs/2026-11-20-galeria-puntos.md`). Hallazgo: **la rareza no
+  basta** (Héroes base: 5 cartas ×1,25 y 3 ×1,875 con la misma rareza y media; no es *First Owner*),
+  así que Héroe base queda como estimado. ≈950 cartas que EasySBC cuenta no están en FUT.GG (y por
+  tanto fuera de `cards`): ahí caen los ×1,875 / ×2,25 de las rarezas más nuevas.
+  **Pendiente**: qué distingue a esos Héroes, el bonus *First Owner*, POTM / Star Performer /
+  Showdown / RTTK menores sin observar y puntos de 94+. Las cartas evolucionadas puntúan con su
+  media nueva ×1,875 (no modelado).
   Historial de la decisión original (ya superada): decisión de
   Camilo: sembrar las reglas desde EasySBC como guía. Lo que SÍ es público y estático
   (`GET api-fc27.easysbc.io/gallery/sets`, 297 KB, sin cuenta): **198 sets en 10 grupos** (Rarities,

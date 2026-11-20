@@ -19,8 +19,6 @@ def test_base_points_match_observed_common_cards(rating: int, pts: int) -> None:
 OBSERVED_SPECIAL = [
     (85, 3, 2625),  # TOTW
     (86, 3, 5125),
-    (88, 72, 10375),  # Héroe base
-    (89, 72, 13750),
     (91, 3, 23750),
     (86, 71, 6150),  # Future Stars
     (85, 71, 3150),
@@ -41,6 +39,11 @@ def test_special_cards_apply_the_rarity_factor(rating: int, rarity: int, pts: in
     got = card_points(rating, rarity, special=True)
     assert got.points == pts
     assert got.exact
+
+
+def test_base_heroes_are_estimated_because_the_factor_varies_between_cards() -> None:
+    got = card_points(88, 72, special=True)
+    assert got.points == 10375 and not got.exact
 
 
 def test_unknown_special_rarity_uses_the_default_factor_and_is_not_exact() -> None:
