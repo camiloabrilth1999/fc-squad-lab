@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatNumber, formatRemaining } from "../lib/format";
 import CardImage from "./CardImage";
 import EvolutionPlan from "./EvolutionPlan";
@@ -88,6 +88,11 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
   const [open, setOpen] = useState<number | null>(null);
   const [mine, setMine] = useState<number | null>(null);
   const [showPlan, setShowPlan] = useState(false);
+  const [now, setNow] = useState(0); // «ahora» de la última carga (render puro)
+  const [status, setStatus] = useState("");
+  const [onlyFree, setOnlyFree] = useState(false);
+  const [expiring, setExpiring] = useState(false);
+  const [sort, setSort] = useState<"default" | "ends" | "name">("default");
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -110,6 +115,7 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
       })
       .then((body: { items: Evolution[] }) => {
         setItems(body.items);
+        setNow(Date.now());
         setFailed(false);
       })
       .catch((e: unknown) => {
@@ -124,6 +130,33 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
     setCategory(id);
   };
 
+  const statuses = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const e of items ?? []) if (e.status) count.set(e.status, (count.get(e.status) ?? 0) + 1);
+    return [...count.entries()];
+  }, [items]);
+
+  const visible = useMemo(() => {
+    const list = (items ?? []).filter(
+      (e) =>
+        (!status || e.status === status) &&
+        (!onlyFree || e.cost.length === 0) &&
+        (!expiring || (e.ends_at !== null && new Date(e.ends_at).getTime() - now < 48 * 3_600_000 && new Date(e.ends_at).getTime() > now)),
+    );
+    if (sort === "ends") {
+      const t = (e: Evolution) => (e.ends_at ? new Date(e.ends_at).getTime() : Number.POSITIVE_INFINITY);
+      list.sort((a, b) => t(a) - t(b));
+    } else if (sort === "name") {
+      list.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+    }
+    return list;
+  }, [items, now, status, onlyFree, expiring, sort]);
+
+  const pill = (active: boolean) =>
+    `rounded-full border px-3 py-1 text-sm ${
+      active ? "border-accent bg-surface-2 font-medium" : "border-line text-muted hover:text-fg"
+    }`;
+
   return (
     <div className="mt-6 space-y-5">
       <div>
@@ -131,33 +164,19 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
           type="button"
           aria-expanded={showPlan}
           onClick={() => setShowPlan((v) => !v)}
-          className="rounded-lg border border-accent px-3 py-1.5 text-sm font-medium text-accent hover:bg-surface-2"
+          className="rounded-lg border border-accent px-3 py-1.5 text-sm font-medium text-accent-strong hover:bg-accent/10"
         >
           {showPlan ? "Ocultar el plan" : "Plan para tu club"}
         </button>
       </div>
       {showPlan ? <EvolutionPlan apiUrl={apiUrl} /> : null}
+
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => pick(null)}
-          aria-pressed={category === null}
-          className={`rounded-full border px-3 py-1 text-sm ${
-            category === null ? "border-accent bg-surface-2 font-medium" : "border-line text-muted hover:text-fg"
-          }`}
-        >
+        <button type="button" onClick={() => pick(null)} aria-pressed={category === null} className={pill(category === null)}>
           Todas
         </button>
         {categories.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => pick(c.id)}
-            aria-pressed={category === c.id}
-            className={`rounded-full border px-3 py-1 text-sm ${
-              category === c.id ? "border-accent bg-surface-2 font-medium" : "border-line text-muted hover:text-fg"
-            }`}
-          >
+          <button key={c.id} type="button" onClick={() => pick(c.id)} aria-pressed={category === c.id} className={pill(category === c.id)}>
             {c.name}{" "}
             <span className="text-xs text-muted">
               {c.imported}/{c.total}
@@ -188,6 +207,41 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
         </form>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <select
+          aria-label="Estado"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="rounded-lg border border-line bg-surface px-3 py-1.5"
+        >
+          <option value="">Todos los estados</option>
+          {statuses.map(([st, n]) => (
+            <option key={st} value={st}>
+              {`${STATUS_LABEL[st] ?? st} (${n})`}
+            </option>
+          ))}
+        </select>
+        <button type="button" aria-pressed={onlyFree} onClick={() => setOnlyFree((v) => !v)} className={pill(onlyFree)}>
+          Solo gratis
+        </button>
+        <button type="button" aria-pressed={expiring} onClick={() => setExpiring((v) => !v)} className={pill(expiring)}>
+          Caducan pronto
+        </button>
+        <label className="ml-auto flex items-center gap-2 text-muted">
+          Ordenar
+          <select
+            aria-label="Ordenar"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as "default" | "ends" | "name")}
+            className="rounded-lg border border-line bg-surface px-3 py-1.5 text-fg"
+          >
+            <option value="default">Orden de EA</option>
+            <option value="ends">Caducan antes</option>
+            <option value="name">Nombre</option>
+          </select>
+        </label>
+      </div>
+
       {failed ? <p className="text-danger">No se pudieron cargar las evoluciones.</p> : null}
       {!items && !failed ? <p className="text-muted">Cargando…</p> : null}
       {items && items.length === 0 ? (
@@ -196,33 +250,50 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
           extensión activa y se importan solas.
         </div>
       ) : null}
+      {items && items.length > 0 && visible.length === 0 ? (
+        <p className="text-muted">Ninguna evolución cumple esos filtros.</p>
+      ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {(items ?? []).map((e) => {
+      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {visible.map((e) => {
           const remaining = formatRemaining(e.ends_at);
           const extra = Math.max(0, (e.total_rewards ?? 0) - e.top_rewards.length);
           const isOpen = open === e.id;
           return (
             <article key={e.id} className="flex flex-col rounded-card border border-line bg-surface p-4">
               <header className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold">{e.name ?? "Evolución"}</h3>
-                {e.status ? (
-                  <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted">
-                    {STATUS_LABEL[e.status] ?? e.status}
+                <h3 className="font-semibold leading-snug">{e.name ?? "Evolución"}</h3>
+                {e.category ? (
+                  <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                    {e.category}
                   </span>
                 ) : null}
               </header>
               <p className="mt-1 text-xs text-muted">
-                {[e.category, e.gk_only ? "solo porteros" : e.outfield_only ? "solo jugadores de campo" : null]
-                  .filter(Boolean)
-                  .join(" · ")}
+                {e.gk_only ? "solo porteros" : e.outfield_only ? "solo jugadores de campo" : "porteros y jugadores de campo"}
               </p>
-              {e.description ? (
-                <p className="mt-2 line-clamp-3 text-sm text-muted">{e.description}</p>
-              ) : null}
+
+              <BestPreview apiUrl={apiUrl} id={e.id} />
+
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <dt className="text-muted">Estado</dt>
+                <dd className="text-right font-medium">{e.status ? (STATUS_LABEL[e.status] ?? e.status) : "—"}</dd>
+                <dt className="text-muted">Precio</dt>
+                <dd className="text-right font-medium">
+                  {e.cost.length > 0 ? `Coste: ${e.cost.map(costLabel).join(" + ")}` : "Gratis"}
+                </dd>
+                {remaining ? (
+                  <>
+                    <dt className="text-muted">Caduca</dt>
+                    <dd className="text-right font-medium text-warn">Expira en {remaining}</dd>
+                  </>
+                ) : null}
+              </dl>
+
+              {e.description ? <p className="mt-3 line-clamp-2 text-sm text-muted">{e.description}</p> : null}
 
               {e.requirements.length > 0 ? (
-                <p className="mt-3 text-xs text-muted">
+                <p className="mt-3 rounded-lg bg-bg px-3 py-2 text-xs text-muted">
                   <span className="font-medium text-fg">Requisitos: </span>
                   {e.requirements.join(" · ")}
                 </p>
@@ -233,24 +304,22 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
                   {e.top_rewards.map((r) => (
                     <li key={r.stat} className="flex justify-between gap-3">
                       <span>{r.name}</span>
-                      <span className="font-mono tabular-nums">
+                      <span className="font-mono tabular-nums text-good">
                         +{r.count}
                         {r.max_value ? <span className="text-xs text-muted"> (máx. {r.max_value})</span> : null}
                       </span>
                     </li>
                   ))}
-                  {extra > 0 ? <li className="text-xs text-accent">+{extra} más</li> : null}
+                  {extra > 0 ? <li className="text-xs text-accent-strong">+{extra} más</li> : null}
                 </ul>
               ) : null}
 
-              <footer className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-                {e.cost.length > 0 ? <span>Coste: {e.cost.map(costLabel).join(" + ")}</span> : <span>Gratis</span>}
-                {remaining ? <span>Expira en {remaining}</span> : null}
+              <footer className="mt-4 flex flex-wrap items-center gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => setMine(mine === e.id ? null : e.id)}
                   aria-expanded={mine === e.id}
-                  className="text-accent hover:underline"
+                  className="rounded-lg border border-line px-3 py-1.5 font-medium hover:border-accent/60"
                 >
                   {mine === e.id ? "Ocultar mis cartas" : "Mis cartas aptas"}
                 </button>
@@ -259,7 +328,7 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
                     type="button"
                     onClick={() => setOpen(isOpen ? null : e.id)}
                     aria-expanded={isOpen}
-                    className="ml-auto text-accent hover:underline"
+                    className="ml-auto text-accent-strong hover:underline"
                   >
                     {isOpen ? "Ocultar niveles" : `Ver ${e.levels.length - 1} niveles`}
                   </button>
@@ -281,7 +350,7 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
                           </p>
                         ))}
                         {l.awards.length > 0 ? (
-                          <p className="text-xs text-accent">
+                          <p className="text-xs text-accent-strong">
                             {l.awards.map((a) => `${a.name} +${a.count}`).join(" · ")}
                           </p>
                         ) : null}
@@ -297,6 +366,49 @@ export default function EvolutionsBrowser({ apiUrl }: { apiUrl: string }) {
   );
 }
 
+/** Mejor carta de tu club para esta evolución, con su meta antes y después. */
+function BestPreview({ apiUrl, id }: { apiUrl: string; id: number }) {
+  const [best, setBest] = useState<Candidate | null>(null);
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(`${apiUrl}/evolutions/${id}/candidates?limit=1`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body: Partial<Candidates> | null) => {
+        const top = body?.items?.[0];
+        if (top && typeof top.meta_before === "number" && typeof top.meta_after === "number") {
+          setBest(top);
+          setCount(body?.eligible_count ?? 0);
+        }
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [apiUrl, id]);
+
+  if (!best) return null;
+  return (
+    <div className="mt-3 flex items-center gap-3 rounded-lg bg-bg p-3">
+      <div className="w-16 shrink-0">
+        <CardImage path={best.image_path} rating={best.rating} position={best.positions[0]} alt={`Mejor carta: ${best.name ?? "jugador"}`} width={130} />
+      </div>
+      <div className="min-w-0 text-sm">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Tu mejor carta</p>
+        <p className="truncate font-medium" title={best.name ?? undefined}>
+          {best.name ?? "Carta"}
+        </p>
+        <p className="font-mono text-xs tabular-nums">
+          meta {best.meta_before?.toFixed(1)} → {best.meta_after?.toFixed(1)}{" "}
+          <span className="text-good">
+            ({(best.meta_gain ?? 0) >= 0 ? "+" : ""}
+            {(best.meta_gain ?? 0).toFixed(1)})
+          </span>
+        </p>
+        <p className="text-[11px] text-muted">{count} de tus cartas son aptas</p>
+      </div>
+    </div>
+  );
+}
 
 function MyCards({ apiUrl, id }: { apiUrl: string; id: number }) {
   const [data, setData] = useState<Candidates | null>(null);
