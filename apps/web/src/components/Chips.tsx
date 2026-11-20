@@ -12,7 +12,7 @@ const TIER_CLS: Record<string, string> = {
 export function PriceChip({ price, label }: { price: number | null | undefined; label?: string }) {
   return (
     <span
-      className="inline-flex items-center gap-1 font-mono text-xs font-semibold tabular-nums"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-[13px] font-semibold tabular-nums"
       title={label}
       aria-label={price == null ? "sin precio" : "precio"}
     >
@@ -34,7 +34,7 @@ export function MetaChip({
 }) {
   if (meta == null) return null;
   return (
-    <span className="inline-flex items-center gap-1 font-mono text-xs tabular-nums">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-[13px] tabular-nums">
       <span className="font-semibold">
         {meta.toFixed(1)}
         {approx ? "~" : ""}

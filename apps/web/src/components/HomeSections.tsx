@@ -49,7 +49,7 @@ function TileGrid({ tiles }: { tiles: Tile[] }) {
           className="flex flex-col rounded-card border border-line bg-surface p-2 transition-all hover:-translate-y-0.5 hover:border-accent/60"
         >
           <CardImage path={t.image_path} position={t.position} alt={t.name} width={200} />
-          <div className="mt-2 flex items-center justify-between gap-1 rounded-lg bg-bg px-2 py-1">
+          <div className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-bg px-2.5 py-1.5">
             <PriceChip price={t.price} />
             <MetaChip meta={t.meta} tier={t.tier} approx={t.approx} />
           </div>

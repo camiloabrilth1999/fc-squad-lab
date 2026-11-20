@@ -142,14 +142,14 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
   const status = result ? (STATUS[result.status] ?? { label: result.status, cls: "bg-surface-2" }) : null;
 
   return (
-    <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
+    <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="grid h-fit grid-cols-2 items-end gap-3 rounded-card border border-line bg-surface p-4 lg:order-2">
         <label className="text-sm">
           <span className="mb-1 block text-muted">Formación</span>
           <select
             value={formation}
             onChange={(e) => setFormation(e.target.value)}
-            className="rounded-lg border border-line bg-surface-2 px-3 py-2"
+            className="w-full min-w-0 rounded-lg border border-line bg-surface-2 px-3 py-2"
           >
             <option value="best">Mejor formación</option>
             {FORMATIONS.map((f) => (
@@ -167,7 +167,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
             max={33}
             value={minChem}
             onChange={(e) => setMinChem(Math.min(33, Math.max(0, Number(e.target.value) || 0)))}
-            className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
+            className="w-full min-w-0 rounded-lg border border-line bg-surface-2 px-3 py-2"
           />
         </label>
         <label className="text-sm">
@@ -175,7 +175,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           <select
             value={pool}
             onChange={(e) => setPool(e.target.value as Pool)}
-            className="rounded-lg border border-line bg-surface-2 px-3 py-2"
+            className="w-full min-w-0 rounded-lg border border-line bg-surface-2 px-3 py-2"
           >
             <option value="club">Solo mi club</option>
             <option value="both">Club + mercado</option>
@@ -190,7 +190,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
               step={10000}
               value={budget}
               onChange={(e) => setBudget(Math.max(0, Number(e.target.value) || 0))}
-              className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
+              className="w-full min-w-0 rounded-lg border border-line bg-surface-2 px-3 py-2"
             />
           </label>
         ) : null}
@@ -199,7 +199,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           <select
             value={league}
             onChange={(e) => setLeague(e.target.value)}
-            className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
+            className="w-full min-w-0 rounded-lg border border-line bg-surface-2 px-3 py-2"
           >
             <option value="">Todas</option>
             {leagues.map((l) => (
@@ -214,7 +214,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           <select
             value={nation}
             onChange={(e) => setNation(e.target.value)}
-            className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2"
+            className="w-full min-w-0 rounded-lg border border-line bg-surface-2 px-3 py-2"
           >
             <option value="">Todas</option>
             {nations.map((n) => (
@@ -229,7 +229,7 @@ export default function SquadBuilder({ apiUrl }: { apiUrl: string }) {
           <select
             value={oop}
             onChange={(e) => setOop(e.target.value as OopMode)}
-            className="rounded-lg border border-line bg-surface-2 px-3 py-2"
+            className="w-full min-w-0 rounded-lg border border-line bg-surface-2 px-3 py-2"
           >
             {(Object.keys(OOP_LABELS) as OopMode[]).map((m) => (
               <option key={m} value={m}>
@@ -337,7 +337,7 @@ function Pitch({
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/15" />
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-3 h-16 w-1/2 -translate-x-1/2 border-2 border-t-0 border-white/15" />
       <div aria-hidden className="pointer-events-none absolute bottom-3 left-1/2 h-16 w-1/2 -translate-x-1/2 border-2 border-b-0 border-white/15" />
-      <div className="relative flex min-h-[34rem] flex-col justify-around gap-4">
+      <div className="relative flex min-h-[34rem] xl:min-h-[52rem] flex-col justify-around gap-4">
         {LINES.map((line) => {
           const row = slots
             .filter((s) => line.positions.includes(s.position))
@@ -374,7 +374,7 @@ function PlayerSlot({
   onExclude: () => void;
 }) {
   return (
-    <div className={`group relative w-24 text-center sm:w-28 ${slot.in_position ? "" : "rounded-lg ring-2 ring-warn/70"}`}>
+    <div className={`group relative w-28 text-center sm:w-32 xl:w-40 ${slot.in_position ? "" : "rounded-lg ring-2 ring-warn/70"}`}>
       <div className="relative mx-auto w-full">
         <CardImage path={slot.image_path} position={slot.position} alt={slot.name} width={200} />
         {slot.loan ? (
