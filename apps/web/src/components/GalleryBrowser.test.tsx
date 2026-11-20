@@ -34,10 +34,28 @@ const solution = {
   ],
 };
 
+const planBody = {
+  status: "optimal",
+  tokens: 752,
+  tax: 24011,
+  cost: 480250,
+  transfers: 510,
+  coins_needed: 25750,
+  sets: 1,
+  max_tokens: 2554,
+  items: [
+    { set_id: 1, name: "Lecce", image_path: null, from_grade: "B", grade: "S", tokens: 28, points: 1800, cost: 5000, tax: 250, buys: 14, coins_needed: 900 },
+  ],
+};
+
 const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
 
 function mockApi() {
-  const fn = vi.fn(async (url: string) => (String(url).includes("/solve") ? json(solution) : json({ items: sets })));
+  const fn = vi.fn(async (url: string) => {
+    const u = String(url);
+    if (u.includes("/gallery/plan")) return json(planBody);
+    return u.includes("/solve") ? json(solution) : json({ items: sets });
+  });
   vi.stubGlobal("fetch", fn);
   return fn;
 }
@@ -74,6 +92,43 @@ describe("GalleryBrowser", () => {
     expect(solveUrl.pathname).toBe("/gallery/1/solve");
     expect(solveUrl.searchParams.get("grade")).toBe("A");
     expect(solveUrl.searchParams.get("complete")).toBe("true");
+  });
+
+  it("calcula el plan de fichas con los límites y abre un set del plan", async () => {
+    const fn = mockApi();
+    render(<GalleryBrowser apiUrl={URL_} />);
+    await screen.findByText("Lecce");
+    fireEvent.click(screen.getByRole("button", { name: "Plan de fichas" }));
+    fireEvent.change(screen.getByLabelText("Objetivo de fichas"), { target: { value: "751" } });
+    fireEvent.change(screen.getByLabelText("Saldo de monedas"), { target: { value: "30000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Calcular plan" }));
+    expect(await screen.findByText("24.011")).toBeInTheDocument(); // impuestos del plan
+    expect(screen.getByText("510")).toBeInTheDocument();
+    const planUrl = new URL(String(fn.mock.calls.find(([u]) => String(u).includes("/gallery/plan"))![0]));
+    expect(planUrl.searchParams.get("target_tokens")).toBe("751");
+    expect(planUrl.searchParams.get("max_coins")).toBe("30000");
+    expect(planUrl.searchParams.has("max_tax")).toBe(false);
+    // abrir el set del plan resuelve su grado
+    fireEvent.click(screen.getByRole("button", { name: /Lecce/ }));
+    expect(await screen.findByText("Solución óptima")).toBeInTheDocument();
+    expect(String(fn.mock.calls.at(-1)![0])).toContain("grade=S");
+  });
+
+  it("explica un objetivo inalcanzable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).includes("/gallery/plan")
+          ? json({ ...planBody, status: "infeasible", items: [], max_tokens: 300 })
+          : json({ items: sets }),
+      ),
+    );
+    render(<GalleryBrowser apiUrl={URL_} />);
+    await screen.findByText("Lecce");
+    fireEvent.click(screen.getByRole("button", { name: "Plan de fichas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Calcular plan" }));
+    expect(await screen.findByText(/Ese objetivo no es alcanzable/)).toBeInTheDocument();
+    expect(screen.getByText(/300 fichas/)).toBeInTheDocument();
   });
 
   it("muestra error si la API falla", async () => {
