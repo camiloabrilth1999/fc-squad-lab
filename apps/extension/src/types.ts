@@ -14,6 +14,8 @@ export interface EaItem {
   loans?: number | null;
   /** Cesión: MATCH_LOAN (loanValue = partidos) o USER_TIME_LIMIT_LOAN (loanValue = epoch en que acaba). */
   loansInfo?: { loanType: string; loanValue: number } | null;
+  /** Coleccionada en la Galería (EA la marca en cada carta del club). */
+  isCollected?: boolean;
   itemType?: string | null;
 }
 

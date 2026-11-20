@@ -122,6 +122,7 @@ class EaItem(BaseModel):
     owners: int | None = None
     loans: int | None = None
     loansInfo: dict[str, Any] | None = None
+    isCollected: bool | None = None
     itemType: str | None = None
 
 
@@ -187,6 +188,7 @@ def import_club(body: ImportClubBody, session: DbSession) -> dict[str, int]:
             "market_min": it.marketDataMinPrice,
             "market_max": it.marketDataMaxPrice,
             "first_owner": it.owners == 1,
+            "is_collected": it.isCollected,
             "imported_at": now,
             "seen_at": now,
         }

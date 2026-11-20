@@ -6,6 +6,7 @@ from .routes.catalog import router as catalog_router
 from .routes.club import router as club_router
 from .routes.evolutions import import_router as evolutions_import_router
 from .routes.evolutions import router as evolutions_router
+from .routes.gallery import router as gallery_router
 from .routes.imports import ImportBodyLimit
 from .routes.imports import router as imports_router
 from .routes.objectives import import_router as objectives_import_router
@@ -38,6 +39,7 @@ app.include_router(evolutions_import_router)
 app.include_router(evolutions_router)
 app.include_router(objectives_import_router)
 app.include_router(objectives_router)
+app.include_router(gallery_router)
 
 
 @app.get("/health")

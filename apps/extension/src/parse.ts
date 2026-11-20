@@ -84,6 +84,7 @@ function pickItem(raw: unknown): EaItem | null {
     owners: opt("owners"),
     loans: opt("loans"),
     loansInfo: pickLoan(raw.loansInfo),
+    isCollected: typeof raw.isCollected === "boolean" ? raw.isCollected : undefined,
     itemType: typeof raw.itemType === "string" ? raw.itemType : undefined,
   };
 }

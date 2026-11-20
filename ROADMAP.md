@@ -108,7 +108,17 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   **Falta**: selector de clubes (692; hace falta un buscador), meta por rol alternativo en la
   lista, ranking por rol y comparación de cartas.
 - **Squad Recommendations** del club (se cubre con Squad Builder Fase A).
-- **Gallery** (reconocida 2026-11-19, APARCADA: falta la tabla de puntos por carta). Decisión de
+- **Gallery — MVP HECHO (2026-11-19)**. `gallery/points.py`: puntos = tabla por media × factor de
+  rareza (calibrada con ~200 cartas observadas en soluciones de EasySBC; ≤64→20, 65‑74→35,
+  75→90 … 85→2100, 88→8300; factores ×1/1,25/1,5/1,875/2,25; lo no observado, marcado
+  `exact=False`). `gallery/sets.json`: 198 sets sembrados (pool por club/liga/rareza).
+  `club_items.is_collected` (migración 0013; la extensión lo envía). Solver CP-SAT
+  (`gallery/service.py`): rellena los N huecos al menor coste (impuesto 5 %, monedas necesarias =
+  la carta más cara). `GET /gallery` y `GET /gallery/{id}/solve?grade=&complete=`; web `/galeria`.
+  **Pendiente**: bonus *First Owner* (magnitud sin observar), factores de rarezas aún no vistas
+  (Season 1, Hall of FUT, Icons…), puntos de 90 y ≥92, plan multi-set con presupuesto de fichas,
+  marcar coleccionadas a mano y la lista completa por si el club no trae todo lo coleccionado.
+  Historial de la decisión original (ya superada): decisión de
   Camilo: sembrar las reglas desde EasySBC como guía. Lo que SÍ es público y estático
   (`GET api-fc27.easysbc.io/gallery/sets`, 297 KB, sin cuenta): **198 sets en 10 grupos** (Rarities,
   Premier League, LaLiga, Bundesliga, Ligue 1, Serie A, Leagues, Saudi, MLS, NWSL), cada uno con

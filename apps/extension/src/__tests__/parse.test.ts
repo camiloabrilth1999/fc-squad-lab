@@ -323,3 +323,19 @@ describe("cesiones del club", () => {
     ]);
   });
 });
+
+describe("coleccionado de la Galería", () => {
+  const base = { resourceId: 10, assetId: 10, rating: 85, itemType: "player" };
+  it("lee isCollected solo cuando es booleano", () => {
+    const body = {
+      itemData: [
+        { ...base, id: 1, isCollected: true },
+        { ...base, id: 2, isCollected: false },
+        { ...base, id: 3 },
+        { ...base, id: 4, isCollected: "yes" },
+      ],
+    };
+    const out = toClubImport(`${BASE}/club`, body)!;
+    expect(out.items.map((i) => i.isCollected)).toEqual([true, false, undefined, undefined]);
+  });
+});

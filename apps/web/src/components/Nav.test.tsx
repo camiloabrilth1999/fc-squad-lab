@@ -11,10 +11,11 @@ describe("Nav", () => {
       ["Plantillas", "/plantillas"],
       ["Jugadores", "/jugadores"],
       ["Valor", "/valor"],
+      ["Galería", "/galeria"],
       ["Evoluciones", "/evoluciones"],
       ["Objetivos", "/objetivos"],
     ];
-    expect(NAV_ITEMS).toHaveLength(7);
+    expect(NAV_ITEMS).toHaveLength(8);
     for (const [label, href] of expected) {
       expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
