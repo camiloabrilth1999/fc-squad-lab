@@ -121,3 +121,47 @@ describe("ObjectivesBrowser", () => {
     expect(await screen.findByText("No se pudieron cargar los objetivos.")).toBeInTheDocument();
   });
 });
+
+describe("ObjectivesBrowser: orden, caducidad y filtros", () => {
+  const soon = new Date(Date.now() + 5 * 3_600_000).toISOString();
+  const week = new Date(Date.now() + 6 * 86_400_000).toISOString();
+  const forever = new Date(Date.now() + 1776 * 86_400_000).toISOString();
+  const list = {
+    items: [
+      group(1, "Hecho", { status: "done", progress: { done: 3, total: 3 }, ends_at: forever, times_completed: 2 }),
+      group(2, "Pendiente tarde", { status: "not_started", progress: { done: 0, total: 3 }, ends_at: week }),
+      group(3, "En curso pronto", { status: "in_progress", ends_at: soon }),
+      group(4, "En curso sin fecha", { status: "in_progress", progress: { done: 2, total: 3 } }),
+    ],
+    total: 4,
+  };
+  const titles = () => screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+
+  it("ordena por defecto lo pendiente primero (en curso por caducidad) y lo hecho al final", async () => {
+    vi.stubGlobal("fetch", router(list));
+    render(<ObjectivesBrowser apiUrl={URL_} />);
+    await screen.findByText("Hecho");
+    expect(titles()).toEqual(["En curso pronto", "En curso sin fecha", "Pendiente tarde", "Hecho"]);
+  });
+
+  it("no inventa caducidades: más de un año es «Sin caducidad» y los repetidos muestran las veces", async () => {
+    vi.stubGlobal("fetch", router(list));
+    render(<ObjectivesBrowser apiUrl={URL_} />);
+    await screen.findByText("Hecho");
+    expect(screen.queryByText(/1776/)).toBeNull();
+    expect(screen.getAllByText("Sin caducidad").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/completado 2 veces/)).toBeInTheDocument();
+  });
+
+  it("ordena por caducidad o por progreso y filtra los que caducan pronto", async () => {
+    vi.stubGlobal("fetch", router(list));
+    render(<ObjectivesBrowser apiUrl={URL_} />);
+    await screen.findByText("Hecho");
+    fireEvent.change(screen.getByLabelText("Ordenar"), { target: { value: "progress" } });
+    expect(titles()[0]).toBe("Hecho");
+    fireEvent.change(screen.getByLabelText("Ordenar"), { target: { value: "ends" } });
+    expect(titles().slice(0, 2)).toEqual(["En curso pronto", "Pendiente tarde"]);
+    fireEvent.click(screen.getByRole("button", { name: "Caducan pronto" }));
+    expect(titles()).toEqual(["En curso pronto"]);
+  });
+});
