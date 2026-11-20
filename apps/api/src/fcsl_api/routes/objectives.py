@@ -11,6 +11,16 @@ from sqlalchemy.dialects.postgresql import insert
 from ..ingest.store import upsert_catalog
 from ..models_db import Card, Catalog, ObjectiveCategory, ObjectiveGroup
 from ..objectives.awards import describe_award
+from ..objectives.plan import (
+    WIN_RATE,
+    Feasibility,
+    OpenObjective,
+    group_into_sessions,
+    open_objectives,
+    scope_label,
+    squad_for,
+)
+from ..squad.service import SquadBuildResponse
 from .imports import DbSession, require_token
 
 import_router = APIRouter(prefix="/import", tags=["import"], dependencies=[Depends(require_token)])
@@ -325,3 +335,174 @@ def list_categories(session: DbSession) -> list[CategoryOut]:
         )
         for c in cats
     ]
+
+
+# --- plan de objetivos ------------------------------------------------------------------------
+
+
+class GroupMinOut(BaseModel):
+    kind: str
+    id: int
+    name: str
+    k: int
+
+
+class PlanTaskOut(BaseModel):
+    objective_id: int
+    group: str
+    text: str
+    kind: str  # play | win | goals | assists | goal_matches | multi_goal
+    scope: str
+    scope_label: str
+    progress: int
+    target: int
+    remaining: int
+    matches: int  # partidos estimados para completarlo él solo
+    constraints: list[GroupMinOut]
+    notes: list[str]
+    unresolved: list[str]  # mínimos que no se pudieron traducir a una liga, nación o club
+
+
+class SkippedOut(BaseModel):
+    objective_id: int
+    group: str
+    text: str
+    reason: str
+
+
+class CandidatesOut(BaseModel):
+    plannable: list[PlanTaskOut]
+    skipped: list[SkippedOut]
+
+
+class SessionOut(BaseModel):
+    scope: str
+    label: str
+    matches: int
+    constraints: list[GroupMinOut]
+    tasks: list[PlanTaskOut]
+    squad: SquadBuildResponse | None = None
+
+
+class PlanTotals(BaseModel):
+    objectives: int
+    matches: int  # partidos del plan (sesiones)
+    matches_separate: int  # si se jugara cada objetivo por separado
+    saved: int
+
+
+class ObjectivesPlanOut(BaseModel):
+    sessions: list[SessionOut]
+    dropped: list[SkippedOut]  # planificables pero sin plantilla posible con tu club
+    skipped: list[SkippedOut]
+    totals: PlanTotals
+    assumptions: dict[str, float]
+
+
+def _task_out(o: OpenObjective) -> PlanTaskOut:
+    return PlanTaskOut(
+        objective_id=o.objective_id,
+        group=o.group_title,
+        text=o.text,
+        kind=o.task.kind,
+        scope=o.task.scope,
+        scope_label=scope_label(o.task.scope),
+        progress=o.progress,
+        target=o.target,
+        remaining=o.remaining,
+        matches=o.matches,
+        constraints=[GroupMinOut(kind=r.kind, id=r.id, name=r.name, k=r.k) for r in o.groups],
+        notes=list(o.task.notes),
+        unresolved=list(o.unresolved),
+    )
+
+
+def _skipped_out(o: OpenObjective, reason: str | None = None) -> SkippedOut:
+    return SkippedOut(
+        objective_id=o.objective_id,
+        group=o.group_title,
+        text=o.text,
+        reason=reason or o.task.reason or "ya está completado",
+    )
+
+
+@router.get("/plan/candidates", response_model=CandidatesOut)
+def plan_candidates(
+    session: DbSession,
+    win_rate: Annotated[float, Query(gt=0.05, le=1)] = WIN_RATE,
+) -> CandidatesOut:
+    """Objetivos abiertos: los que se pueden planificar y los que no (con el motivo)."""
+    ok, skipped = open_objectives(session, win_rate)
+    return CandidatesOut(
+        plannable=[_task_out(o) for o in ok],
+        skipped=[_skipped_out(o) for o in skipped if not o.task.plannable],
+    )
+
+
+@router.get("/plan/squad", response_model=SquadBuildResponse)
+def plan_squad(
+    session: DbSession,
+    mins: Annotated[str, Query(description="mínimos: tipo:id:k separados por comas")] = "",
+) -> SquadBuildResponse:
+    """Mejor once de tu club con esos mínimos de liga / nación / club (p. ej. league:13:3)."""
+    from ..objectives.plan import Resolved
+
+    constraints: dict[tuple[str, int], Resolved] = {}
+    for part in filter(None, (p.strip() for p in mins.split(","))):
+        kind, _, rest = part.partition(":")
+        ident, _, k = rest.partition(":")
+        if kind in ("league", "nation", "club") and ident.isdigit() and k.isdigit():
+            constraints[kind, int(ident)] = Resolved(kind, int(ident), "", int(k))
+    return squad_for(session, constraints)
+
+
+@router.get("/plan", response_model=ObjectivesPlanOut)
+def objectives_plan(
+    session: DbSession,
+    ids: Annotated[str | None, Query(description="ids de objetivo separados por comas")] = None,
+    win_rate: Annotated[float, Query(gt=0.05, le=1)] = WIN_RATE,
+    squads: bool = False,
+) -> ObjectivesPlanOut:
+    """Sesiones de juego que avanzan varios objetivos a la vez, con la plantilla de cada una."""
+    ok, skipped = open_objectives(session, win_rate)
+    if ids:
+        wanted = {int(x) for x in ids.split(",") if x.strip().isdigit()}
+        ok = [o for o in ok if o.objective_id in wanted]
+    sessions, dropped = group_into_sessions(ok, Feasibility(session))
+    sessions.sort(key=lambda s: -s.matches)
+    cache: dict[frozenset[tuple[str, int, int]], SquadBuildResponse] = {}
+    out: list[SessionOut] = []
+    for sn in sessions:
+        squad = None
+        if squads:
+            key = frozenset((r.kind, r.id, r.k) for r in sn.constraints.values())
+            if key not in cache:
+                cache[key] = squad_for(session, sn.constraints)
+            squad = cache[key]
+        out.append(
+            SessionOut(
+                scope=sn.scope,
+                label=scope_label(sn.scope),
+                matches=sn.matches,
+                constraints=[
+                    GroupMinOut(kind=r.kind, id=r.id, name=r.name, k=r.k)
+                    for r in sn.constraints.values()
+                ],
+                tasks=[_task_out(t) for t in sorted(sn.tasks, key=lambda t: -t.matches)],
+                squad=squad,
+            )
+        )
+    separate = sum(t.matches for sn in sessions for t in sn.tasks)
+    total = sum(sn.matches for sn in sessions)
+    return ObjectivesPlanOut(
+        sessions=out,
+        dropped=[_skipped_out(o, "tu club no tiene jugadores para esos mínimos") for o in dropped],
+        skipped=[_skipped_out(o) for o in skipped if not o.task.plannable],
+        totals=PlanTotals(
+            objectives=sum(len(sn.tasks) for sn in sessions),
+            matches=total,
+            matches_separate=separate,
+            saved=max(0, separate - total),
+        ),
+        assumptions={"win_rate": win_rate, "goals_per_match": 2.0, "assists_per_match": 1.2},
+    )

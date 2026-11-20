@@ -53,14 +53,17 @@ def build_squad(
     min_chemistry: int = 0,
     exclude_card_ids: list[str] | None = None,
     include_card_ids: list[str] | None = None,
+    group_mins: list[tuple[str, int, int]] | None = None,
     time_limit_s: float = 10.0,
+    feasibility_only: bool = False,
 ) -> SquadResult:
     """Mejor asignación cartas→huecos. `meta` da el meta de cada carta (por `card_id`),
     único o por posición. `allowed` (card_id → posiciones) abre el juego fuera de posición;
     sin él solo se juega en posición. `max_out_of_position` acota cuántos pueden ir fuera.
     `prices` (card_id → monedas; las cartas sin precio cuestan 0, p. ej. las del club) y
     `budget` limitan el gasto total en cartas a comprar. `include_card_ids` fija cartas en
-    el once (infactible si no caben o no están en el pool)."""
+    el once (infactible si no caben o no están en el pool). `group_mins` exige al menos
+    K jugadores de una liga / nación / club: ("league" | "nation" | "club", id, K)."""
     excluded = set(exclude_card_ids or ())
     pool = [c for c in cards if c.card_id not in excluded]
     in_pool = {c.card_id for c in pool}
@@ -87,6 +90,9 @@ def build_squad(
         m.model.add(m.used[next(c for c, x in enumerate(pool) if x.card_id == card_id)] == 1)
     if min_chemistry:
         m.model.add(team_chem >= min_chemistry)
+    for kind, group_id, k in group_mins or []:
+        members = [c for c, card in enumerate(pool) if getattr(card, f"{kind}_id") == group_id]
+        m.model.add(sum(m.used[c] for c in members) >= k)
     price_of = [(prices or {}).get(card.card_id, 0) for card in pool]
     if budget is not None:  # tope al coste de lo que hay que comprar
         m.model.add(sum(p * m.used[c] for c, p in enumerate(price_of) if p) <= budget)
@@ -101,7 +107,7 @@ def build_squad(
     m.model.maximize(sum(terms) + weight * team_chem)
 
     start = time.perf_counter()
-    status, _obj, values = _run_solver(m.model, time_limit_s)
+    status, _obj, values = _run_solver(m.model, time_limit_s, first_solution=feasibility_only)
     elapsed = round(time.perf_counter() - start, 3)
     if values is None:
         name = "infeasible" if status == cp_model.INFEASIBLE else "unknown"
