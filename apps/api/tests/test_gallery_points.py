@@ -28,6 +28,11 @@ OBSERVED_SPECIAL = [
     (80, 3, 225),
     (82, 3, 425),
     (85, 103, 2100),  # FC Heritage
+    (91, 12, 42750),  # Icono base
+    (92, 12, 45000),
+    (93, 12, 56250),
+    (90, 12, 31500),
+    (82, 87, 340),  # Squad Foundations
 ]
 
 
@@ -44,6 +49,12 @@ def test_unknown_special_rarity_uses_the_default_factor_and_is_not_exact() -> No
     assert not got.exact
 
 
-def test_extrapolated_ratings_are_flagged() -> None:
-    assert card_points(90, 0).exact is False
-    assert card_points(99, 0).points > card_points(91, 0).points
+def test_ratings_90_to_93_are_observed_and_the_rest_extrapolated() -> None:
+    assert card_points(90, 0).exact and card_points(93, 0).points == 25000
+    assert card_points(95, 0).exact is False
+    assert card_points(99, 0).points > card_points(93, 0).points
+
+
+def test_other_icon_rarities_default_to_the_icon_factor_but_are_flagged() -> None:
+    got = card_points(91, 999, special=True, icon=True)
+    assert got.points == 42750 and not got.exact

@@ -32,15 +32,18 @@ _BASE: tuple[tuple[int, int], ...] = (
     (88, 8300),
     (89, 11000),
 )
-_OBSERVED_TOP = {91: 19000}  # observado (23750 = 19000 × 1,25)
-_ESTIMATED_TOP = {90: 15000, 92: 24000, 93: 30000, 94: 37000, 95: 45000}
-_CAP = 54000  # ≥ 96
+# observado: 91 (23750 = 19000 × 1,25), 90, 92 y 93 con Iconos (×2,25)
+_OBSERVED_TOP = {90: 14000, 91: 19000, 92: 20000, 93: 25000}
+_ESTIMATED_TOP = {94: 31000, 95: 37000}
+_CAP = 45000  # ≥ 96 (estimado)
 
 # Factor por rareza EA (`rarity_ea_id`), observado salvo los marcados como estimados.
 RARITY_FACTOR: dict[int, float] = {
     0: 1.0,  # común
     1: 1.0,  # rara
     103: 1.0,  # FC Heritage
+    87: 1.0,  # Squad Foundations
+    12: 2.25,  # Icono base
     3: 1.25,  # Team of the Week
     72: 1.25,  # Héroe base
     22: 1.25,  # Destined for Glory
@@ -75,18 +78,22 @@ def base_points(rating: int | None) -> tuple[int, bool]:
     return _CAP, False
 
 
-def rarity_factor(rarity_ea_id: int | None, *, special: bool) -> tuple[float, bool]:
+def rarity_factor(
+    rarity_ea_id: int | None, *, special: bool, icon: bool = False
+) -> tuple[float, bool]:
     if rarity_ea_id in RARITY_FACTOR:
         return RARITY_FACTOR[rarity_ea_id], True  # type: ignore[index]
     if rarity_ea_id in _ESTIMATED_FACTOR:
         return _ESTIMATED_FACTOR[rarity_ea_id], False  # type: ignore[index]
+    if icon:  # otros Iconos (Prime, Momentos…): como los base, sin confirmar
+        return 2.25, False
     return (DEFAULT_SPECIAL_FACTOR, False) if special else (1.0, True)
 
 
 def card_points(
-    rating: int | None, rarity_ea_id: int | None, *, special: bool = False
+    rating: int | None, rarity_ea_id: int | None, *, special: bool = False, icon: bool = False
 ) -> CardPoints:
     """Puntos que aporta una carta al coleccionarla."""
     base, base_exact = base_points(rating)
-    factor, factor_exact = rarity_factor(rarity_ea_id, special=special)
+    factor, factor_exact = rarity_factor(rarity_ea_id, special=special, icon=icon)
     return CardPoints(points=round(base * factor), exact=base_exact and factor_exact)

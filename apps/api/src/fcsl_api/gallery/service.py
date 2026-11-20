@@ -111,7 +111,7 @@ def list_pool(
 
 def _points_of(card: Card) -> tuple[int, bool]:
     special = bool(card.rare) and card.rarity_ea_id not in (0, 1)
-    p = card_points(card.rating, card.rarity_ea_id, special=special)
+    p = card_points(card.rating, card.rarity_ea_id, special=special, icon=bool(card.is_icon))
     return p.points, p.exact
 
 

@@ -163,6 +163,40 @@ describe("GalleryBrowser", () => {
     await waitFor(() => expect(String(fn.mock.calls.at(-1)![0])).toContain("/gallery/1/cards?q=falc"));
   });
 
+  it("muestra coste, impuestos, fichas y veredicto de cada set y ordena por valor", async () => {
+    const opt = (grade: string, tokens: number, tax: number, coins: number) => ({
+      grade, tokens, points: 1000, cost: tax * 20, tax, buys: 14, coins_needed: coins,
+    });
+    const withCosts = [
+      { ...sets[0], tokens_left: 23, options: [opt("S", 23, 4600, 900)], best_grade: "S", verdict: "expensive" },
+      { ...sets[1], tokens_left: 38, options: [opt("S", 38, 400, 1200)], best_grade: "S", verdict: "good" },
+      { id: 3, name: "Hecho", group: "serie-a", group_name: "Serie A", required: 15, tokens: 5, grades, collected: 15, points: 9999, grade: "S", tokens_left: 0, options: [] },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => json({ items: String(url).includes("costs=true") ? withCosts : sets })),
+    );
+    render(<GalleryBrowser apiUrl={URL_} />);
+    expect(await screen.findByText("Buen valor")).toBeInTheDocument();
+    // resumen: 71 fichas en total, 61 por ganar, 10 ganadas (5 de Lecce + 5 de «Hecho»)
+    expect(screen.getByText("Fichas ganadas").nextSibling).toHaveTextContent("10 / 71");
+    expect(screen.getByText("Sets completados").nextSibling).toHaveTextContent("1 / 3");
+    expect(screen.getByText("Caro")).toBeInTheDocument();
+    expect(screen.getByText("Completado ✓")).toBeInTheDocument();
+    expect(screen.getByText("+38")).toBeInTheDocument(); // fichas del mejor grado
+    expect(screen.getByText("1,2K")).toBeInTheDocument(); // monedas necesarias
+    // orden por defecto con costes: el de menos impuestos por ficha primero
+    const names = () => screen.getAllByRole("button", { name: /jugadores/ }).map((b) => b.textContent);
+    await waitFor(() => expect(names()[0]).toContain("Monaco"));
+    fireEvent.change(screen.getByLabelText("Ordenar sets"), { target: { value: "tokens" } });
+    expect(names()[0]).toContain("Monaco"); // 38 fichas por ganar
+    fireEvent.change(screen.getByLabelText("Estado de los sets"), { target: { value: "done" } });
+    expect(names()).toHaveLength(1);
+    expect(names()[0]).toContain("Hecho");
+    fireEvent.change(screen.getByLabelText("Estado de los sets"), { target: { value: "open" } });
+    expect(names()).toHaveLength(2);
+  });
+
   it("explica un objetivo inalcanzable", async () => {
     vi.stubGlobal(
       "fetch",
