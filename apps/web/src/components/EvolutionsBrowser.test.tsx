@@ -183,15 +183,62 @@ describe("EvolutionsBrowser: requisitos y mis cartas", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<EvolutionsBrowser apiUrl={URL_} />);
     fireEvent.click(await screen.findByRole("button", { name: "Mis cartas aptas" }));
-    expect(await screen.findByText("Paulina Bartz")).toBeInTheDocument();
-    expect(screen.getByText(/64\.0 → 74\.2/)).toBeInTheDocument();
-    expect(screen.getByText("(+10.2)")).toBeInTheDocument();
+    // la mejor carta aparece también en la vista previa de la tarjeta
+    expect((await screen.findAllByText("Paulina Bartz")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/64\.0 → 74\.2/)).toHaveLength(2);
+    expect(screen.getAllByText("(+10.2)")).toHaveLength(2);
     expect(screen.getByText(/1 aptas · 1 sin poder comprobar de 193 cartas/)).toBeInTheDocument();
     expect(screen.getByText("sin stats")).toBeInTheDocument();
     const call = fetchMock.mock.calls.find((c) => String(c[0]).includes("/candidates"))!;
     expect(String(call[0])).toContain("/evolutions/2850/candidates");
     fireEvent.click(screen.getByRole("button", { name: "Ocultar mis cartas" }));
-    expect(screen.queryByText("Paulina Bartz")).toBeNull();
+    // queda solo la vista previa de la tarjeta; la lista se cierra
+    expect(screen.getAllByText("Paulina Bartz")).toHaveLength(1);
+    expect(screen.queryByText("sin stats")).toBeNull();
+  });
+
+  it("muestra la mejor carta de tu club en la tarjeta, sin abrir nada", async () => {
+    vi.stubGlobal("fetch", withCandidates());
+    render(<EvolutionsBrowser apiUrl={URL_} />);
+    expect(await screen.findByText("Tu mejor carta")).toBeInTheDocument();
+    expect(screen.getByText(/meta 64\.0 → 74\.2/)).toBeInTheDocument();
+    expect(screen.getByText("1 de tus cartas son aptas")).toBeInTheDocument();
+  });
+
+  it("filtra por estado, gratis y caducan pronto, y ordena", async () => {
+    const soon = new Date(Date.now() + 5 * 3_600_000).toISOString();
+    const later = new Date(Date.now() + 9 * 86_400_000).toISOString();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes("/candidates")) return json({ items: [], eligible_count: 0, unknown_count: 0, total_checked: 0 });
+        if (String(url).includes("/evolutions/categories")) return json(cats);
+        return json({
+          items: [
+            evo(1, "Pagada", { cost: [{ currency: "COINS", amount: 5000 }], ends_at: later }),
+            evo(2, "Gratis y pronto", { cost: [], ends_at: soon }),
+            evo(3, "Terminada", { cost: [], status: "COMPLETE" }),
+          ],
+          total: 3,
+        });
+      }),
+    );
+    render(<EvolutionsBrowser apiUrl={URL_} />);
+    await screen.findByText("Pagada");
+    fireEvent.click(screen.getByRole("button", { name: "Solo gratis" }));
+    expect(screen.queryByText("Pagada")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Caducan pronto" }));
+    expect(screen.getByText("Gratis y pronto")).toBeInTheDocument();
+    expect(screen.queryByText("Terminada")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Solo gratis" }));
+    fireEvent.click(screen.getByRole("button", { name: "Caducan pronto" }));
+    fireEvent.change(screen.getByLabelText("Estado"), { target: { value: "COMPLETE" } });
+    expect(screen.getByText("Terminada")).toBeInTheDocument();
+    expect(screen.queryByText("Pagada")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Estado"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Ordenar"), { target: { value: "ends" } });
+    const titles = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(titles[0]).toBe("Gratis y pronto"); // la que caduca antes, primero
   });
 });
 
