@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatNumber } from "../lib/format";
+import CardImage from "./CardImage";
 
 type Summary = {
   id: string;
@@ -33,6 +34,7 @@ type SquadSlot = {
   source: string;
   untradeable: boolean;
   price: number | null;
+  image_path?: string | null;
 };
 type SolveResult = {
   status: string;
@@ -84,6 +86,8 @@ export default function SbcBrowser({ apiUrl }: { apiUrl: string }) {
   const [solving, setSolving] = useState(false);
   const [result, setResult] = useState<SolveResult | null>(null);
   const [solveError, setSolveError] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "repeatable" | "once">("all");
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -124,13 +128,17 @@ export default function SbcBrowser({ apiUrl }: { apiUrl: string }) {
 
   const grouped = useMemo(() => {
     const by = new Map<string, Summary[]>();
+    const q = query.trim().toLowerCase();
     for (const c of list ?? []) {
+      if (filter === "repeatable" && !c.repeatable) continue;
+      if (filter === "once" && c.repeatable) continue;
+      if (q && !`${c.name} ${c.set_name}`.toLowerCase().includes(q)) continue;
       const arr = by.get(c.set_name);
       if (arr) arr.push(c);
       else by.set(c.set_name, [c]);
     }
     return [...by.entries()];
-  }, [list]);
+  }, [list, query, filter]);
 
   const solve = async () => {
     if (!selected) return;
@@ -152,45 +160,95 @@ export default function SbcBrowser({ apiUrl }: { apiUrl: string }) {
   if (!list) return <p className="mt-6 text-muted">Cargando SBC…</p>;
 
   return (
-    <div className="mt-6 grid gap-6 lg:grid-cols-[320px_1fr]">
-      <aside className="space-y-4">
-        {grouped.map(([setName, items]) => (
-          <section key={setName}>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-              {setName}
-            </h2>
-            <ul className="space-y-1">
-              {items.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => selectChallenge(c.id)}
-                    aria-current={selected === c.id ? "true" : undefined}
-                    className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                      selected === c.id
-                        ? "border-accent/60 bg-surface-2"
-                        : "border-line bg-surface hover:bg-surface-2"
-                    }`}
-                  >
-                    <span className="min-w-0 truncate">{c.name}</span>
-                    <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted">
-                      {c.formation}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </aside>
+    <div className="mt-6 space-y-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          aria-label="Buscar SBC"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar SBC…"
+          className="w-64 rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+        />
+        <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm" role="group" aria-label="Filtro">
+          {(
+            [
+              ["all", "Todos"],
+              ["repeatable", "Repetibles"],
+              ["once", "Un solo uso"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={filter === v}
+              onClick={() => setFilter(v)}
+              className={`rounded-md px-3 py-1.5 transition-colors ${
+                filter === v ? "bg-surface-2 font-medium" : "text-muted hover:text-fg"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="ml-auto text-sm text-muted">
+          {grouped.reduce((n, [, items]) => n + items.length, 0)} retos
+        </span>
+      </div>
 
-      <section className="min-w-0">
-        {!selected ? (
-          <div className="rounded-card border border-dashed border-line bg-surface p-8 text-center text-muted">
-            Elige un reto para ver sus requisitos y resolverlo con tu club.
-          </div>
-        ) : (
-          <div className="space-y-5">
+      <div className={`grid gap-5 ${selected ? "lg:grid-cols-[minmax(0,1fr)_30rem]" : ""}`}>
+        <div
+          className={`grid items-start gap-4 self-start ${
+            selected ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"
+          }`}
+        >
+          {grouped.length === 0 ? (
+            <p className="text-muted">Ningún SBC coincide con la búsqueda.</p>
+          ) : null}
+          {grouped.map(([setName, items]) => (
+            <section
+              key={setName}
+              className="flex flex-col rounded-card border border-line bg-surface p-4"
+            >
+              <header className="mb-3 flex items-start justify-between gap-2">
+                <h2 className="font-semibold leading-snug">{setName}</h2>
+                {items.some((c) => c.repeatable) ? (
+                  <span className="shrink-0 rounded bg-good/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-good">
+                    Repetible
+                  </span>
+                ) : (
+                  <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                    1 uso
+                  </span>
+                )}
+              </header>
+              <ul className="space-y-1.5">
+                {items.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => selectChallenge(c.id)}
+                      aria-current={selected === c.id ? "true" : undefined}
+                      className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                        selected === c.id
+                          ? "border-accent bg-accent/10"
+                          : "border-line bg-bg hover:border-accent/50"
+                      }`}
+                    >
+                      <span className="min-w-0 truncate">{c.name}</span>
+                      <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted">
+                        <span>{c.requirements} req.</span>
+                        <span className="rounded bg-surface-2 px-1.5 py-0.5">{c.formation}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+
+        {selected ? (
+          <aside className="min-w-0 space-y-4 self-start lg:sticky lg:top-16">
             <div className="rounded-card border border-line bg-surface p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-semibold">{detail?.name ?? "…"}</h2>
@@ -201,7 +259,7 @@ export default function SbcBrowser({ apiUrl }: { apiUrl: string }) {
               {detail?.reward ? (
                 <p className="mt-1 text-sm text-muted">Recompensa: {detail.reward}</p>
               ) : null}
-              <ul className="mt-3 space-y-1">
+              <ul className="mt-3 space-y-1.5">
                 {(detail?.requirements ?? []).map((r, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
                     <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
@@ -229,7 +287,7 @@ export default function SbcBrowser({ apiUrl }: { apiUrl: string }) {
                   type="button"
                   onClick={solve}
                   disabled={solving}
-                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-strong disabled:opacity-60"
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-colors hover:bg-accent-strong disabled:opacity-60"
                 >
                   {solving ? "Resolviendo…" : "Resolver con mi club"}
                 </button>
@@ -238,9 +296,9 @@ export default function SbcBrowser({ apiUrl }: { apiUrl: string }) {
 
             {solveError ? <p className="text-danger">No se pudo resolver el SBC.</p> : null}
             {result ? <Result result={result} /> : null}
-          </div>
-        )}
-      </section>
+          </aside>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -250,55 +308,53 @@ function Result({ result }: { result: SolveResult }) {
   const solved = result.status === "optimal" || result.status === "feasible";
   return (
     <div className="rounded-card border border-line bg-surface p-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className={`rounded-full px-3 py-1 text-sm font-medium ${status.cls}`}>
-          {status.label}
-        </span>
-        {solved ? (
-          <>
-            <Stat label="Media" value={String(result.team_rating)} />
-            <Stat label="Química" value={String(result.team_chemistry)} />
-            <Stat label="A comprar" value={String(result.buys)} />
-            <Stat label="Coste" value={`${formatNumber(result.cost)}`} />
-          </>
-        ) : null}
-      </div>
+      <span className={`rounded-full px-3 py-1 text-sm font-medium ${status.cls}`}>{status.label}</span>
+      {solved ? (
+        <dl className="mt-4 grid grid-cols-4 gap-2 text-center">
+          {(
+            [
+              ["Media", String(result.team_rating)],
+              ["Química", String(result.team_chemistry)],
+              ["A comprar", String(result.buys)],
+              ["Coste", formatNumber(result.cost)],
+            ] as [string, string][]
+          ).map(([label, value]) => (
+            <div key={label} className="rounded-lg bg-bg px-2 py-2">
+              <dt className="text-[10px] uppercase tracking-wider text-muted">{label}</dt>
+              <dd className="font-mono text-sm font-semibold tabular-nums">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
       {result.message && !solved ? (
         <p className="mt-2 text-sm text-muted">{result.message}</p>
       ) : null}
       {solved ? (
-        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+        <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {result.squad.map((s) => (
-            <li
-              key={s.slot_index}
-              className="flex items-center gap-3 rounded-lg border border-line bg-surface-2 px-3 py-2"
-            >
-              <span className="w-10 shrink-0 text-center text-xs font-medium text-muted">
-                {s.position}
-              </span>
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-surface font-mono text-sm tabular-nums">
-                {s.rating}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm">{s.name || "Carta"}</span>
-              <span className="shrink-0 text-right text-xs">
+            <li key={s.slot_index} className="flex flex-col rounded-lg border border-line bg-bg p-1.5">
+              <CardImage
+                path={s.image_path}
+                position={s.position}
+                alt={s.name || "Carta"}
+                width={160}
+              />
+              <p className="mt-1 truncate text-center text-[11px] font-medium" title={s.name}>
+                {s.name || "Carta"}
+              </p>
+              <p className="text-center text-[10px]">
                 {s.source === "market" ? (
                   <span className="text-warn">comprar {s.price ? formatNumber(s.price) : ""}</span>
                 ) : (
-                  <span className="text-muted">tu club</span>
+                  <span className="text-muted">
+                    {s.position} · {s.rating}
+                  </span>
                 )}
-              </span>
+              </p>
             </li>
           ))}
         </ul>
       ) : null}
     </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="text-sm">
-      <span className="text-muted">{label}:</span> <span className="font-medium">{value}</span>
-    </span>
   );
 }

@@ -4,8 +4,10 @@ solver y devuelve la plantilla con nombres, precios y el coste de lo que hay que
 
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..models_db import Card as CardRow
 from ..solver import service as solver_service
 from ..solver.models import Card as SolverCard
 from ..solver.models import Objective, RequirementKind, SolveRequest
@@ -81,6 +83,12 @@ def solve_challenge(
         return result
 
     index = {c.card_id: c for c in cards}
+    rids = {index[a.card_id].resource_id for a in solution.assignments}
+    images = dict(
+        session.execute(
+            select(CardRow.resource_id, CardRow.image_path).where(CardRow.resource_id.in_(rids))
+        ).all()
+    )
     squad: list[SquadSlot] = []
     spend = 0
     buys = 0
@@ -101,6 +109,7 @@ def solve_challenge(
                 source=c.source,
                 untradeable=c.untradeable,
                 price=c.price,
+                image_path=images.get(c.resource_id),
             )
         )
     squad.sort(key=lambda s: s.slot_index)
