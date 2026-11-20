@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { formatNumber, formatSeenAgo, sourceLabel } from "../lib/format";
 import CardImage, { Badge } from "./CardImage";
+import { MetaChip, PriceChip, Tag } from "./Chips";
 
 const PAGE_SIZE = 50;
 const STALE_DAYS = 30;
@@ -48,6 +49,9 @@ type ClubRow = {
   image_path?: string | null;
   nation_image?: string | null;
   club_image?: string | null;
+  meta?: number | null;
+  meta_source?: string | null;
+  tier?: string | null;
 };
 type ClubResponse = {
   items: ClubRow[];
@@ -59,41 +63,32 @@ const rowName = (r: ClubRow) => r.name ?? `Carta desconocida #${r.resource_id}`;
 
 function ClubCard({ r }: { r: ClubRow }) {
   return (
-    <article className="relative flex flex-col rounded-card border border-line bg-surface p-2 transition-colors hover:border-accent/50">
-      {r.loan ? (
-        <span className="absolute left-2 top-2 z-10 rounded bg-amber-500 px-1.5 py-0.5 text-[11px] font-medium text-black">
-          {r.loan_label ?? "Cedido"}
-        </span>
-      ) : r.untradeable ? (
-        <span className="absolute left-2 top-2 z-10 rounded bg-surface-2/90 px-1.5 py-0.5 text-[11px] text-muted">
-          Intransferible
-        </span>
-      ) : null}
+    <article className="relative flex flex-col rounded-card border border-line bg-surface p-2 transition-all hover:-translate-y-0.5 hover:border-accent/60">
+      <div className="mb-1 flex min-h-5 items-center gap-1">
+        {r.loan ? (
+          <Tag tone="loan">{r.loan_label ?? "Cedido"}</Tag>
+        ) : r.untradeable ? (
+          <Tag>Intransferible</Tag>
+        ) : null}
+      </div>
       <CardImage path={r.image_path} rating={r.rating} position={r.positions[0]} alt={rowName(r)} />
-      <div className="mt-2 min-w-0">
-        <p className="truncate text-sm font-medium" title={rowName(r)}>
+      <div className="mt-2 flex items-center justify-between gap-1 rounded-lg bg-bg px-2 py-1">
+        {r.loan ? <span className="text-xs text-muted">No es tuyo</span> : <PriceChip price={r.price} />}
+        <MetaChip meta={r.meta} tier={r.tier} approx={r.meta_source === "face"} />
+      </div>
+      <div className="mt-1.5 min-w-0">
+        <p className="truncate text-xs font-medium" title={rowName(r)}>
           {rowName(r)}
         </p>
-        <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted">
-          <Badge path={r.nation_image} alt="Nación" size={14} />
-          <Badge path={r.club_image} alt="Club" size={14} />
-          <span className="truncate">
-            {r.rating} · {r.positions.join(", ")}
-          </span>
-        </p>
-        <p className="mt-1 font-mono text-sm tabular-nums">
-          {r.loan ? (
-            <span className="text-muted">No es tuyo</span>
-          ) : r.price === null ? (
-            "—"
-          ) : (
-            formatNumber(r.price)
-          )}
+        <p className="flex items-center gap-1 text-[11px] text-muted">
+          <Badge path={r.nation_image} alt="Nación" size={12} />
+          <Badge path={r.club_image} alt="Club" size={12} />
+          <span className="truncate">{r.positions.join(", ")}</span>
         </p>
         {!r.loan && r.price !== null && r.price_source ? (
-          <p className="text-[11px] text-muted">{sourceLabel(r.price_source)}</p>
+          <p className="truncate text-[10px] text-muted">{sourceLabel(r.price_source)}</p>
         ) : null}
-        <p className="text-[11px] text-muted">{formatSeenAgo(r.seen_at)}</p>
+        <p className="text-[10px] text-muted">{formatSeenAgo(r.seen_at)}</p>
       </div>
     </article>
   );
@@ -108,7 +103,7 @@ const LOCATIONS = [
 ];
 const locationLabel = (v: string | null) => LOCATIONS.find((l) => l.value === v)?.label ?? v ?? "";
 
-const input = "rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-transparent";
+const input = "rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-fg";
 
 export default function ClubTable({ apiUrl }: { apiUrl: string }) {
   const [minRating, setMinRating] = useState("");
@@ -270,7 +265,7 @@ export default function ClubTable({ apiUrl }: { apiUrl: string }) {
               No hay cartas. Abre la web app de EA con la extensión activa para importar tu club.
             </p>
           ) : view === "cards" ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
               {data.items.map((r) => (
                 <ClubCard key={r.item_id} r={r} />
               ))}

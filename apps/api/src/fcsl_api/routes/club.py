@@ -9,7 +9,7 @@ from sqlalchemy import any_, delete, func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from ..meta.compute import compute_meta
-from ..models_db import Card, CardAttributes, Catalog, ClubItem, Price, SyncRun
+from ..models_db import Card, CardAttributes, CardMeta, Catalog, ClubItem, Price, SyncRun
 from ..prices import effective_prices
 from ..sbc.pool import not_a_loan
 from ..solver import models as solver_models
@@ -49,6 +49,7 @@ class ClubRow(BaseModel):
     meta: float | None = None
     meta_role: str | None = None
     meta_source: str | None = None  # stats | face
+    tier: str | None = None  # S | A+ | A | B+ | B (de card_meta)
     image_path: str | None = None  # carta completa
     nation_image: str | None = None
     club_image: str | None = None
@@ -204,6 +205,14 @@ def get_club(
         )
     }
 
+    tiers = {
+        rid: tier
+        for rid, tier in session.execute(
+            select(CardMeta.resource_id, CardMeta.tier).where(
+                CardMeta.resource_id.in_(resource_ids)
+            )
+        )
+    }
     badges = {
         (c.kind, c.ea_id): c.image_path
         for c in session.scalars(select(Catalog).where(Catalog.image_path.is_not(None)))
@@ -240,6 +249,7 @@ def get_club(
                 meta=meta,
                 meta_role=meta_role,
                 meta_source=meta_source,
+                tier=tiers.get(item.resource_id or -1),
             )
         )
     summary = ClubSummary(
