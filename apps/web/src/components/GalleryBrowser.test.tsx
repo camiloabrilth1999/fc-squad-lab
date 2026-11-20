@@ -43,6 +43,7 @@ const planBody = {
   coins_needed: 25750,
   sets: 1,
   max_tokens: 2554,
+  saved_tax: 1273,
   items: [
     { set_id: 1, name: "Lecce", image_path: null, from_grade: "B", grade: "S", tokens: 28, points: 1800, cost: 5000, tax: 250, buys: 14, coins_needed: 900 },
   ],
@@ -104,6 +105,7 @@ describe("GalleryBrowser", () => {
     fireEvent.click(screen.getByRole("button", { name: "Calcular plan" }));
     expect(await screen.findByText("24.011")).toBeInTheDocument(); // impuestos del plan
     expect(screen.getByText("510")).toBeInTheDocument();
+    expect(screen.getByText("1.273")).toBeInTheDocument(); // ahorro por cartas compartidas
     const planUrl = new URL(String(fn.mock.calls.find(([u]) => String(u).includes("/gallery/plan"))![0]));
     expect(planUrl.searchParams.get("target_tokens")).toBe("751");
     expect(planUrl.searchParams.get("max_coins")).toBe("30000");

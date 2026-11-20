@@ -67,6 +67,7 @@ type Plan = {
   coins_needed: number;
   sets: number;
   max_tokens: number;
+  saved_tax?: number;
   items: PlanItem[];
 };
 
@@ -541,8 +542,14 @@ function PlanView({
         ))}
       </dl>
       <p className="text-xs text-muted">
-        Cada set se resuelve por separado: una carta que está a la vez en un set de club y en uno de
-        liga cuenta en los dos, así que el coste real puede ser algo menor.
+        Las cartas que están en varios sets (por ejemplo club y liga) se compran una sola vez.
+        {plan.saved_tax ? (
+          <>
+            {" "}
+            Ahorro por reutilizarlas:{" "}
+            <span className="font-mono text-good">{formatNumber(plan.saved_tax)}</span> de impuestos.
+          </>
+        ) : null}
       </p>
       <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {plan.items.map((it) => (
