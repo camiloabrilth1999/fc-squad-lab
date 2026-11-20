@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ApiStatus from "@/components/ApiStatus";
+import HomeSections from "@/components/HomeSections";
 import HomeStats from "@/components/HomeStats";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787";
@@ -47,6 +48,7 @@ export default function Home() {
       </section>
 
       <HomeStats apiUrl={API_URL} />
+      <HomeSections apiUrl={API_URL} />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {TOOLS.map((t) => (
