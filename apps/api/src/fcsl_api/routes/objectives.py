@@ -20,6 +20,7 @@ from ..objectives.plan import (
     scope_label,
     squad_for,
 )
+from ..objectives.value import PriceBook, allocate, award_value, load_price_book
 from ..squad.service import SquadBuildResponse
 from .imports import DbSession, require_token
 
@@ -361,6 +362,10 @@ class PlanTaskOut(BaseModel):
     constraints: list[GroupMinOut]
     notes: list[str]
     unresolved: list[str]  # mínimos que no se pudieron traducir a una liga, nación o club
+    rewards: list[str] = []  # premios en texto
+    value: int = 0  # monedas estimadas de sus premios (incluye su parte del premio del grupo)
+    value_known: bool = True  # false: algún premio no se pudo valorar
+    done: bool = True  # con el presupuesto de partidos, ¿se completa?
 
 
 class SkippedOut(BaseModel):
@@ -382,6 +387,10 @@ class SessionOut(BaseModel):
     constraints: list[GroupMinOut]
     tasks: list[PlanTaskOut]
     squad: SquadBuildResponse | None = None
+    value: int = 0  # monedas estimadas si se completa toda la sesión
+    value_per_match: int = 0
+    play_matches: int = 0  # partidos a jugar (con presupuesto, puede ser menos que `matches`)
+    play_value: int = 0
 
 
 class PlanTotals(BaseModel):
@@ -389,6 +398,9 @@ class PlanTotals(BaseModel):
     matches: int  # partidos del plan (sesiones)
     matches_separate: int  # si se jugara cada objetivo por separado
     saved: int
+    value: int = 0  # monedas estimadas de todo el plan
+    play_matches: int = 0  # partidos a jugar según el presupuesto
+    play_value: int = 0
 
 
 class ObjectivesPlanOut(BaseModel):
@@ -399,8 +411,38 @@ class ObjectivesPlanOut(BaseModel):
     assumptions: dict[str, float]
 
 
-def _task_out(o: OpenObjective) -> PlanTaskOut:
+def _value_tasks(
+    ok: list[OpenObjective], book: PriceBook
+) -> dict[int, tuple[list[str], int, bool]]:
+    """{objetivo: (premios, monedas, valorado)}: premios propios + su parte del premio del grupo."""
+    chosen_by_group: dict[int, list[OpenObjective]] = {}
+    for o in ok:
+        chosen_by_group.setdefault(o.group_id, []).append(o)
+    out: dict[int, tuple[list[str], int, bool]] = {}
+    for o in ok:
+        vals = [award_value(a, book) for a in o.awards]
+        total = sum(v.value for v in vals)
+        known = all(v.valued for v in vals)
+        mates = chosen_by_group[o.group_id]
+        if o.group_awards and len(mates) >= o.group_open:  # el grupo entero está en el plan
+            gv = [award_value(a, book) for a in o.group_awards]
+            total += round(sum(v.value for v in gv) / o.group_open)
+            known = known and all(v.valued for v in gv)
+        out[o.objective_id] = ([v.label for v in vals], total, known)
+    return out
+
+
+def _task_out(
+    o: OpenObjective,
+    valued: dict[int, tuple[list[str], int, bool]] | None = None,
+    done: bool = True,
+) -> PlanTaskOut:
+    rewards, value, known = (valued or {}).get(o.objective_id, ([], 0, True))
     return PlanTaskOut(
+        rewards=rewards,
+        value=value,
+        value_known=known,
+        done=done,
         objective_id=o.objective_id,
         group=o.group_title,
         text=o.text,
@@ -426,6 +468,16 @@ def _skipped_out(o: OpenObjective, reason: str | None = None) -> SkippedOut:
     )
 
 
+def _book(session: DbSession, ok: list[OpenObjective]) -> PriceBook:
+    rids = {
+        int((a.get("item") or {}).get("resource_id", a.get("value", 0)))
+        for o in ok
+        for a in [*o.awards, *o.group_awards]
+        if a.get("type") == "item"
+    }
+    return load_price_book(session, rids)
+
+
 @router.get("/plan/candidates", response_model=CandidatesOut)
 def plan_candidates(
     session: DbSession,
@@ -433,8 +485,9 @@ def plan_candidates(
 ) -> CandidatesOut:
     """Objetivos abiertos: los que se pueden planificar y los que no (con el motivo)."""
     ok, skipped = open_objectives(session, win_rate)
+    valued = _value_tasks(ok, _book(session, ok))
     return CandidatesOut(
-        plannable=[_task_out(o) for o in ok],
+        plannable=[_task_out(o, valued) for o in ok],
         skipped=[_skipped_out(o) for o in skipped if not o.task.plannable],
     )
 
@@ -462,6 +515,8 @@ def objectives_plan(
     ids: Annotated[str | None, Query(description="ids de objetivo separados por comas")] = None,
     win_rate: Annotated[float, Query(gt=0.05, le=1)] = WIN_RATE,
     squads: bool = False,
+    budget: Annotated[int | None, Query(ge=1, description="partidos que quieres jugar")] = None,
+    sort: Annotated[str, Query(pattern="^(value|matches)$")] = "value",
 ) -> ObjectivesPlanOut:
     """Sesiones de juego que avanzan varios objetivos a la vez, con la plantilla de cada una."""
     ok, skipped = open_objectives(session, win_rate)
@@ -469,10 +524,24 @@ def objectives_plan(
         wanted = {int(x) for x in ids.split(",") if x.strip().isdigit()}
         ok = [o for o in ok if o.objective_id in wanted]
     sessions, dropped = group_into_sessions(ok, Feasibility(session))
-    sessions.sort(key=lambda s: -s.matches)
+    valued = _value_tasks([t for sn in sessions for t in sn.tasks], _book(session, ok))
+
+    def session_value(sn) -> int:
+        return sum(valued[t.objective_id][1] for t in sn.tasks)
+
+    if sort == "matches":
+        sessions.sort(key=lambda s: -s.matches)
+    else:  # más valor por partido primero
+        sessions.sort(key=lambda s: -(session_value(s) / max(s.matches, 1)))
+    if budget is None:
+        plays = [sn.matches for sn in sessions]
+    else:
+        plays, _ = allocate(
+            [[(t.matches, valued[t.objective_id][1]) for t in sn.tasks] for sn in sessions], budget
+        )
     cache: dict[frozenset[tuple[str, int, int]], SquadBuildResponse] = {}
     out: list[SessionOut] = []
-    for sn in sessions:
+    for sn, play in zip(sessions, plays, strict=True):
         squad = None
         if squads:
             key = frozenset((r.kind, r.id, r.k) for r in sn.constraints.values())
@@ -488,8 +557,15 @@ def objectives_plan(
                     GroupMinOut(kind=r.kind, id=r.id, name=r.name, k=r.k)
                     for r in sn.constraints.values()
                 ],
-                tasks=[_task_out(t) for t in sorted(sn.tasks, key=lambda t: -t.matches)],
+                tasks=[
+                    _task_out(t, valued, done=t.matches <= play)
+                    for t in sorted(sn.tasks, key=lambda t: -t.matches)
+                ],
                 squad=squad,
+                value=session_value(sn),
+                value_per_match=round(session_value(sn) / max(sn.matches, 1)),
+                play_matches=play,
+                play_value=sum(valued[t.objective_id][1] for t in sn.tasks if t.matches <= play),
             )
         )
     separate = sum(t.matches for sn in sessions for t in sn.tasks)
@@ -503,6 +579,9 @@ def objectives_plan(
             matches=total,
             matches_separate=separate,
             saved=max(0, separate - total),
+            value=sum(session_value(sn) for sn in sessions),
+            play_matches=sum(plays),
+            play_value=sum(o.play_value for o in out),
         ),
         assumptions={"win_rate": win_rate, "goals_per_match": 2.0, "assists_per_match": 1.2},
     )

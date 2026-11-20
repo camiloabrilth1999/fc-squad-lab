@@ -143,6 +143,9 @@ class OpenObjective:
     matches: int
     groups: list[Resolved] = field(default_factory=list)
     unresolved: list[str] = field(default_factory=list)
+    awards: list[dict] = field(default_factory=list)  # premios del objetivo (EA)
+    group_awards: list[dict] = field(default_factory=list)  # premios por completar el grupo
+    group_open: int = 1  # objetivos aún abiertos en su grupo
 
 
 def open_objectives(
@@ -158,9 +161,8 @@ def open_objectives(
             continue
         if g.end_time and g.end_time < now.timestamp():
             continue
-        for o in g.data.get("objectives", []):
-            if o.get("state") == "REDEEMED":
-                continue
+        open_in_group = [o for o in g.data.get("objectives", []) if o.get("state") != "REDEEMED"]
+        for o in open_in_group:
             task = parse_objective(o.get("description"))
             target, progress = int(o.get("target") or 0), int(o.get("progress") or 0)
             remaining = max(0, target - progress)
@@ -189,6 +191,9 @@ def open_objectives(
                 matches=estimate_matches(task, remaining, win_rate) if task.plannable else 0,
                 groups=res,  # type: ignore[arg-type]
                 unresolved=bad,  # type: ignore[arg-type]
+                awards=list(o.get("awards") or []),
+                group_awards=list(g.data.get("awards") or []),
+                group_open=len(open_in_group),
             )
             (ok if task.plannable and remaining > 0 else skipped).append(item)
     return ok, skipped

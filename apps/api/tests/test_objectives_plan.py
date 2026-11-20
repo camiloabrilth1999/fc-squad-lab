@@ -214,3 +214,59 @@ def test_plan_squad_endpoint_accepts_group_minimums(client: TestClient) -> None:
     r = client.get("/objectives/plan/squad", params={"mins": "league:13:3,bad,nation:x:1"})
     assert r.status_code == 200
     assert r.json()["status"] in ("infeasible", "unknown", "optimal", "feasible")
+
+
+@pytest.mark.db
+def test_plan_values_rewards_and_allocates_a_match_budget(
+    client: TestClient, clean_db: Session
+) -> None:
+    def obj(oid: int, text: str, target: int, awards: list[dict]) -> dict:
+        return {**_o(oid, text, 0, target), "awards": awards}
+
+    def coin(v: int) -> dict:
+        return {"type": "coin", "value": v, "count": 1, "untradeable": False}
+
+    clean_db.add_all(
+        [
+            _group(
+                1,
+                "Rivals",
+                [
+                    obj(1, "Juega 5 partidos de Rivals.", 5, [coin(1000)]),
+                    obj(2, "Juega 20 partidos de Rivals.", 20, [coin(2000)]),
+                ],
+            ),
+            _group(
+                2,
+                "Draft",
+                [
+                    obj(
+                        3,
+                        "Juega 4 partidos de Draft.",
+                        4,
+                        [coin(4000), {"type": "xp", "value": 200, "count": 1}],
+                    )
+                ],
+            ),
+        ]
+    )
+    clean_db.commit()
+
+    full = client.get("/objectives/plan").json()
+    assert full["totals"]["value"] == 7000 and full["totals"]["play_matches"] == 24
+    # más valor por partido primero: Draft (1.000/partido) y luego Rivals (3.000 / 20 = 150)
+    assert [s["scope"] for s in full["sessions"]] == ["draft", "rivals"]
+    draft = full["sessions"][0]
+    assert draft["value"] == 4000 and draft["value_per_match"] == 1000
+    assert draft["tasks"][0]["rewards"][0] == "4.000 monedas"
+
+    short = client.get("/objectives/plan", params={"budget": 9}).json()
+    plays = {s["scope"]: s["play_matches"] for s in short["sessions"]}
+    assert plays == {"draft": 4, "rivals": 5}  # Draft entero + el objetivo corto de Rivals
+    rivals = next(s for s in short["sessions"] if s["scope"] == "rivals")
+    assert [t["done"] for t in rivals["tasks"]] == [False, True]  # de más a menos partidos
+    assert short["totals"]["play_value"] == 4000 + 1000
+
+    by_matches = client.get("/objectives/plan", params={"sort": "matches"}).json()
+    assert [s["scope"] for s in by_matches["sessions"]] == ["rivals", "draft"]
+    assert client.get("/objectives/plan", params={"sort": "otro"}).status_code == 422

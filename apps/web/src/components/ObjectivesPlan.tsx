@@ -18,6 +18,10 @@ type Task = {
   constraints: GroupMin[];
   notes: string[];
   unresolved: string[];
+  rewards?: string[];
+  value?: number;
+  value_known?: boolean;
+  done?: boolean;
 };
 type Skipped = { objective_id: number; group: string; text: string; reason: string };
 type Candidates = { plannable: Task[]; skipped: Skipped[] };
@@ -41,12 +45,24 @@ type Session = {
   matches: number;
   constraints: GroupMin[];
   tasks: Task[];
+  value?: number;
+  value_per_match?: number;
+  play_matches?: number;
+  play_value?: number;
 };
 type Plan = {
   sessions: Session[];
   dropped: Skipped[];
   skipped: Skipped[];
-  totals: { objectives: number; matches: number; matches_separate: number; saved: number };
+  totals: {
+    objectives: number;
+    matches: number;
+    matches_separate: number;
+    saved: number;
+    value?: number;
+    play_matches?: number;
+    play_value?: number;
+  };
   assumptions: Record<string, number>;
 };
 
@@ -63,6 +79,8 @@ export default function ObjectivesPlan({ apiUrl }: { apiUrl: string }) {
   const [failed, setFailed] = useState(false);
   const [picked, setPicked] = useState<Set<number> | null>(null); // null = todos
   const [winRate, setWinRate] = useState("60");
+  const [budget, setBudget] = useState("");
+  const [sort, setSort] = useState<"value" | "matches">("value");
   const [plan, setPlan] = useState<Plan | null>(null);
   const [planning, setPlanning] = useState(false);
   const [planError, setPlanError] = useState(false);
@@ -116,6 +134,8 @@ export default function ObjectivesPlan({ apiUrl }: { apiUrl: string }) {
     setPlanError(false);
     const p = new URLSearchParams({ win_rate: String((Number(winRate) || 60) / 100) });
     if (picked) p.set("ids", [...picked].join(","));
+    if (budget) p.set("budget", budget);
+    p.set("sort", sort);
     try {
       const r = await fetch(`${apiUrl}/objectives/plan?${p}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -143,6 +163,28 @@ export default function ObjectivesPlan({ apiUrl }: { apiUrl: string }) {
               onChange={(e) => setWinRate(e.target.value.replace(/\D/g, ""))}
               className="w-24 rounded-lg border border-line bg-bg px-3 py-2 text-sm"
             />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-muted">Partidos que quieres jugar</span>
+            <input
+              inputMode="numeric"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value.replace(/\D/g, ""))}
+              placeholder="todos"
+              className="w-28 rounded-lg border border-line bg-bg px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-muted">Ordenar sesiones</span>
+            <select
+              aria-label="Ordenar sesiones"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as "value" | "matches")}
+              className="rounded-lg border border-line bg-bg px-3 py-2 text-sm"
+            >
+              <option value="value">Más valor por partido</option>
+              <option value="matches">Más partidos</option>
+            </select>
           </label>
           <button
             type="button"
@@ -228,6 +270,7 @@ export default function ObjectivesPlan({ apiUrl }: { apiUrl: string }) {
 
 function PlanView({ apiUrl, plan }: { apiUrl: string; plan: Plan }) {
   const t = plan.totals;
+  const unvalued = plan.sessions.reduce((n, s) => n + s.tasks.filter((x) => x.value_known === false).length, 0);
   return (
     <div className="space-y-4">
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -237,6 +280,13 @@ function PlanView({ apiUrl, plan }: { apiUrl: string; plan: Plan }) {
             ["Si se jugaran por separado", formatNumber(t.matches_separate)],
             ["Partidos que te ahorras", formatNumber(t.saved)],
             ["Objetivos", String(t.objectives)],
+            ...(t.value ? ([["Valor de los premios", `${formatNumber(t.value)} monedas`]] as [string, string][]) : []),
+            ...(t.value && t.play_matches !== undefined && t.play_matches < t.matches
+              ? ([
+                  ["Partidos a jugar", formatNumber(t.play_matches)],
+                  ["Valor con ese presupuesto", `${formatNumber(t.play_value ?? 0)} monedas`],
+                ] as [string, string][])
+              : []),
           ] as [string, string][]
         ).map(([label, value]) => (
           <div key={label} className="rounded-card border border-line bg-surface px-3 py-3">
@@ -245,6 +295,11 @@ function PlanView({ apiUrl, plan }: { apiUrl: string; plan: Plan }) {
           </div>
         ))}
       </dl>
+      {unvalued > 0 ? (
+        <p className="text-xs text-warn">
+          {unvalued} objetivos tienen premios que no se pueden valorar (jugadores sin precio, XP…) y cuentan 0.
+        </p>
+      ) : null}
       <p className="text-xs text-muted">
         Estimación: ganas el {Math.round((plan.assumptions.win_rate ?? 0.6) * 100)} % de los partidos y
         marcas ~{plan.assumptions.goals_per_match} goles por partido.
@@ -293,10 +348,24 @@ function SessionCard({ apiUrl, session }: { apiUrl: string; session: Session }) 
           <h3 className="font-semibold leading-snug">{session.label}</h3>
           <p className="text-xs text-muted">{session.tasks.length} objetivos a la vez</p>
         </div>
-        <span className="shrink-0 rounded-lg bg-accent/15 px-2.5 py-1 font-mono text-sm font-semibold text-accent-strong">
-          ~{session.matches} partidos
-        </span>
+        <div className="shrink-0 text-right">
+          <span className="block rounded-lg bg-accent/15 px-2.5 py-1 font-mono text-sm font-semibold text-accent-strong">
+            ~{session.matches} partidos
+          </span>
+          {session.value ? (
+            <span className="mt-1 block text-xs text-muted">
+              <span className="font-mono text-good">{formatNumber(session.value)}</span> monedas ·{" "}
+              {formatNumber(session.value_per_match ?? 0)}/partido
+            </span>
+          ) : null}
+        </div>
       </header>
+      {session.play_matches !== undefined && session.play_matches < session.matches ? (
+        <p className="mt-2 rounded-lg bg-warn/10 px-3 py-1.5 text-xs text-warn">
+          Con tu presupuesto: juega {session.play_matches} de {session.matches} partidos
+          {session.play_matches === 0 ? " (no merece la pena)" : ""}.
+        </p>
+      ) : null}
 
       {session.constraints.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Mínimos del once">
@@ -313,7 +382,15 @@ function SessionCard({ apiUrl, session }: { apiUrl: string; session: Session }) 
       <ul className="mt-3 space-y-1.5 text-sm">
         {session.tasks.map((t) => (
           <li key={t.objective_id} className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0 text-muted">{t.text}</span>
+            <span className={`min-w-0 ${t.done === false ? "text-muted/50 line-through" : "text-muted"}`}>
+              {t.text}
+              {t.rewards && t.rewards.length > 0 ? (
+                <span className="block text-xs text-accent-strong">
+                  {t.rewards.join(" · ")}
+                  {t.value ? ` (≈${formatNumber(t.value)})` : ""}
+                </span>
+              ) : null}
+            </span>
             <span className="shrink-0 font-mono text-xs tabular-nums">~{t.matches}</span>
           </li>
         ))}
