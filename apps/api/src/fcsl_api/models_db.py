@@ -187,6 +187,16 @@ class ClubItem(Base):
     seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class GalleryMark(Base):
+    """Marca manual de coleccionado: manda sobre lo que diga el club importado."""
+
+    __tablename__ = "gallery_marks"
+
+    resource_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    collected: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class SyncRun(Base):
     __tablename__ = "sync_runs"
 

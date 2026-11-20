@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import GalleryBrowser from "./GalleryBrowser";
 
@@ -52,9 +52,12 @@ const planBody = {
 const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
 
 function mockApi() {
-  const fn = vi.fn(async (url: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- el 2.º parámetro fija el tipo de las llamadas
+  const fn = vi.fn(async (url: string, _init?: RequestInit) => {
     const u = String(url);
     if (u.includes("/gallery/plan")) return json(planBody);
+    if (u.includes("/gallery/collected")) return json({ updated: 1 });
+    if (u.includes("/cards")) return json({ cards: solution.cards, shown: 2 });
     return u.includes("/solve") ? json(solution) : json({ items: sets });
   });
   vi.stubGlobal("fetch", fn);
@@ -87,7 +90,7 @@ describe("GalleryBrowser", () => {
     expect(screen.getByText("10.300")).toBeInTheDocument();
     expect(screen.getByText("515")).toBeInTheDocument();
     expect(screen.getByText("Falcone")).toBeInTheDocument();
-    expect(screen.getByText("coleccionada")).toBeInTheDocument();
+    expect(screen.getByText("coleccionada ✓")).toBeInTheDocument();
     expect(screen.getByText(/puntos estimados/)).toBeInTheDocument();
     const solveUrl = new URL(String(fn.mock.calls.at(-1)![0]));
     expect(solveUrl.pathname).toBe("/gallery/1/solve");
@@ -114,6 +117,50 @@ describe("GalleryBrowser", () => {
     fireEvent.click(screen.getByRole("button", { name: /Lecce/ }));
     expect(await screen.findByText("Solución óptima")).toBeInTheDocument();
     expect(String(fn.mock.calls.at(-1)![0])).toContain("grade=S");
+  });
+
+  it("marca una carta a mano y refresca el progreso", async () => {
+    const fn = mockApi();
+    render(<GalleryBrowser apiUrl={URL_} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Lecce/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Resolver grado A/ }));
+    await screen.findByText("Solución óptima");
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como coleccionada a Falcone" }));
+    await waitFor(() => {
+      const post = fn.mock.calls.find(([u]) => String(u).includes("/gallery/collected"));
+      expect(post).toBeTruthy();
+      expect(JSON.parse((post![1] as RequestInit).body as string)).toEqual({ resource_ids: [1], collected: true });
+    });
+    // tras marcar se vuelve a pedir el progreso y la solución
+    await waitFor(() => expect(fn.mock.calls.filter(([u]) => String(u).includes("/solve")).length).toBe(2));
+    // una coleccionada se desmarca con otro clic
+    fireEvent.click(screen.getByRole("button", { name: "Desmarcar a Propio" }));
+    await waitFor(() => {
+      const posts = fn.mock.calls.filter(([u]) => String(u).includes("/gallery/collected"));
+      expect(JSON.parse((posts.at(-1)![1] as RequestInit).body as string)).toEqual({ resource_ids: [2], collected: false });
+    });
+  });
+
+  it("marca todas las compradas de la solución de una vez", async () => {
+    const fn = mockApi();
+    render(<GalleryBrowser apiUrl={URL_} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Lecce/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Resolver grado A/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /marcar las 14 como coleccionadas/ }));
+    await waitFor(() => {
+      const post = fn.mock.calls.find(([u]) => String(u).includes("/gallery/collected"));
+      expect(JSON.parse((post![1] as RequestInit).body as string)).toEqual({ resource_ids: [1], collected: true });
+    });
+  });
+
+  it("lista las cartas del set con búsqueda para marcarlas", async () => {
+    const fn = mockApi();
+    render(<GalleryBrowser apiUrl={URL_} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Lecce/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver y marcar las cartas del set" }));
+    expect(await screen.findByText("Falcone")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Buscar carta del set"), { target: { value: "falc" } });
+    await waitFor(() => expect(String(fn.mock.calls.at(-1)![0])).toContain("/gallery/1/cards?q=falc"));
   });
 
   it("explica un objetivo inalcanzable", async () => {

@@ -3,7 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ..gallery.plan import build, make_plan
@@ -11,8 +11,10 @@ from ..gallery.service import (
     PoolCard,
     collected_ids,
     current_grade,
+    list_pool,
     load_pool,
     progress,
+    set_marks,
     solve_set,
 )
 from ..gallery.sets import GallerySet, get_set, load_sets
@@ -120,6 +122,37 @@ def list_sets(session: DbSession, group: str | None = None, q: str | None = None
         for s in sets
     ]
     return SetsOut(items=items)
+
+
+class MarkBody(BaseModel):
+    resource_ids: Annotated[list[int], Field(min_length=1, max_length=500)]
+    # True: coleccionada · False: no coleccionada · None: quitar la marca manual
+    collected: bool | None = True
+
+
+@router.post("/collected")
+def mark_collected(body: MarkBody, session: DbSession) -> dict[str, int]:
+    """Marca a mano cartas como coleccionadas (o no); manda sobre el club importado."""
+    return {"updated": set_marks(session, body.resource_ids, body.collected)}
+
+
+class PoolOut(BaseModel):
+    cards: list[CardOut]
+    shown: int
+
+
+@router.get("/{set_id}/cards", response_model=PoolOut)
+def set_cards(
+    set_id: int,
+    session: DbSession,
+    q: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 60,
+) -> PoolOut:
+    s = get_set(set_id)
+    if s is None:
+        raise HTTPException(404, "Set de Galería no encontrado")
+    cards, shown = list_pool(session, s, collected_ids(session), q, limit)
+    return PoolOut(cards=[_card_out(c) for c in cards], shown=shown)
 
 
 @router.get("/{set_id}/solve", response_model=SolutionOut)

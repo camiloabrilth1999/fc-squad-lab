@@ -123,9 +123,14 @@ que ninguna decisión ni tarea se pierda. Diseño general en
   y se re-planifica hasta 3 rondas mientras mejore (`make_plan`); ahorro ≈1,3K en el plan de 751
   fichas, expuesto como `saved_tax`. Resultado válido siempre en ese orden (no hay dependencias
   circulares); puede variar unos cientos entre ejecuciones (CP-SAT multihilo).
+  **Marcar coleccionadas HECHO**: tabla `gallery_marks` (migración 0014; la marca manual manda
+  sobre el club: True añade, False quita, None vuelve a lo que diga el club), `POST
+  /gallery/collected`, `GET /gallery/{id}/cards?q=` (cartas del set con búsqueda) y en la web:
+  clic en una carta de la solución, «marcar las N como coleccionadas» tras comprarlas y listado
+  «Ver y marcar las cartas del set». El plan y los progresos se recalculan solos (la caché usa
+  lo coleccionado como clave).
   **Pendiente**: bonus *First Owner* (magnitud sin observar), factores de rarezas aún no vistas
-  (Season 1, Hall of FUT, Icons…), puntos de 90 y ≥92, marcar coleccionadas a mano y la lista
-  completa por si el club no trae todo lo coleccionado.
+  (Season 1, Hall of FUT, Icons…) y puntos de 90 y ≥92.
   Historial de la decisión original (ya superada): decisión de
   Camilo: sembrar las reglas desde EasySBC como guía. Lo que SÍ es público y estático
   (`GET api-fc27.easysbc.io/gallery/sets`, 297 KB, sin cuenta): **198 sets en 10 grupos** (Rarities,
