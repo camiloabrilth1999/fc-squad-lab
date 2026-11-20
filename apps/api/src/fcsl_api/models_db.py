@@ -183,6 +183,7 @@ class ClubItem(Base):
     market_min: Mapped[int | None] = mapped_column(Integer)
     market_max: Mapped[int | None] = mapped_column(Integer)
     first_owner: Mapped[bool | None] = mapped_column(Boolean)
+    is_collected: Mapped[bool | None] = mapped_column(Boolean)  # coleccionada en la Galería (EA)
     seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

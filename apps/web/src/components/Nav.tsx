@@ -9,6 +9,7 @@ export const NAV_ITEMS: { href: string; label: string; icon: string }[] = [
   { href: "/plantillas", label: "Plantillas", icon: "📋" },
   { href: "/jugadores", label: "Jugadores", icon: "🔎" },
   { href: "/valor", label: "Valor", icon: "💎" },
+  { href: "/galeria", label: "Galería", icon: "🖼️" },
   { href: "/evoluciones", label: "Evoluciones", icon: "📈" },
   { href: "/objetivos", label: "Objetivos", icon: "🎯" },
 ];
