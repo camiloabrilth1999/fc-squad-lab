@@ -150,6 +150,47 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
     }
   };
 
+  const [pool, setPool] = useState<SolCard[] | null>(null);
+  const [poolQuery, setPoolQuery] = useState("");
+  const [poolOpen, setPoolOpen] = useState(false);
+
+  const loadPool = async (id: number, q: string) => {
+    try {
+      const r = await fetch(`${apiUrl}/gallery/${id}/cards?q=${encodeURIComponent(q)}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setPool(((await r.json()) as { cards: SolCard[] }).cards);
+    } catch {
+      setPool([]);
+    }
+  };
+
+  /** Marca o desmarca cartas a mano y refresca progreso, solución y listado. */
+  const mark = async (ids: number[], collected: boolean) => {
+    if (ids.length === 0) return;
+    try {
+      const r = await fetch(`${apiUrl}/gallery/collected`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resource_ids: ids, collected }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch {
+      setSolveError(true);
+      return;
+    }
+    const fresh = await fetch(`${apiUrl}/gallery`)
+      .then((x) => (x.ok ? x.json() : null))
+      .catch(() => null);
+    if (fresh) {
+      setSets(fresh.items);
+      setSelected((cur) => (cur ? (fresh.items as GallerySet[]).find((x) => x.id === cur.id) ?? cur : cur));
+    }
+    if (selected) {
+      if (solution) await solve(selected, grade, complete);
+      if (poolOpen) await loadPool(selected.id, poolQuery);
+    }
+  };
+
   const computePlan = async () => {
     setPlanning(true);
     setPlan(null);
@@ -181,6 +222,9 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
 
   const open = (s: GallerySet) => {
     setSelected(s);
+    setPool(null);
+    setPoolOpen(false);
+    setPoolQuery("");
     setSolution(null);
     setSolveError(false);
     // Grado por defecto: el siguiente al que ya alcanzas.
@@ -366,7 +410,38 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
             </div>
 
             {solveError ? <p className="text-danger">No se pudo resolver el set.</p> : null}
-            {solution ? <SolutionView solution={solution} /> : null}
+            {solution ? <SolutionView solution={solution} onMark={mark} /> : null}
+            <div className="rounded-card border border-line bg-surface p-5">
+              <button
+                type="button"
+                aria-expanded={poolOpen}
+                onClick={() => {
+                  const next = !poolOpen;
+                  setPoolOpen(next);
+                  if (next && pool === null) void loadPool(selected.id, poolQuery);
+                }}
+                className="text-sm font-medium text-accent-strong hover:underline"
+              >
+                {poolOpen ? "Ocultar cartas del set" : "Ver y marcar las cartas del set"}
+              </button>
+              {poolOpen ? (
+                <div className="mt-3 space-y-3">
+                  <input
+                    aria-label="Buscar carta del set"
+                    value={poolQuery}
+                    onChange={(e) => {
+                      setPoolQuery(e.target.value);
+                      void loadPool(selected.id, e.target.value);
+                    }}
+                    placeholder="Buscar jugador…"
+                    className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm"
+                  />
+                  {pool === null ? <p className="text-sm text-muted">Cargando…</p> : null}
+                  {pool && pool.length === 0 ? <p className="text-sm text-muted">Sin resultados.</p> : null}
+                  <CardGrid cards={pool ?? []} onMark={mark} />
+                </div>
+              ) : null}
+            </div>
           </aside>
         ) : null}
       </div>
@@ -374,7 +449,13 @@ export default function GalleryBrowser({ apiUrl }: { apiUrl: string }) {
   );
 }
 
-function SolutionView({ solution }: { solution: Solution }) {
+function SolutionView({
+  solution,
+  onMark,
+}: {
+  solution: Solution;
+  onMark: (ids: number[], collected: boolean) => void;
+}) {
   const solved = ["optimal", "feasible", "reached"].includes(solution.status);
   return (
     <div className="rounded-card border border-line bg-surface p-5">
@@ -412,32 +493,16 @@ function SolutionView({ solution }: { solution: Solution }) {
           <p className="mt-3 text-xs text-muted">
             Compra cada carta y véndela al instante al mismo precio: EA la marca como coleccionada.
           </p>
-          <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {solution.cards.map((c) => (
-              <li
-                key={c.resource_id}
-                className={`flex flex-col rounded-lg border p-1.5 ${
-                  c.collected ? "border-good/60 bg-good/10" : "border-line bg-bg"
-                }`}
-              >
-                <CardImage path={c.image_path} position={c.positions[0]} alt={c.name ?? "Carta"} width={160} />
-                <p className="mt-1 truncate text-center text-[11px] font-medium" title={c.name ?? undefined}>
-                  {c.name ?? "Carta"}
-                </p>
-                <p className="text-center font-mono text-[11px] tabular-nums text-muted">
-                  {formatNumber(c.points)}
-                  {c.exact ? "" : "~"} pts
-                </p>
-                <p className="text-center text-[11px]">
-                  {c.collected ? (
-                    <span className="text-good">coleccionada</span>
-                  ) : (
-                    <span className="text-warn">{c.price != null ? formatNumber(c.price) : "—"}</span>
-                  )}
-                </p>
-              </li>
-            ))}
-          </ul>
+          {solution.buys > 0 ? (
+            <button
+              type="button"
+              onClick={() => onMark(solution.cards.filter((c) => !c.collected).map((c) => c.resource_id), true)}
+              className="mt-3 rounded-lg border border-line px-3 py-1.5 text-sm hover:border-accent/60"
+            >
+              Ya las compré: marcar las {solution.buys} como coleccionadas
+            </button>
+          ) : null}
+          <CardGrid cards={solution.cards} onMark={onMark} />
         </>
       ) : null}
     </div>
@@ -584,5 +649,47 @@ function PlanView({
         ))}
       </div>
     </div>
+  );
+}
+
+function CardGrid({
+  cards,
+  onMark,
+}: {
+  cards: SolCard[];
+  onMark: (ids: number[], collected: boolean) => void;
+}) {
+  return (
+    <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+      {cards.map((c) => (
+        <li key={c.resource_id}>
+          <button
+            type="button"
+            aria-pressed={c.collected}
+            aria-label={`${c.collected ? "Desmarcar" : "Marcar como coleccionada"} a ${c.name ?? "carta"}`}
+            onClick={() => onMark([c.resource_id], !c.collected)}
+            className={`flex w-full flex-col rounded-lg border p-1.5 text-left transition-colors hover:border-accent/60 ${
+              c.collected ? "border-good/60 bg-good/10" : "border-line bg-bg"
+            }`}
+          >
+            <CardImage path={c.image_path} position={c.positions[0]} alt={c.name ?? "Carta"} width={160} />
+            <span className="mt-1 block truncate text-center text-[11px] font-medium" title={c.name ?? undefined}>
+              {c.name ?? "Carta"}
+            </span>
+            <span className="block text-center font-mono text-[11px] tabular-nums text-muted">
+              {formatNumber(c.points)}
+              {c.exact ? "" : "~"} pts
+            </span>
+            <span className="block text-center text-[11px]">
+              {c.collected ? (
+                <span className="text-good">coleccionada ✓</span>
+              ) : (
+                <span className="text-warn">{c.price != null ? formatNumber(c.price) : "—"}</span>
+              )}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -174,3 +174,50 @@ def test_import_stores_the_collected_flag(
 def test_solve_404s(client: TestClient) -> None:
     assert client.get("/gallery/999999/solve").status_code == 404
     assert client.get("/gallery/124/solve", params={"grade": "Z"}).status_code == 422
+
+
+@pytest.mark.db
+def test_manual_marks_add_remove_and_reset_collected_cards(
+    client: TestClient, clean_db: Session
+) -> None:
+    clean_db.add_all([_card(1, 84), _card(2, 75), _card(3, 70)])
+    clean_db.add(ClubItem(item_id=1, resource_id=1, location="club", is_collected=True))
+    clean_db.commit()
+
+    def lecce() -> dict:
+        return next(s for s in client.get("/gallery").json()["items"] if s["name"] == "Lecce")
+
+    assert (lecce()["collected"], lecce()["points"]) == (1, 830)  # solo la del club
+    r = client.post("/gallery/collected", json={"resource_ids": [2, 3], "collected": True})
+    assert r.json() == {"updated": 2}
+    assert (lecce()["collected"], lecce()["points"]) == (3, 830 + 90 + 35)
+    # desmarcar a mano una que el club dice coleccionada
+    client.post("/gallery/collected", json={"resource_ids": [1], "collected": False})
+    assert (lecce()["collected"], lecce()["points"]) == (2, 90 + 35)
+    # quitar la marca manual: vuelve a mandar el club
+    client.post("/gallery/collected", json={"resource_ids": [1, 2, 3], "collected": None})
+    assert (lecce()["collected"], lecce()["points"]) == (1, 830)
+
+
+@pytest.mark.db
+def test_marking_requires_at_least_one_card(client: TestClient) -> None:
+    assert client.post("/gallery/collected", json={"resource_ids": []}).status_code == 422
+
+
+@pytest.mark.db
+def test_set_cards_lists_the_pool_with_search_and_collected_flag(
+    client: TestClient, clean_db: Session
+) -> None:
+    clean_db.add_all([_card(1, 84), _card(2, 75), _card(3, 70), _card(4, 70, club_id=999)])
+    clean_db.flush()
+    clean_db.get(Card, 3).name = "Pierotti"
+    clean_db.add(ClubItem(item_id=1, resource_id=2, location="club", is_collected=True))
+    clean_db.commit()
+    lecce_id = next(s for s in client.get("/gallery").json()["items"] if s["name"] == "Lecce")["id"]
+
+    r = client.get(f"/gallery/{lecce_id}/cards").json()
+    assert [c["resource_id"] for c in r["cards"]] == [1, 2, 3]  # por puntos; la 4 es de otro club
+    assert {c["resource_id"]: c["collected"] for c in r["cards"]} == {1: False, 2: True, 3: False}
+    found = client.get(f"/gallery/{lecce_id}/cards", params={"q": "pier"}).json()
+    assert [c["resource_id"] for c in found["cards"]] == [3]
+    assert client.get("/gallery/999999/cards").status_code == 404

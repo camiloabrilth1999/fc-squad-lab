@@ -13,7 +13,7 @@ from ortools.sat.python import cp_model
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models_db import Card, ClubItem
+from ..models_db import Card, ClubItem, GalleryMark
 from ..prices import effective_prices
 from .points import card_points
 from .sets import GallerySet, in_pool, pool_condition
@@ -47,12 +47,66 @@ class Selection:
 
 
 def collected_ids(session: Session) -> set[int]:
+    """Coleccionadas: las del club que EA marca como tales, más/menos tus marcas manuales."""
     rows = session.scalars(
         select(ClubItem.resource_id).where(
             ClubItem.is_collected.is_(True), ClubItem.resource_id.is_not(None)
         )
     )
-    return {r for r in rows if r is not None}
+    ids = {r for r in rows if r is not None}
+    for mark in session.scalars(select(GalleryMark)):
+        if mark.collected:
+            ids.add(mark.resource_id)
+        else:
+            ids.discard(mark.resource_id)
+    return ids
+
+
+def set_marks(session: Session, resource_ids: list[int], collected: bool | None) -> int:
+    """Marca (True), desmarca (False) o quita la marca manual (None) de las cartas dadas."""
+    ids = sorted(set(resource_ids))
+    if collected is None:
+        n = session.query(GalleryMark).filter(GalleryMark.resource_id.in_(ids)).delete()
+    else:
+        now = datetime.now(UTC)
+        for rid in ids:
+            session.merge(GalleryMark(resource_id=rid, collected=collected, updated_at=now))
+        n = len(ids)
+    session.commit()
+    return n
+
+
+def list_pool(
+    session: Session, s: GallerySet, collected: set[int], q: str | None = None, limit: int = 60
+) -> tuple[list[PoolCard], int]:
+    """Cartas del set (las de más puntos primero), con filtro por nombre, para marcarlas."""
+    stmt = select(Card).where(pool_condition(s))
+    if q and q.strip():
+        stmt = stmt.where(Card.name.ilike(f"%{q.strip()}%"))
+    cards = list(
+        session.scalars(stmt.order_by(Card.rating.desc().nulls_last(), Card.name).limit(limit))
+    )
+    prices = effective_prices(session, {c.resource_id for c in cards}, datetime.now(UTC))
+    out = []
+    for c in cards:
+        pts, exact = _points_of(c)
+        price = prices.get(c.resource_id)
+        out.append(
+            PoolCard(
+                resource_id=c.resource_id,
+                name=c.name,
+                rating=c.rating,
+                positions=c.positions or [],
+                rarity_name=c.rarity_name,
+                image_path=c.image_path,
+                points=pts,
+                exact=exact,
+                price=price[0] if price else None,
+                collected=c.resource_id in collected,
+            )
+        )
+    out.sort(key=lambda c: (-c.points, c.name or ""))
+    return out, len(cards)
 
 
 def _points_of(card: Card) -> tuple[int, bool]:
