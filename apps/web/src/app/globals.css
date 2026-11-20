@@ -24,23 +24,7 @@
   color-scheme: dark;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f5f7fa;
-    --surface: #ffffff;
-    --surface-2: #eef1f6;
-    --line: #dfe4ec;
-    --fg: #0e1116;
-    --muted: #5b6572;
-    --accent: #2f55f0;
-    --accent-strong: #2443c9;
-    --accent-fg: #ffffff;
-    --good: #0f9d6e;
-    --danger: #d83a4a;
-    --warn: #b9811a;
-    color-scheme: light;
-  }
-}
+/* Siempre oscuro (como EasySBC): no seguimos prefers-color-scheme. */
 
 @theme inline {
   --color-bg: var(--bg);

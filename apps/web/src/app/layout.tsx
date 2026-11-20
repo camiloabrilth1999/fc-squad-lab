@@ -24,7 +24,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><Nav />
+      {/* suppressHydrationWarning: algunas extensiones de Chrome añaden atributos al <body> */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <Nav />
         {children}
       </body>
     </html>
