@@ -72,7 +72,7 @@ function ClubCard({ r }: { r: ClubRow }) {
         ) : null}
       </div>
       <CardImage path={r.image_path} rating={r.rating} position={r.positions[0]} alt={rowName(r)} />
-      <div className="mt-2 flex items-center justify-between gap-1 rounded-lg bg-bg px-2 py-1">
+      <div className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-bg px-2.5 py-1.5">
         {r.loan ? <span className="text-xs text-muted">No es tuyo</span> : <PriceChip price={r.price} />}
         <MetaChip meta={r.meta} tier={r.tier} approx={r.meta_source === "face"} />
       </div>

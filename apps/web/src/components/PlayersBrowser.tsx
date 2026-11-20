@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { formatNumber } from "../lib/format";
 import CardImage, { Badge } from "./CardImage";
+import { MetaChip, PriceChip } from "./Chips";
 import PlayerDetail from "./PlayerDetail";
 import { useCatalog } from "../lib/useCatalog";
 
@@ -88,6 +89,7 @@ export default function PlayersBrowser({ apiUrl }: { apiUrl: string }) {
   const [data, setData] = useState<Page | null>(null);
   const [failed, setFailed] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [view, setView] = useState<"cards" | "table">("cards");
   const leagues = useCatalog(apiUrl, "league");
   const nations = useCatalog(apiUrl, "nation");
 
@@ -257,10 +259,66 @@ export default function PlayersBrowser({ apiUrl }: { apiUrl: string }) {
         <div className="rounded-card border border-line bg-surface">
           <div className="flex items-center justify-between px-4 py-3 text-sm text-muted">
             <span>{formatNumber(data.total)} jugadores</span>
+            <div className="flex gap-2" role="group" aria-label="Vista">
+              {(["cards", "table"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={view === v}
+                  onClick={() => setView(v)}
+                  className={`rounded-lg border border-line px-3 py-1 text-xs ${view === v ? "bg-surface-2 font-medium text-fg" : ""}`}
+                >
+                  {v === "cards" ? "Cartas" : "Tabla"}
+                </button>
+              ))}
+            </div>
             <span>
               Página {data.page} de {pages}
             </span>
           </div>
+          {view === "cards" ? (
+            <div className="px-4 pb-4">
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
+                {data.items.map((p) => (
+                  <button
+                    key={p.resource_id}
+                    type="button"
+                    aria-expanded={openId === p.resource_id}
+                    onClick={() => setOpenId(openId === p.resource_id ? null : p.resource_id)}
+                    className={`flex flex-col rounded-card border bg-bg p-2 text-left transition-all hover:-translate-y-0.5 hover:border-accent/60 ${
+                      openId === p.resource_id ? "border-accent" : "border-line"
+                    }`}
+                  >
+                    <CardImage
+                      path={p.image_path}
+                      rating={p.rating}
+                      position={p.positions[0]}
+                      alt={`Carta de ${p.name ?? "jugador"}`}
+                      width={200}
+                    />
+                    <div className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-surface px-2.5 py-1.5">
+                      <PriceChip price={p.price} />
+                      <MetaChip meta={p.meta} tier={p.tier} approx={p.meta_source === "face"} />
+                    </div>
+                    <p className="mt-1.5 truncate text-xs font-medium" title={p.name ?? undefined}>
+                      {p.name ?? "Carta"}
+                    </p>
+                    <p className="flex items-center gap-1 truncate text-[11px] text-muted">
+                      <Badge path={p.nation_image} alt={p.nation_name ?? "Nación"} size={12} />
+                      <Badge path={p.club_image} alt={p.club_name ?? "Club"} size={12} />
+                      {p.positions.slice(0, 3).join(" · ")}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              {openId !== null ? (
+                <div className="mt-4 rounded-card border border-line bg-surface-2/40 p-4">
+                  <PlayerDetail apiUrl={apiUrl} id={openId} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {view === "table" ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="border-y border-line text-xs uppercase tracking-wider text-muted">
@@ -279,7 +337,7 @@ export default function PlayersBrowser({ apiUrl }: { apiUrl: string }) {
                   <tr className="border-b border-line/60 last:border-0">
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 shrink-0">
+                        <div className="w-14 shrink-0">
                           <CardImage
                             path={p.image_path}
                             rating={p.rating}
@@ -338,6 +396,7 @@ export default function PlayersBrowser({ apiUrl }: { apiUrl: string }) {
               </tbody>
             </table>
           </div>
+          ) : null}
           <div className="flex items-center justify-between px-4 py-3">
             <button
               type="button"

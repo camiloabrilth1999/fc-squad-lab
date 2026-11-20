@@ -39,6 +39,7 @@ describe("PlayersBrowser", () => {
       ),
     );
     render(<PlayersBrowser apiUrl={URL_} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Tabla" }));
     expect(await screen.findByText("Alfa")).toBeInTheDocument();
     expect(screen.getByText("91.2")).toBeInTheDocument();
     expect(screen.getByText("88.4~")).toBeInTheDocument(); // estimado con la cara
@@ -46,6 +47,20 @@ describe("PlayersBrowser", () => {
     expect(screen.getByText("—")).toBeInTheDocument(); // sin precio
     expect(screen.getByText("2 jugadores")).toBeInTheDocument();
     expect(screen.getAllByText("Arsenal · Premier League · England")).toHaveLength(2);
+  });
+
+  it("muestra por defecto las cartas en cuadrícula con precio y meta", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        json({ ...page([player(1, "Alfa", 91.2, "stats", 50000)]), items: [{ ...player(1, "Alfa", 91.2, "stats", 50000), image_path: "2027/card/1.webp" }] }),
+      ),
+    );
+    render(<PlayersBrowser apiUrl={URL_} />);
+    const img = await screen.findByAltText("Carta de Alfa");
+    expect(img.getAttribute("src")).toContain("2027/card/1.webp");
+    expect(screen.getByText("50.000")).toBeInTheDocument();
+    expect(screen.getByText("91.2")).toBeInTheDocument();
   });
 
   it("aplica los filtros al buscar y vuelve a la página 1", async () => {
@@ -56,6 +71,7 @@ describe("PlayersBrowser", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     render(<PlayersBrowser apiUrl={URL_} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Tabla" }));
     await screen.findByText("Alfa");
     await screen.findByRole("option", { name: "Premier League" });
 
@@ -128,6 +144,7 @@ describe("PlayersBrowser: detalle de carta", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     render(<PlayersBrowser apiUrl={URL_} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Tabla" }));
     const name = await screen.findByRole("button", { name: "Alfa" });
 
     fireEvent.click(name);

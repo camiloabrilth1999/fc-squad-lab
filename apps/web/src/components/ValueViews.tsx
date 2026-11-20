@@ -164,7 +164,7 @@ function Bargains({ apiUrl }: { apiUrl: string }) {
                   <tr key={b.resource_id} className="border-b border-line/60 last:border-0">
                     <td className="px-4 py-2 font-medium">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 shrink-0">
+                        <div className="w-14 shrink-0">
                           <CardImage
                             path={b.image_path}
                             position={b.positions[0]}

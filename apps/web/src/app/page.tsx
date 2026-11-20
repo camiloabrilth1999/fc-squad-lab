@@ -15,7 +15,7 @@ const TOOLS: { href: string; title: string; desc: string; icon: string }[] = [
 
 export default function Home() {
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
+    <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-10 sm:px-6">
       <section className="rounded-card border border-line bg-gradient-to-br from-surface to-surface-2 p-6 sm:p-8">
         <div className="flex items-center gap-2">
           <span className="inline-block h-2 w-2 rounded-full bg-accent" aria-hidden />

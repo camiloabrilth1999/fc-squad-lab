@@ -17,7 +17,7 @@ export default function CardImage({
   width?: number;
   className?: string;
 }) {
-  const src = imageUrl(path, width);
+  const src = imageUrl(path, width * 1.5);
   if (src) {
     return (
       <img
@@ -25,7 +25,7 @@ export default function CardImage({
         alt={alt}
         loading="lazy"
         decoding="async"
-        className={`aspect-[3/4] w-full object-contain ${className}`}
+        className={`aspect-[5/7] w-full scale-[1.12] object-contain ${className}`}
       />
     );
   }
@@ -33,7 +33,7 @@ export default function CardImage({
     <div
       role="img"
       aria-label={alt}
-      className={`grid aspect-[3/4] w-full place-items-center rounded-lg bg-surface-2 text-center ${className}`}
+      className={`grid aspect-[5/7] w-full place-items-center rounded-lg bg-surface-2 text-center ${className}`}
     >
       <span className="font-mono text-2xl font-semibold tabular-nums">
         {rating === undefined ? "" : (rating ?? "–")}
